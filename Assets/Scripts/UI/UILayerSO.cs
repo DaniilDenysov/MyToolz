@@ -1,0 +1,18 @@
+using UnityEngine;
+
+namespace MyToolz.UI
+{
+    public enum ActivationMode
+    {
+        Override, //overrides stack completely
+        Additive, //added on top, exits previous state
+        Blend //added on top, doesn't exit previous state
+    }
+
+    [CreateAssetMenu(fileName = "UILayer", menuName = "NoSaints/UI/Layer")]
+    public class UILayerSO : ScriptableObject
+    {
+        [SerializeField] private ActivationMode activationMode = ActivationMode.Override;
+        public ActivationMode ActivationMode { get { return activationMode; } }
+    }
+}
