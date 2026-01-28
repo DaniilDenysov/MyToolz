@@ -1,13 +1,12 @@
 using UnityEngine;
 using System.IO;
 using System;
-using MyToolz.Utilities.Debug;
 
 namespace MyToolz.Utilities.Logging
 {
     public static class LogFileWriter
     {
-#if !UNITY_EDITOR
+ #if !UNITY_EDITOR
         private static StreamWriter logWriter;
         private static string logFilePath;
         private static bool initialized = false;
@@ -36,11 +35,11 @@ namespace MyToolz.Utilities.Logging
                 logWriter.AutoFlush = true;
 
                 Application.logMessageReceived += HandleLog;
-                DebugUtility.Log("===== Log Started: " + DateTime.Now + " =====");
+                UnityEngine.Debug.Log("===== Log Started: " + DateTime.Now + " =====");
             }
             catch (Exception e)
             {
-                DebugUtility.LogError("LogFileWriter init failed: " + e.Message);
+                UnityEngine.Debug.LogError("LogFileWriter init failed: " + e.Message);
             }
         }
 

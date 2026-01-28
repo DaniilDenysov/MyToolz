@@ -43,7 +43,7 @@ namespace MyToolz.Inventory.Models
                 return;
 
             uint newAmount = (uint)Mathf.Max(0, currentAmount - amount);
-            DebugUtility.Log($"{newAmount}");
+            DebugUtility.Log(this, $"{newAmount}");
             if (newAmount > 0)
             {
                 inventoryItems[inventoryItemSO] = newAmount;

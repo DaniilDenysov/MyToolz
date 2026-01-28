@@ -60,7 +60,7 @@ namespace MyToolz.ScriptableObjects.Audio
     }
 }
 
-namespace Extensions
+namespace MyToolz.Extensions
 {
     public static class AudioSourceExtensions
     {

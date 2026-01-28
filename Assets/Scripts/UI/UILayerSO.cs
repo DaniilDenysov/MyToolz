@@ -9,7 +9,7 @@ namespace MyToolz.UI
         Blend //added on top, doesn't exit previous state
     }
 
-    [CreateAssetMenu(fileName = "UILayer", menuName = "NoSaints/UI/Layer")]
+    [CreateAssetMenu(fileName = "UILayer", menuName = "MyToolz/UI/Layer")]
     public class UILayerSO : ScriptableObject
     {
         [SerializeField] private ActivationMode activationMode = ActivationMode.Override;

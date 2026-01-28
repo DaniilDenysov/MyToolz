@@ -1,0 +1,21 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fd29053a104856e40b9b892b473af512, type: 3}
+  m_Name: FullscreenSettingSO
+  m_EditorClassIdentifier: 
+  enableLogging: 1
+  settingName: Fullscreen
+  settingDescription: 
+  id: 9a4d686d-77ad-4977-b23a-769ba958cafe
+  defaultValue: 0
+  fullscreenMode: 1
+  windowedMode: 3

@@ -22,25 +22,25 @@ namespace MyToolz.UI
                 newState.OnEnter();
                 return;
             }
-            DebugUtility.Log($"Exiting state: {CurrentState}");
+            DebugUtility.Log(this, $"Exiting state: {CurrentState}");
             CurrentState?.OnExit();
 
             stateStack.Push(newState);
 
-            DebugUtility.Log($"Entered state: {newState}");
+            DebugUtility.Log(this, $"Entered state: {newState}");
             CurrentState?.OnEnter();
         }
 
         public void ExitState()
         {
-            DebugUtility.Log($"Exiting state: {CurrentState}");
+            DebugUtility.Log(this, $"Exiting state: {CurrentState}");
             CurrentState?.OnExit();
 
             if (stateStack.Count > 0) 
                 stateStack.Pop();
 
             CurrentState?.OnEnter();
-            DebugUtility.Log($"Entered state: {CurrentState}");
+            DebugUtility.Log(this, $"Entered state: {CurrentState}");
         }
 
         public void ClearStack()

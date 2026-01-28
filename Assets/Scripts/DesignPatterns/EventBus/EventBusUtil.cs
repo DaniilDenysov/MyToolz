@@ -59,7 +59,7 @@ namespace MyToolz.DesignPatterns.EventBus
         /// </summary>
         public static void ClearAllBuses()
         {
-            DebugUtility.Log("Clearing all buses...");
+            DebugUtility.Log("","Clearing all buses...", AutoTag.NamespaceSegments);
             for (int i = 0; i < EventBusTypes.Count; i++)
             {
                 var busType = EventBusTypes[i];

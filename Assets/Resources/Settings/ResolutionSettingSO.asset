@@ -1,0 +1,155 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d79f9d5975ee47b4d87beb4c9d9b7100, type: 3}
+  m_Name: ResolutionSettingSO
+  m_EditorClassIdentifier: 
+  enableLogging: 1
+  settingName: Resolution
+  settingDescription: 
+  id: 5a898c7e-8a9e-434a-9730-81a4b17cec45
+  defaultValue:
+    Index: 0
+    Name: 2560 x 1440
+    Width: 2560
+    Height: 1440
+    RefreshRate: -2147483648
+  options:
+  - Index: 0
+    Name: 2560 x 1440
+    Width: 2560
+    Height: 1440
+    RefreshRate: -2147483648
+  - Index: 1
+    Name: 1920 x 1440
+    Width: 1920
+    Height: 1440
+    RefreshRate: -2147483648
+  - Index: 2
+    Name: 1920 x 1200
+    Width: 1920
+    Height: 1200
+    RefreshRate: -2147483648
+  - Index: 3
+    Name: 1920 x 1080
+    Width: 1920
+    Height: 1080
+    RefreshRate: -2147483648
+  - Index: 4
+    Name: 1680 x 1050
+    Width: 1680
+    Height: 1050
+    RefreshRate: -2147483648
+  - Index: 5
+    Name: 1600 x 1200
+    Width: 1600
+    Height: 1200
+    RefreshRate: -2147483648
+  - Index: 6
+    Name: 1600 x 1024
+    Width: 1600
+    Height: 1024
+    RefreshRate: -2147483648
+  - Index: 7
+    Name: 1600 x 1000
+    Width: 1600
+    Height: 1000
+    RefreshRate: -2147483648
+  - Index: 8
+    Name: 1600 x 900
+    Width: 1600
+    Height: 900
+    RefreshRate: -2147483648
+  - Index: 9
+    Name: 1440 x 1080
+    Width: 1440
+    Height: 1080
+    RefreshRate: -2147483648
+  - Index: 10
+    Name: 1440 x 900
+    Width: 1440
+    Height: 900
+    RefreshRate: -2147483648
+  - Index: 11
+    Name: 1400 x 1050
+    Width: 1400
+    Height: 1050
+    RefreshRate: -2147483648
+  - Index: 12
+    Name: 1366 x 768
+    Width: 1366
+    Height: 768
+    RefreshRate: -2147483648
+  - Index: 13
+    Name: 1360 x 768
+    Width: 1360
+    Height: 768
+    RefreshRate: -2147483648
+  - Index: 14
+    Name: 1280 x 1024
+    Width: 1280
+    Height: 1024
+    RefreshRate: -2147483648
+  - Index: 15
+    Name: 1280 x 960
+    Width: 1280
+    Height: 960
+    RefreshRate: -2147483648
+  - Index: 16
+    Name: 1280 x 800
+    Width: 1280
+    Height: 800
+    RefreshRate: -2147483648
+  - Index: 17
+    Name: 1280 x 768
+    Width: 1280
+    Height: 768
+    RefreshRate: -2147483648
+  - Index: 18
+    Name: 1280 x 720
+    Width: 1280
+    Height: 720
+    RefreshRate: -2147483648
+  - Index: 19
+    Name: 1176 x 664
+    Width: 1176
+    Height: 664
+    RefreshRate: -2147483648
+  - Index: 20
+    Name: 1152 x 864
+    Width: 1152
+    Height: 864
+    RefreshRate: -2147483648
+  - Index: 21
+    Name: 1024 x 768
+    Width: 1024
+    Height: 768
+    RefreshRate: -2147483648
+  - Index: 22
+    Name: 800 x 600
+    Width: 800
+    Height: 600
+    RefreshRate: -2147483648
+  - Index: 23
+    Name: 720 x 576
+    Width: 720
+    Height: 576
+    RefreshRate: -2147483648
+  - Index: 24
+    Name: 720 x 480
+    Width: 720
+    Height: 480
+    RefreshRate: -2147483648
+  - Index: 25
+    Name: 640 x 480
+    Width: 640
+    Height: 480
+    RefreshRate: -2147483648

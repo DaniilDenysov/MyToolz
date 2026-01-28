@@ -21,7 +21,7 @@ namespace MyToolz.UI
 
             if (so == null)
             {
-                DebugUtility.LogError("Layer is null!");
+                DebugUtility.LogError(this, "Layer is null!");
                 return;
             }
 
@@ -29,7 +29,7 @@ namespace MyToolz.UI
                 layerStacks[so] = new HashSet<IUILayer>();
 
             if (layerStacks[so].Add(layer))
-                DebugUtility.Log($"[UILayer] Added {layer} to layer {so.name}");
+                DebugUtility.Log(this, $"[UILayer] Added {layer} to layer {so.name}");
         }
 
         public void RemoveLayer(IUILayer layer)
@@ -38,7 +38,7 @@ namespace MyToolz.UI
             if (so == null || !layerStacks.ContainsKey(so)) return;
 
             if (layerStacks[so].Remove(layer))
-                DebugUtility.Log($"[UILayer] Removed {layer} from layer {so.name}");
+                DebugUtility.Log(this, $"[UILayer] Removed {layer} from layer {so.name}");
         }
 
         public void ChangeState(IUILayer layer)
@@ -46,7 +46,7 @@ namespace MyToolz.UI
             var so = layer.Layer;
             if (so == null)
             {
-                DebugUtility.LogError("Layer is null!");
+                DebugUtility.LogError(this, "Layer is null!");
                 return;
             }
 
@@ -54,7 +54,7 @@ namespace MyToolz.UI
 
             if (so == CurrentLayer || layerStackList.Contains(so))
             {
-                DebugUtility.Log($"[UILayer] Re-entering screen in active layer {so.name}");
+                DebugUtility.Log(this, $"Re-entering screen in active layer {so.name}");
                 layer.OnEnter();
                 if (layerStacks.TryGetValue(so, out var screens))
                 {
@@ -100,11 +100,11 @@ namespace MyToolz.UI
 
             if (CurrentLayer == so)
             {
-                DebugUtility.Log($"[UILayer] Skipping duplicate push for {so?.name}");
+                DebugUtility.Log(this, $"[UILayer] Skipping duplicate push for {so?.name}");
             }
             else
             {
-                DebugUtility.Log($"[UILayer] Pushing layer {so?.name}");
+                DebugUtility.Log(this, $"[UILayer] Pushing layer {so?.name}");
                 layerStackList.Push(so);
             }
         }
@@ -122,7 +122,7 @@ namespace MyToolz.UI
 
             if (pop)
             {
-                DebugUtility.Log($"[UILayer] Popping layer {CurrentLayer?.name}");
+                DebugUtility.Log(this, $"[UILayer] Popping layer {CurrentLayer?.name}");
                 layerStackList.Pop();
             }
         }

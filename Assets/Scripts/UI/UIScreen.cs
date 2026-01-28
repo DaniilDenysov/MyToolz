@@ -12,10 +12,7 @@ namespace MyToolz.UI
         [Header("Config")]
         [SerializeField] private UIScreenBase defaultScreen;
         [SerializeField, HideIf("@parent")] private UILayerSO layer;
-        [Header("Callbacks")]
-        [SerializeField] private UnityEvent onOpen;
-        [SerializeField] private UnityEvent onClose;
-        private bool isRoot => parent == null && layer != null; 
+        private bool isRoot => parent == null && layer != null;
 
         protected UIStateManager localUIStateManager = new UIStateManager();
 
@@ -57,8 +54,6 @@ namespace MyToolz.UI
             {
                 parent.ChangeState(this);
             }
-
-            onOpen?.Invoke();
         }
 
         public override void OnEnter()
@@ -83,12 +78,15 @@ namespace MyToolz.UI
             {
                 parent.ExitState(this);
             }
-            onClose?.Invoke();
         }
 
         public void ChangeState(UIScreenBase screen)
         {
             localUIStateManager.ChangeState(screen);
+            if (isRoot || input != null)
+            {
+                inputStateManager.ChangeState(input);
+            }
         }
 
         public void ExitState(UIScreenBase screen)

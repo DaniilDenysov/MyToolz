@@ -1,10 +1,12 @@
 using MyToolz.Input;
+using MyToolz.Tweener.UI;
 using UnityEngine;
-using Zenject;
+using UnityEngine.Events;
+using UnityEngine.EventSystems;
 
 namespace MyToolz.UI
 {
-    [System.Serializable]
+   [System.Serializable]
     public abstract class InputMode : IPlayerInputState
     {
         public abstract void OnEnter();
@@ -16,23 +18,32 @@ namespace MyToolz.UI
 
         [Header("Base UI Config")]
         [SerializeField] protected UIScreen parent;
-        [SerializeField] protected GameObject screen;
-
+        [SerializeField] protected UITweener screenTweener;
+        [SerializeField] protected GameObject firstSelected;
+        [Header("Callbacks")]
+        [SerializeField] private UnityEvent onEnter;
+        [SerializeField] private UnityEvent onExit;
         protected bool isActive;
         public bool IsActive => isActive;
 
         public virtual void OnEnter()
         {
             isActive = true;
-            if (screen != null)
-                screen.SetActive(true);  
+            if (screenTweener != null)
+                screenTweener.SetActive(true);
+            if (firstSelected != null)
+                EventSystem.current.firstSelectedGameObject = firstSelected;
+            onEnter?.Invoke();
         }
 
         public virtual void OnExit()
         {
             isActive = false;
-            if (screen != null)
-                screen.SetActive(false);
+            if (screenTweener != null)
+                screenTweener.SetActive(false);
+            if (firstSelected != null)
+                EventSystem.current.firstSelectedGameObject = null;
+            onExit?.Invoke();
         }
 
         public override string ToString()

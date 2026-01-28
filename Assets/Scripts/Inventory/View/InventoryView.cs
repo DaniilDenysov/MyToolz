@@ -3,8 +3,8 @@ using MyToolz.Utilities.Debug;
 using System;
 using System.Collections.Generic;
 using UnityEngine;
-using MyToolz.Pools;
 using MyToolz.DesignPatterns.EventBus;
+using MyToolz.Events;
 
 namespace MyToolz.Inventory.Views
 {
@@ -30,7 +30,7 @@ namespace MyToolz.Inventory.Views
             foreach (var item in items)
             {
                 UpdateItem(item.Key, item.Value);
-                DebugUtility.Log("Updated");
+                DebugUtility.Log(this, "Updated");
             }
         }
 
@@ -92,7 +92,7 @@ namespace MyToolz.Inventory.Views
 
         private void PurchaseItem(ItemSO itm, uint amount)
         {
-            DebugUtility.Log("Changed amount!");
+            DebugUtility.Log(this, "Changed amount!");
             OnItemAmountChanged?.Invoke(itm, amount);
         }
     }
