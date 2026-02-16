@@ -118,9 +118,17 @@ jobs:
             || (echo "::error ::package.json not found inside tgz"; exit 1)
 
 
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: upm-${{ matrix.package }}
           path: "*.tgz"
 
+
+      - name: Configure npm for GitHub Packages
+        run: |
+            echo "@DaniilDenysov:registry=https://npm.pkg.github.com" >> ~/.npmrc
+            echo "//npm.pkg.github.com/:_authToken=${GITHUB_TOKEN}" >> ~/.npmrc
+        env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
