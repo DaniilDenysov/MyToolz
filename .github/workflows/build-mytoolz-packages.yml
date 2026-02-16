@@ -48,16 +48,16 @@ jobs:
       - name: Configure npm auth (npmjs) + validate token
         shell: bash
         env:
-            NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+            NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
             set -euo pipefail
             cat > ~/.npmrc <<EOF
             registry=https://registry.npmjs.org/
-            //registry.npmjs.org/:_authToken=${NPM_TOKEN}
+            //registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}
             always-auth=true
             EOF
-            npm whoami --registry https://registry.npmjs.org
 
+            npm whoami --registry https://registry.npmjs.org
 
       - name: Compute publish order (topological sort by com.mytoolz dependencies)
         id: order
@@ -131,6 +131,7 @@ jobs:
         shell: bash
         env:
           ORDER: ${{ steps.order.outputs.order }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           set -euo pipefail
           mkdir -p dist
