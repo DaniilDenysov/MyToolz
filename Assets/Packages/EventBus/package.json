@@ -6,18 +6,6 @@
   "unityRelease": "46f1",
   "description": "Modified for generic events event bus that extends https://github.com/adammyhre/Unity-Event-Bus",
   "license": "MIT",
-  "publishConfig": {
-    "registry": "https://npm.pkg.github.com"
-  },
-  "scopedRegistries": [
-    {
-      "name": "MyToolz",
-      "url": "http://127.0.0.1:4873",
-      "scopes": [
-        "com.mytoolz"
-      ]
-    }
-  ],
   "dependencies": {
     "com.mytoolz.debugutility": "1.0.0"
   }
