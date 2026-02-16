@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 env:
-  PROJECT_PATH: <repo root>/Assets
+  PROJECT_PATH: Assets
   OUTPUT_ROOT: build_output
 
 jobs:
