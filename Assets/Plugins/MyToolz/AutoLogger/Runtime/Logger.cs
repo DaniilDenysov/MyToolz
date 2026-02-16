@@ -2,7 +2,7 @@ using UnityEngine;
 using System.IO;
 using System;
 
-namespace MyToolz.Utilities.Logging
+namespace MyToolz.Utilities.AutoLogger
 {
     public static class LogFileWriter
     {

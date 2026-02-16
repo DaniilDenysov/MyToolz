@@ -1,0 +1,87 @@
+name: Build MyToolz Assets Packages
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+env:
+  PROJECT_PATH: unity_project
+  OUTPUT_ROOT: build_output
+
+jobs:
+  discover:
+    runs-on: ubuntu-22.04
+    outputs:
+      packages: ${{ steps.discover.outputs.packages }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: discover
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mapfile -t files < <(find "$PROJECT_PATH/Packages" -mindepth 2 -maxdepth 2 -name package.json -print | sort)
+
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "::error ::No packages found."
+            exit 1
+          fi
+
+          pkgs=()
+          for f in "${files[@]}"; do
+            pkgs+=("$(basename "$(dirname "$f")")")
+          done
+
+          json="$(printf '%s\n' "${pkgs[@]}" | jq -R . | jq -s .)"
+          echo "packages=$json" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: discover
+    runs-on: ubuntu-22.04
+    strategy:
+      matrix:
+        package: ${{ fromJson(needs.discover.outputs.packages) }}
+      fail-fast: false
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Prepare folder structure
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          PKG="${{ matrix.package }}"
+          SRC="$PROJECT_PATH/Packages/$PKG"
+
+          VERSION=$(jq -r .version "$SRC/package.json")
+
+          DEST="$OUTPUT_ROOT/Assets/Plugins/MyToolz/$PKG"
+          mkdir -p "$DEST"
+
+          # Copy everything except Samples (optional handling)
+          rsync -av --exclude="Samples" "$SRC/" "$DEST/"
+
+          if [ -d "$SRC/Samples" ]; then
+            mkdir -p "$DEST/Samples"
+            rsync -av "$SRC/Samples/" "$DEST/Samples/"
+          fi
+
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "PACKAGE_NAME=$PKG" >> $GITHUB_ENV
+
+      - name: Create zip artifact
+        shell: bash
+        run: |
+          ZIP_NAME="${PACKAGE_NAME}-${VERSION}-Assets.zip"
+          cd "$OUTPUT_ROOT"
+          zip -r "$ZIP_NAME" .
+          mv "$ZIP_NAME" "$GITHUB_WORKSPACE/"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mytoolz-${{ matrix.package }}
+          path: "*.zip"

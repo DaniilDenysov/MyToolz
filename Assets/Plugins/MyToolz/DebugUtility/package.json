@@ -1,0 +1,8 @@
+{
+  "name": "com.mytoolz.debugutility",
+  "displayName": "DebugUtility",
+  "version": "1.0.0",
+  "unity": "2022.3.46f1",
+  "description": "Log Utility that includes logger that automatically parses console logs to the file. Includes advanced name space tags for easy search, as well as basic styling for logs. Enables easy turn on/off editor utility",
+  "license": "MIT"
+}

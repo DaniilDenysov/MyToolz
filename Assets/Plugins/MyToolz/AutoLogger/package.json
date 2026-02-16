@@ -1,0 +1,8 @@
+{
+  "name": "com.mytoolz.autologger",
+  "displayName": "AutoLogger",
+  "version": "1.0.0",
+  "unity": "2022.3.46f1",
+  "description": "Automatically writes all the logs to the file",
+  "license": "MIT"
+}
