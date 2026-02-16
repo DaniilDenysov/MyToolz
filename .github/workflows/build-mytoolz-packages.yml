@@ -45,18 +45,19 @@ jobs:
           node-version: "20"
           registry-url: "https://registry.npmjs.org"
 
-      - name: Configure npm auth (npmjs)
+      - name: Configure npm auth (npmjs) + validate token
         shell: bash
         env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+            NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
-          set -euo pipefail
-          test -n "${NPM_TOKEN:-}" || (echo "::error ::Missing NPM_TOKEN secret"; exit 1)
-          cat > ~/.npmrc <<EOF
-          //registry.npmjs.org/:_authToken=${NPM_TOKEN}
-          always-auth=true
-          EOF
-          npm config get registry
+            set -euo pipefail
+            cat > ~/.npmrc <<EOF
+            registry=https://registry.npmjs.org/
+            //registry.npmjs.org/:_authToken=${NPM_TOKEN}
+            always-auth=true
+            EOF
+            npm whoami --registry https://registry.npmjs.org
+
 
       - name: Compute publish order (topological sort by com.mytoolz dependencies)
         id: order
