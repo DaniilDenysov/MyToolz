@@ -102,8 +102,8 @@ jobs:
             rsync -av "$SRC/Samples/" "$STAGE/Samples~/"
           fi
       
-          tar -czf "$GITHUB_WORKSPACE/$TGZ_NAME" -C "$STAGE" .
-          mv "$TGZ_NAME" "$GITHUB_WORKSPACE/"
+          tar -czf "$STAGE/$TGZ_NAME" -C "$STAGE" .
+          mv "$STAGE/$TGZ_NAME" "$GITHUB_WORKSPACE/"
 
 
       - name: Upload artifact
