@@ -102,7 +102,7 @@ jobs:
             rsync -av "$SRC/Samples/" "$STAGE/Samples~/"
           fi
       
-          tar -czf "$TGZ_NAME" -C "$STAGE" .
+          tar -czf "$GITHUB_WORKSPACE/$TGZ_NAME" -C "$STAGE" .
           mv "$TGZ_NAME" "$GITHUB_WORKSPACE/"
 
 
