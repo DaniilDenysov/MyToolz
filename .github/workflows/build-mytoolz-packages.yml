@@ -102,7 +102,9 @@ jobs:
           # Hard check: fail fast if missing
           test -f "$STAGE/package.json"
           
-          tar -czf "$GITHUB_WORKSPACE/${PKG}-${VERSION}.tgz" -C "$STAGE" .
+          TGZ="$GITHUB_WORKSPACE/${PKG}-${VERSION}.tgz"
+          tar -czf "$TGZ" -C "$STAGE" $(ls -A "$STAGE")
+
 
 
 
