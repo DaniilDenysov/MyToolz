@@ -35,7 +35,6 @@ jobs:
             exit 1
           fi
 
-          # Expect: Assets/Packages/<Module>/package.json
           mapfile -t files < <(find "$PACKAGES_ROOT" -mindepth 2 -maxdepth 2 -name package.json -print | sort)
 
           if [ ${#files[@]} -eq 0 ]; then
@@ -80,20 +79,22 @@ jobs:
           fi
           echo "UNITY_LICENSE present (length=${#UNITY_LICENSE})."
 
+      # Key change: pass arguments via customParameters so Unity definitely receives them.
+      # Also force Unity to write a log file in the workspace we can always upload.
       - name: Export per-module unitypackages (merged deps)
         uses: game-ci/unity-builder@v4
         env:
           UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
-          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }} 
-          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
-          MODULES: ${{ needs.discover.outputs.modules }}
-          OUT_DIR: ${{ env.OUT_DIR }}
-          MERGE_DEPS: "true"
         with:
           unityVersion: ${{ env.UNITY_VERSION }}
           targetPlatform: StandaloneLinux64
           buildMethod: MyToolzUnityPackageExporter.ExportPerModule_WithMergedDeps
           allowDirtyBuild: true
+          customParameters: >-
+            -logFile ${{ github.workspace }}/UnityEditor-ci.log
+            -mytoolzModules '${{ needs.discover.outputs.modules }}'
+            -mytoolzOutDir '${{ env.OUT_DIR }}'
+            -mytoolzMergeDeps true
 
       - name: List output directory (always)
         if: always()
@@ -111,18 +112,20 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+      # Always upload logs, including the forced -logFile output and common Unity log folders.
       - name: Upload Unity logs (always)
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: unity-logs
           path: |
-            **/Editor.log
-            **/Player.log
-            **/upm.log
+            ${{ github.workspace }}/UnityEditor-ci.log
             **/unitybuilder*.log
-            **/Logs/**/*
-            **/Library/Logs/**/*
+            **/upm.log
+            /home/runner/.config/unity3d/Editor.log
+            /home/runner/.config/unity3d/Logs/**/*
+            /github/home/.config/unity3d/Editor.log
+            /github/home/.config/unity3d/Logs/**/*
           if-no-files-found: warn
           retention-days: 14
 
