@@ -1,12 +1,19 @@
-name: Build & Publish MyToolz UPM Packages (npmjs)
+name: Export MyToolz UnityPackages
 
 on:
   push:
     branches: [ main ]
+    tags:
+      - "v*"
   workflow_dispatch:
+
+permissions:
+  contents: write   # required for creating releases + uploading release assets
 
 env:
   PACKAGES_ROOT: Assets/Packages
+  OUT_DIR: build_output
+  UNITY_VERSION: 2022.3.46f1
 
 jobs:
   discover:
@@ -15,19 +22,24 @@ jobs:
       packages: ${{ steps.discover.outputs.packages }}
     steps:
       - uses: actions/checkout@v4
+
       - id: discover
         shell: bash
         run: |
           set -euo pipefail
+
           mapfile -t files < <(find "$PACKAGES_ROOT" -mindepth 2 -maxdepth 2 -name package.json -print | sort)
+
           if [ ${#files[@]} -eq 0 ]; then
-            echo "::error ::No packages found."
+            echo "::error ::No packages found in $PACKAGES_ROOT."
             exit 1
           fi
+
           pkgs=()
           for f in "${files[@]}"; do
             pkgs+=("$(basename "$(dirname "$f")")")
           done
+
           json="$(printf '%s\n' "${pkgs[@]}" | jq -R . | jq -s .)"
           {
             echo "packages<<EOF"
@@ -35,155 +47,38 @@ jobs:
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
 
-  pack_and_publish:
+  export:
     needs: discover
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+
+      # Exports one .unitypackage per module (with merged internal deps if your method does that).
+      - name: Export unitypackages via Unity (GameCI)
+        uses: game-ci/unity-builder@v4
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          MODULES: ${{ needs.discover.outputs.packages }}
+          OUT_DIR: ${{ env.OUT_DIR }}
+          MERGE_DEPS: "true"
         with:
-          node-version: "20"
-          registry-url: "https://registry.npmjs.org"
+          unityVersion: ${{ env.UNITY_VERSION }}
+          targetPlatform: StandaloneLinux64
+          buildMethod: MyToolzUnityPackageExporter.ExportPerModule_WithMergedDeps
+          allowDirtyBuild: true
 
-      - name: Configure npm auth (npmjs) + validate token
-        shell: bash
-        env:
-            NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: |
-            set -euo pipefail
-            cat > ~/.npmrc <<EOF
-            registry=https://registry.npmjs.org/
-            //registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}
-            always-auth=true
-            EOF
-
-            npm whoami --registry https://registry.npmjs.org
-
-      - name: Compute publish order (topological sort by com.mytoolz dependencies)
-        id: order
-        shell: bash
-        env:
-          PACKAGES: ${{ needs.discover.outputs.packages }}
-        run: |
-          set -euo pipefail
-          cat > sort-packages.js <<'JS'
-          const fs = require("fs");
-          const path = require("path");
-          const packages = JSON.parse(process.env.PACKAGES);
-          const root = process.env.PACKAGES_ROOT || "Assets/Packages";
-
-          const meta = new Map();
-          for (const folder of packages) {
-            const p = path.join(root, folder, "package.json");
-            const j = JSON.parse(fs.readFileSync(p, "utf8"));
-            meta.set(folder, { folder, name: j.name, deps: j.dependencies || {} });
-          }
-
-          const nameToFolder = new Map([...meta.values()].map(m => [m.name, m.folder]));
-
-          const depsMap = new Map();
-          const indeg = new Map();
-          for (const m of meta.values()) {
-            const s = new Set();
-            for (const depName of Object.keys(m.deps)) {
-              if (depName.startsWith("com.mytoolz.")) {
-                const depFolder = nameToFolder.get(depName);
-                if (depFolder) s.add(depFolder);
-              }
-            }
-            depsMap.set(m.folder, s);
-            indeg.set(m.folder, 0);
-          }
-          for (const [f, ds] of depsMap.entries()) indeg.set(f, ds.size);
-
-          const q = [...indeg.entries()].filter(([,d]) => d===0).map(([f])=>f).sort();
-          const out = [];
-          while (q.length) {
-            const n = q.shift();
-            out.push(n);
-            for (const [f, ds] of depsMap.entries()) {
-              if (ds.has(n)) {
-                ds.delete(n);
-                indeg.set(f, indeg.get(f)-1);
-                if (indeg.get(f)===0) { q.push(f); q.sort(); }
-              }
-            }
-          }
-          if (out.length !== packages.length) {
-            console.error("Cycle or missing dependency detected.");
-            process.exit(1);
-          }
-          process.stdout.write(JSON.stringify(out));
-          JS
-
-          ORDER="$(PACKAGES_ROOT="$PACKAGES_ROOT" node sort-packages.js)"
-          echo "order=$ORDER" >> "$GITHUB_OUTPUT"
-          echo "Publish order: $ORDER"
-      - name: Force npmjs registry (debug)
-        shell: bash
-        run: |
-            set -euo pipefail
-            npm config set registry "https://registry.npmjs.org/"
-            echo "registry=$(npm config get registry)"
-            npm config list
-
-      - name: Pack & publish in order
-        shell: bash
-        env:
-          ORDER: ${{ steps.order.outputs.order }}
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: |
-          set -euo pipefail
-          mkdir -p dist
-          git config --global url."https://github.com/".insteadOf "git@github.com:"
-          git config --global url."https://github.com/".insteadOf "ssh://git@github.com/"
-
-          for PKG in $(echo "$ORDER" | jq -r '.[]'); do
-            echo "----"
-            echo "Packing $PKG"
-            PKG_DIR="$PACKAGES_ROOT/$PKG"
-            VERSION="$(jq -r .version "$PKG_DIR/package.json")"
-
-            STAGE="$(mktemp -d)"
-            rsync -av --exclude=".git" --exclude="Tests" "$PKG_DIR/" "$STAGE/"
-
-            if [ -d "$PKG_DIR/Samples" ]; then
-              rm -rf "$STAGE/Samples"
-              mkdir -p "$STAGE/Samples~"
-              rsync -av "$PKG_DIR/Samples/" "$STAGE/Samples~/"
-            fi
-
-            test -f "$STAGE/package.json"
-
-            pushd "$STAGE" >/dev/null
-            OUT_TGZ="$(npm pack --silent)"
-            popd >/dev/null
-
-            FINAL="dist/${PKG}-${VERSION}.tgz"
-            mv "$STAGE/$OUT_TGZ" "$FINAL"
-
-            tar -tzf "$FINAL" | grep -E '(^|/)package\.json$' >/dev/null \
-              || (echo "::error ::package.json not found inside $FINAL"; exit 1)
-
-            echo "---- DEBUG package.json being published ----"
-            cat "$STAGE/package.json"
-            echo "---- DEBUG dependencies ----"
-            jq '.dependencies // {}' "$STAGE/package.json"
-            echo "---- DEBUG repository ----"
-            jq '.repository // null' "$STAGE/package.json"
-
-
-            echo "Publishing $FINAL to npmjs"
-            ABS_FINAL="$(realpath "$FINAL")"
-            ls -la "$FINAL"
-            file "$FINAL" || true
-            echo "ABS_FINAL=$(realpath "$FINAL")"
-            # npm publish "$ABS_FINAL" --registry https://registry.npmjs.org --access public
-
-          done
-
-      - name: Upload tgz artifacts
+      - name: Upload unitypackage artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: upm-tgz
-          path: dist/*.tgz
+          name: mytoolz-unitypackages
+          path: ${{ env.OUT_DIR }}/*.unitypackage
+          if-no-files-found: error
+          retention-days: 14
+
+      # Create a GitHub Release only when pushing a tag like v1.2.3
+      - name: Create GitHub Release (tags only)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: ${{ env.OUT_DIR }}/*.unitypackage
