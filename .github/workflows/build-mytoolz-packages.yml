@@ -90,7 +90,14 @@ jobs:
           PKG_DIR="$PROJECT_PATH/Packages/$PKG"
           
           STAGE="$(mktemp -d)"
-          rsync -av --exclude=".git" --exclude="Tests" "$PKG_DIR/" "$STAGE/"
+          rsync -av --exclude=".git" --exclude="Tests" "$SRC/" "$STAGE/"
+          
+          pushd "$STAGE" >/dev/null
+          npm pack --silent
+          TGZ="$(ls -1 *.tgz | head -n 1)"
+          mv "$TGZ" "$GITHUB_WORKSPACE/${PKG}-${VERSION}.tgz"
+          popd >/dev/null
+
           
           # Samples -> Samples~
           if [ -d "$PKG_DIR/Samples" ]; then
