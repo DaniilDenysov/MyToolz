@@ -56,6 +56,7 @@ jobs:
           //registry.npmjs.org/:_authToken=${NPM_TOKEN}
           always-auth=true
           EOF
+          npm config get registry
 
       - name: Compute publish order (topological sort by com.mytoolz dependencies)
         id: order
@@ -117,6 +118,13 @@ jobs:
           ORDER="$(PACKAGES_ROOT="$PACKAGES_ROOT" node sort-packages.js)"
           echo "order=$ORDER" >> "$GITHUB_OUTPUT"
           echo "Publish order: $ORDER"
+      - name: Force npmjs registry (debug)
+        shell: bash
+        run: |
+            set -euo pipefail
+            npm config set registry "https://registry.npmjs.org/"
+            echo "registry=$(npm config get registry)"
+            npm config list
 
       - name: Pack & publish in order
         shell: bash
@@ -154,7 +162,7 @@ jobs:
               || (echo "::error ::package.json not found inside $FINAL"; exit 1)
 
             echo "Publishing $FINAL to npmjs"
-            npm publish "$FINAL" --access public
+            npm publish "$FINAL" --registry https://registry.npmjs.org --access public
           done
 
       - name: Upload tgz artifacts
