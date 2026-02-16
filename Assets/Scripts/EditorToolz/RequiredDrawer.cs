@@ -1,4 +1,5 @@
 #if UNITY_EDITOR
+using MyToolz.Utilities.Debug;
 using UnityEditor;
 using UnityEngine;
 
@@ -45,6 +46,8 @@ namespace MyToolz.EditorToolz
                 : required.Message;
 
             EditorGUI.HelpBox(helpRect, message, MessageType.Error);
+
+            DebugUtility.LogError(message);
         }
 
         private static bool IsValid(SerializedProperty property)

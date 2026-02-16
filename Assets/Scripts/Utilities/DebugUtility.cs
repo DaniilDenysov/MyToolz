@@ -9,6 +9,7 @@ using System.Text;
 using UnityEngine;
 using MyToolz.ScriptableObjects.Utilites.Debug;
 
+
 namespace MyToolz.Utilities.Debug
 {
     [Flags]
@@ -107,26 +108,27 @@ namespace MyToolz.Utilities.Debug
             }
         }
 
-#if UNITY_EDITOR
-        [MenuItem("Tools/Enable Debugging")]
-        public static void EnableDebug()
-        {
-            string symbols = PlayerSettings.GetScriptingDefineSymbolsForGroup(BuildTargetGroup.Standalone);
-            if (!symbols.Contains("ENABLE_DEBUG"))
-            {
-                symbols += ";ENABLE_DEBUG";
-                PlayerSettings.SetScriptingDefineSymbolsForGroup(BuildTargetGroup.Standalone, symbols);
-            }
-        }
+//#if UNITY_EDITOR
+//        [MenuItem("Tools/Enable Debugging")]
+//        public static void EnableDebug()
+//        {
+//            string symbols = PlayerSettings.GetScriptingDefineSymbolsForGroup(BuildTargetGroup.Standalone);
+//            if (!symbols.Contains("ENABLE_DEBUG"))
+//            {
+//                symbols += ";ENABLE_DEBUG";
+//                PlayerSettings.SetScriptingDefineSymbolsForGroup(BuildTargetGroup.Standalone, symbols);
+//            }
+//        }
 
-        [MenuItem("Tools/Disable Debugging")]
-        public static void DisableDebug()
-        {
-            string symbols = PlayerSettings.GetScriptingDefineSymbolsForGroup(BuildTargetGroup.Standalone);
-            symbols = symbols.Replace("ENABLE_DEBUG", "").Replace(";;", ";").Trim(';');
-            PlayerSettings.SetScriptingDefineSymbolsForGroup(BuildTargetGroup.Standalone, symbols);
-        }
-#endif
+//        [MenuItem("Tools/Disable Debugging")]
+//        public static void DisableDebug()
+//        {
+//            string symbols = PlayerSettings.GetScriptingDefineSymbolsForGroup(BuildTargetGroup.Standalone);
+//            symbols = symbols.Replace("ENABLE_DEBUG", "").Replace(";;", ";").Trim(';');
+//            PlayerSettings.SetScriptingDefineSymbolsForGroup(BuildTargetGroup.Standalone, symbols);
+//        }
+//#endif
+
         #region Static
         public static void Log(string message, AutoTag auto = AutoTag.Default, [CallerMemberName] string memberName = "")
         {
@@ -146,41 +148,49 @@ namespace MyToolz.Utilities.Debug
             UnityEngine.Debug.LogError(Format(message, auto, errorMessage, memberName));
         }
         #endregion
+
         #region Object
         public static void Log(object context, string message, AutoTag auto = AutoTag.Default, [CallerMemberName] string memberName = "")
         {
             if (Cached == null) return;
+            if (!LogGate.ShouldLog(context)) return;
             UnityEngine.Debug.Log(Format(message, auto, logMessage, memberName, context));
         }
 
         public static void LogWarning(object context, string message, AutoTag auto = AutoTag.Default, [CallerMemberName] string memberName = "")
         {
             if (Cached == null) return;
+            if (!LogGate.ShouldLog(context)) return;
             UnityEngine.Debug.LogWarning(Format(message, auto, warningMessage, memberName, context));
         }
 
         public static void LogError(object context, string message, AutoTag auto = AutoTag.Default, [CallerMemberName] string memberName = "")
         {
             if (Cached == null) return;
+            if (!LogGate.ShouldLog(context)) return;
             UnityEngine.Debug.LogError(Format(message, auto, errorMessage, memberName, context));
         }
         #endregion
+
         #region UnityObject
         public static void Log(UnityEngine.Object context, string message, AutoTag auto = AutoTag.Default, [CallerMemberName] string memberName = "")
         {
             if (Cached == null) return;
+            if (!LogGate.ShouldLog(context)) return;
             UnityEngine.Debug.Log(Format(message, auto, logMessage, memberName, context));
         }
 
         public static void LogWarning(UnityEngine.Object context, string message, AutoTag auto = AutoTag.Default, [CallerMemberName] string memberName = "")
         {
             if (Cached == null) return;
+            if (!LogGate.ShouldLog(context)) return;
             UnityEngine.Debug.LogWarning(Format(message, auto, warningMessage, memberName, context));
         }
 
         public static void LogError(UnityEngine.Object context, string message, AutoTag auto = AutoTag.Default, [CallerMemberName] string memberName = "")
         {
             if (Cached == null) return;
+            if (!LogGate.ShouldLog(context)) return;
             UnityEngine.Debug.LogError(Format(message, auto, errorMessage, memberName, context));
         }
         #endregion

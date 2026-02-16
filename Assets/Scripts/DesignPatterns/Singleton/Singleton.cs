@@ -1,8 +1,9 @@
+using MyToolz.Core;
 using UnityEngine;
 
 namespace MyToolz.DesignPatterns.Singleton
 {
-    public abstract class Singleton<T> : MonoBehaviour
+    public abstract class Singleton<T> : MonoBehaviourPlus
     {
         [SerializeField] protected bool dontDestroyOnLoad = false;
         [SerializeField] protected bool destroyWholeIfDuplicate;

@@ -1,5 +1,5 @@
 using MyToolz.Input;
-using MyToolz.UI;
+using MyToolz.UI.Management;
 using Zenject;
 
 namespace MyToolz.Installers

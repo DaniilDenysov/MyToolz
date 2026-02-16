@@ -1,19 +1,19 @@
+using MyToolz.Core;
 using MyToolz.DesignPatterns.StateMachine;
-using MyToolz.Utilities.Debug;
 
 namespace MyToolz.Input
 {
-    public class InputStateManager : IStateMachine<IPlayerInputState>
+    public class InputStateManager : ObjectPlus, IStateMachine<IPlayerInputState>
     {
         private IPlayerInputState currentState;
         public IPlayerInputState CurrentState => currentState;
 
         public void ChangeState(IPlayerInputState playerInputState)
         {
-            DebugUtility.Log(this, $"Exiting {currentState}...");
+            Log($"Exiting {currentState}...");
             currentState?.OnExit();
             currentState = playerInputState;
-            DebugUtility.Log(this ,$"Entering {currentState}...");
+            Log($"Entering {currentState}...");
             currentState?.OnEnter();
         }
     }

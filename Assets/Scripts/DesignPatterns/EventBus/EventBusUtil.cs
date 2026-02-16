@@ -2,7 +2,6 @@
 using System.Reflection;
 using System.Collections.Generic;
 using UnityEditor;
-using UnityEngine;
 using System.Linq;
 using MyToolz.Utilities.Debug;
 
@@ -59,7 +58,7 @@ namespace MyToolz.DesignPatterns.EventBus
         /// </summary>
         public static void ClearAllBuses()
         {
-            DebugUtility.Log("","Clearing all buses...", AutoTag.NamespaceSegments);
+            DebugUtility.Log("Clearing all buses...", AutoTag.NamespaceSegments);
             for (int i = 0; i < EventBusTypes.Count; i++)
             {
                 var busType = EventBusTypes[i];

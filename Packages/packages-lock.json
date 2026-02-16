@@ -1,5 +1,12 @@
 {
   "dependencies": {
+    "com.lbg.subclassselector": {
+      "version": "https://github.com/spiney199/Subclass-Selector.git?path=Assets/Subclass-Selector/Subclass-Selector",
+      "depth": 0,
+      "source": "git",
+      "dependencies": {},
+      "hash": "f3a2de7a0d6fd6059088c9125007a872770f863b"
+    },
     "com.unity.2d.animation": {
       "version": "9.1.1",
       "depth": 1,
@@ -161,6 +168,15 @@
       },
       "url": "https://packages.unity.com"
     },
+    "com.unity.inputsystem": {
+      "version": "1.7.0",
+      "depth": 0,
+      "source": "registry",
+      "dependencies": {
+        "com.unity.modules.uielements": "1.0.0"
+      },
+      "url": "https://packages.unity.com"
+    },
     "com.unity.mathematics": {
       "version": "1.2.6",
       "depth": 2,
@@ -208,7 +224,7 @@
       "url": "https://packages.unity.com"
     },
     "com.unity.ugui": {
-      "version": "1.0.0",
+      "version": "2.0.0",
       "depth": 0,
       "source": "builtin",
       "dependencies": {

@@ -6,21 +6,12 @@ using Zenject;
 using MyToolz.DesignPatterns.EventBus;
 using MyToolz.Events;
 
-namespace MyToolz.Events
+namespace MyToolz.DesignPatterns.ObjectPool.Interfaces
 {
-    public struct PoolRequest<T> : IEvent
+    public interface IPoolable
     {
-        public T Prefab;
-        public Vector3 Position;
-        public Quaternion Rotation;
-        public Transform Parent;
-        public Action<T> Callback;
-    }
-
-    public struct ReleaseRequest<T> : IEvent
-    {
-        public T PoolObject;
-        public Action<T> Callback;
+        public void OnSpawned();
+        public void OnDespawned();
     }
 }
 
