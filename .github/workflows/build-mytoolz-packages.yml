@@ -63,7 +63,7 @@ jobs:
 
           VERSION=$(jq -r .version "$SRC/package.json")
 
-          DEST="$OUTPUT_ROOT/Assets/Plugins/MyToolz/$PKG"
+          DEST="$OUTPUT_ROOT/MyToolz/$PKG"
           mkdir -p "$DEST"
 
           # Copy everything except Samples (optional handling)
@@ -77,16 +77,39 @@ jobs:
           echo "VERSION=$VERSION" >> $GITHUB_ENV
           echo "PACKAGE_NAME=$PKG" >> $GITHUB_ENV
 
-      - name: Create zip artifact
+      - name: Create UPM tgz
         shell: bash
         run: |
-          ZIP_NAME="${PACKAGE_NAME}-${VERSION}-Assets.zip"
-          cd "$OUTPUT_ROOT"
-          zip -r "$ZIP_NAME" .
-          mv "$ZIP_NAME" "$GITHUB_WORKSPACE/"
+          set -euo pipefail
+          PROJECT_PATH="unity_project"
+          PKG="${{ matrix.package }}"
+          SRC="$PROJECT_PATH/Packages/$PKG"
+      
+          VERSION="$(jq -r .version "$SRC/package.json")"
+          TGZ_NAME="${PKG}-${VERSION}.tgz"
+      
+          # Create clean staging dir
+          STAGE="$(mktemp -d)"
+          rsync -av \
+            --exclude=".git" \
+            --exclude="Tests" \
+            --exclude="Test" \
+            "$SRC/" "$STAGE/"
+      
+          # Unity convention: Samples should be Samples~ in distributed UPM packages
+          if [ -d "$SRC/Samples" ]; then
+            rm -rf "$STAGE/Samples"
+            mkdir -p "$STAGE/Samples~"
+            rsync -av "$SRC/Samples/" "$STAGE/Samples~/"
+          fi
+      
+          tar -czf "$TGZ_NAME" -C "$STAGE" .
+          mv "$TGZ_NAME" "$GITHUB_WORKSPACE/"
+
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: mytoolz-${{ matrix.package }}
-          path: "*.zip"
+          name: upm-${{ matrix.package }}
+          path: "*.tgz"
+
