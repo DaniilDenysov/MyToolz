@@ -35,7 +35,12 @@ jobs:
           done
 
           json="$(printf '%s\n' "${pkgs[@]}" | jq -R . | jq -s .)"
-          echo "packages=$json" >> "$GITHUB_OUTPUT"
+          {
+            echo "packages<<EOF"
+            echo "$json"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
 
   build:
     needs: discover
