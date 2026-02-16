@@ -87,22 +87,23 @@ jobs:
           VERSION="$(jq -r .version "$SRC/package.json")"
           TGZ_NAME="${PKG}-${VERSION}.tgz"
       
-          # Create clean staging dir
+          PKG_DIR="$PROJECT_PATH/Packages/$PKG"
+          
           STAGE="$(mktemp -d)"
-          rsync -av \
-            --exclude=".git" \
-            --exclude="Tests" \
-            --exclude="Test" \
-            "$SRC/" "$STAGE/"
-      
-          # Unity convention: Samples should be Samples~ in distributed UPM packages
-          if [ -d "$SRC/Samples" ]; then
+          rsync -av --exclude=".git" --exclude="Tests" "$PKG_DIR/" "$STAGE/"
+          
+          # Samples -> Samples~
+          if [ -d "$PKG_DIR/Samples" ]; then
             rm -rf "$STAGE/Samples"
             mkdir -p "$STAGE/Samples~"
-            rsync -av "$SRC/Samples/" "$STAGE/Samples~/"
+            rsync -av "$PKG_DIR/Samples/" "$STAGE/Samples~/"
           fi
-      
-          tar -czf "$GITHUB_WORKSPACE/$TGZ_NAME" -C "$STAGE" .
+          
+          # Hard check: fail fast if missing
+          test -f "$STAGE/package.json"
+          
+          tar -czf "$GITHUB_WORKSPACE/${PKG}-${VERSION}.tgz" -C "$STAGE" .
+
 
 
 
