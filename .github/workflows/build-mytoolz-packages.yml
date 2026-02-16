@@ -161,6 +161,12 @@ jobs:
             tar -tzf "$FINAL" | grep -E '(^|/)package\.json$' >/dev/null \
               || (echo "::error ::package.json not found inside $FINAL"; exit 1)
 
+            REPO_FIELD="$(jq -r '.repository // empty' "$PKG_DIR/package.json" || true)"
+            if echo "$REPO_FIELD" | grep -q '^dist/'; then
+              echo "::error ::Invalid repository field in $PKG_DIR/package.json: $REPO_FIELD"
+              exit 1
+            fi
+
             echo "Publishing $FINAL to npmjs"
             npm publish "$FINAL" --registry https://registry.npmjs.org --access public
           done
