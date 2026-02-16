@@ -178,7 +178,7 @@ jobs:
             ls -la "$FINAL"
             file "$FINAL" || true
             echo "ABS_FINAL=$(realpath "$FINAL")"
-            npm publish "$ABS_FINAL" --registry https://registry.npmjs.org --access public
+            # npm publish "$ABS_FINAL" --registry https://registry.npmjs.org --access public
 
           done
 
