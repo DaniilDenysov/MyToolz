@@ -133,6 +133,8 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p dist
+          git config --global url."https://github.com/".insteadOf "git@github.com:"
+          git config --global url."https://github.com/".insteadOf "ssh://git@github.com/"
 
           for PKG in $(echo "$ORDER" | jq -r '.[]'); do
             echo "----"
@@ -170,7 +172,12 @@ jobs:
 
 
             echo "Publishing $FINAL to npmjs"
-            npm publish "$FINAL" --registry https://registry.npmjs.org --access public
+            ABS_FINAL="$(realpath "$FINAL")"
+            ls -la "$FINAL"
+            file "$FINAL" || true
+            echo "ABS_FINAL=$(realpath "$FINAL")"
+            npm publish "$ABS_FINAL" --registry https://registry.npmjs.org --access public
+
           done
 
       - name: Upload tgz artifacts
