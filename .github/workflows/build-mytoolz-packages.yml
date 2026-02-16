@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write   # required for creating releases + uploading release assets
+  contents: write
 
 env:
   PACKAGES_ROOT: Assets/Packages
@@ -17,48 +17,71 @@ env:
 
 jobs:
   discover:
+    name: Discover modules
     runs-on: ubuntu-22.04
     outputs:
-      packages: ${{ steps.discover.outputs.packages }}
+      modules: ${{ steps.discover.outputs.modules }}
     steps:
       - uses: actions/checkout@v4
 
-      - id: discover
+      - name: Discover package folders
+        id: discover
         shell: bash
         run: |
           set -euo pipefail
 
-          mapfile -t files < <(find "$PACKAGES_ROOT" -mindepth 2 -maxdepth 2 -name package.json -print | sort)
-
-          if [ ${#files[@]} -eq 0 ]; then
-            echo "::error ::No packages found in $PACKAGES_ROOT."
+          if [ ! -d "$PACKAGES_ROOT" ]; then
+            echo "::error ::PACKAGES_ROOT not found: $PACKAGES_ROOT"
             exit 1
           fi
 
-          pkgs=()
+          # Expect: Assets/Packages/<Module>/package.json
+          mapfile -t files < <(find "$PACKAGES_ROOT" -mindepth 2 -maxdepth 2 -name package.json -print | sort)
+
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "::error ::No packages found in $PACKAGES_ROOT (expected Assets/Packages/<Module>/package.json)."
+            exit 1
+          fi
+
+          modules=()
           for f in "${files[@]}"; do
-            pkgs+=("$(basename "$(dirname "$f")")")
+            modules+=("$(basename "$(dirname "$f")")")
           done
 
-          json="$(printf '%s\n' "${pkgs[@]}" | jq -R . | jq -s .)"
+          json="$(printf '%s\n' "${modules[@]}" | jq -R . | jq -s .)"
+
           {
-            echo "packages<<EOF"
+            echo "modules<<EOF"
             echo "$json"
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
 
+          echo "Discovered modules: $json"
+
   export:
+    name: Export unitypackages
     needs: discover
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      # Exports one .unitypackage per module (with merged internal deps if your method does that).
-      - name: Export unitypackages via Unity (GameCI)
+      - name: Validate UNITY_LICENSE secret
+        shell: bash
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+        run: |
+          set -euo pipefail
+          if [ -z "${UNITY_LICENSE:-}" ]; then
+            echo "::error ::UNITY_LICENSE secret is missing or empty. Paste the full .ulf file contents into the UNITY_LICENSE secret."
+            exit 1
+          fi
+          echo "UNITY_LICENSE present (length=${#UNITY_LICENSE})."
+
+      - name: Export per-module unitypackages (merged deps)
         uses: game-ci/unity-builder@v4
         env:
           UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
-          MODULES: ${{ needs.discover.outputs.packages }}
+          MODULES: ${{ needs.discover.outputs.modules }}
           OUT_DIR: ${{ env.OUT_DIR }}
           MERGE_DEPS: "true"
         with:
@@ -75,10 +98,11 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-      # Create a GitHub Release only when pushing a tag like v1.2.3
       - name: Create GitHub Release (tags only)
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           generate_release_notes: true
           files: ${{ env.OUT_DIR }}/*.unitypackage
