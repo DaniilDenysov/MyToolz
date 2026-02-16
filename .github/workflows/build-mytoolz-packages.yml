@@ -52,6 +52,9 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
 
       - name: Prepare folder structure
         shell: bash
@@ -77,36 +80,42 @@ jobs:
           echo "VERSION=$VERSION" >> $GITHUB_ENV
           echo "PACKAGE_NAME=$PKG" >> $GITHUB_ENV
 
-      - name: Create UPM tgz
+      - name: Create UPM tgz (npm pack)
         shell: bash
         run: |
           set -euo pipefail
           PKG="${{ matrix.package }}"
-          SRC="$PROJECT_PATH/Packages/$PKG"
-      
-          VERSION="$(jq -r .version "$SRC/package.json")"
-          TGZ_NAME="${PKG}-${VERSION}.tgz"
-      
           PKG_DIR="$PROJECT_PATH/Packages/$PKG"
-          
+
+          VERSION="$(jq -r .version "$PKG_DIR/package.json")"
+          NAME_IN_JSON="$(jq -r .name "$PKG_DIR/package.json")"
+
           STAGE="$(mktemp -d)"
           rsync -av --exclude=".git" --exclude="Tests" "$PKG_DIR/" "$STAGE/"
-          
-          # Samples -> Samples~
+
+          # Samples -> Samples~ (Unity expects Samples~ inside UPM packages)
           if [ -d "$PKG_DIR/Samples" ]; then
             rm -rf "$STAGE/Samples"
             mkdir -p "$STAGE/Samples~"
             rsync -av "$PKG_DIR/Samples/" "$STAGE/Samples~/"
           fi
-          
-          # Hard check: fail fast if missing
+
           test -f "$STAGE/package.json"
-          
-          TGZ="$GITHUB_WORKSPACE/${PKG}-${VERSION}.tgz"
-          tar -czf "$TGZ" -C "$STAGE" $(ls -A "$STAGE")
 
+          # npm pack creates a Unity/UPM-compatible .tgz
+          npm --version >/dev/null 2>&1 || (echo "::error ::npm is required"; exit 1)
 
+          pushd "$STAGE" >/dev/null
+          OUT_TGZ="$(npm pack --silent)"
+          popd >/dev/null
 
+          # Normalize file name (optional)
+          FINAL_TGZ="$GITHUB_WORKSPACE/${PKG}-${VERSION}.tgz"
+          mv "$STAGE/$OUT_TGZ" "$FINAL_TGZ"
+
+          # Sanity check: ensure package.json is present in the archive
+          tar -tzf "$FINAL_TGZ" | grep -E '(^|/)package\.json$' >/dev/null \
+            || (echo "::error ::package.json not found inside tgz"; exit 1)
 
 
       - name: Upload artifact
