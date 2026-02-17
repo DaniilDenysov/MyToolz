@@ -22,7 +22,7 @@ namespace MyToolz.CI
         /// </summary>
         public static void ExportAllToolsUnderAssetsPackages()
         {
-            var outDir = GetArg("-mytoolzOutDir") ?? "build_output";
+            var outDir = "build_output";
             var mergeDeps = IsTrue(GetArg("-mytoolzMergeDeps"), defaultValue: true);
             var includeProjectDeps = IsTrue(GetArg("-mytoolzIncludeProjectDeps"), defaultValue: true);
 
