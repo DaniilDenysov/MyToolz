@@ -16,12 +16,13 @@ public static class MyToolzUnityPackageExporter
     {
         try
         {
-            // Prefer command line args (most reliable in CI), then fall back to env vars.
-            // Args supported:
+            // Args supported (preferred in CI):
             //   -mytoolzModulesFile <path-to-json-array>
             //   -mytoolzModules <json-array>
             //   -mytoolzOutDir <output-folder>
             //   -mytoolzMergeDeps <true|false>
+            // Env fallbacks:
+            //   MODULES, OUT_DIR, MERGE_DEPS
 
             var modulesJson = "[]";
 
@@ -43,6 +44,7 @@ public static class MyToolzUnityPackageExporter
                               ?? "[]";
             }
 
+            // CI tip: keep this relative by default; absolute paths can cause runner path surprises.
             var outDir = GetArg("-mytoolzOutDir")
                          ?? Environment.GetEnvironmentVariable("OUT_DIR")
                          ?? "build_output";
@@ -114,25 +116,45 @@ public static class MyToolzUnityPackageExporter
                     }
                 }
 
-                // Collect asset paths from folders
+                // Collect *starting* assets from module folder(s)
                 var exportRoots = foldersToInclude
                     .Select(f => metas[f].RootFolder)
                     .Distinct()
                     .ToArray();
 
-                // Export all assets under those roots (stable and explicit)
-                var guids = AssetDatabase.FindAssets("", exportRoots);
-                var paths = guids.Select(AssetDatabase.GUIDToAssetPath)
-                                 .Where(p => exportRoots.Any(r => p.StartsWith(r, StringComparison.Ordinal)))
-                                 .Distinct()
-                                 .ToArray();
+                var startGuids = AssetDatabase.FindAssets("", exportRoots);
+                var startPaths = startGuids
+                    .Select(AssetDatabase.GUIDToAssetPath)
+                    .Where(p => p.StartsWith("Assets/", StringComparison.Ordinal))
+                    .Where(p => exportRoots.Any(r => p.StartsWith(r, StringComparison.Ordinal)))
+                    .Distinct()
+                    .ToArray();
+
+                if (startPaths.Length == 0)
+                {
+                    Debug.LogWarning($"No assets found under: {string.Join(", ", exportRoots)} (skipping {folder})");
+                    continue;
+                }
+
+                // Dependency merging:
+                // - If mergeDeps==true, include all referenced project assets (outside Assets/Packages too)
+                // - Unity packages can only include Assets/, so we filter to Assets/
+                var finalPaths = startPaths;
+                if (mergeDeps)
+                {
+                    var deps = AssetDatabase.GetDependencies(startPaths, recursive: true);
+                    finalPaths = deps
+                        .Where(p => p.StartsWith("Assets/", StringComparison.Ordinal))
+                        .Distinct()
+                        .ToArray();
+                }
 
                 var outPath = Path.Combine(outDir, $"MyToolz-{folder}-{meta.Version}{(mergeDeps ? "-with-deps" : "")}.unitypackage");
 
                 AssetDatabase.ExportPackage(
-                    paths,
+                    finalPaths,
                     outPath,
-                    ExportPackageOptions.Recurse // we already explicitly included dependency folders
+                    ExportPackageOptions.Recurse
                 );
 
                 Debug.Log($"Exported: {outPath}");

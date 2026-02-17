@@ -8,6 +8,66 @@ namespace MyToolz.CI
 {
     public static class CIEntryPoint
     {
+        /// <summary>
+        /// CI export: produce one unitypackage per tool/module under Assets/Packages/&lt;Tool&gt;.
+        /// The exporter itself performs dependency merging.
+        /// </summary>
+        public static void ExportPerModuleUnityPackages()
+        {
+            // NOTE: Keep this relative. In CI we upload build_output as artifact.
+            var outDir = "build_output";
+            Directory.CreateDirectory(outDir);
+
+            var exporterLogPath = Path.Combine(outDir, "Exporter-ci.log");
+            using var logWriter = new StreamWriter(exporterLogPath, append: false);
+
+            void Log(string msg)
+            {
+                var line = $"[{DateTime.UtcNow:O}] {msg}";
+                logWriter.WriteLine(line);
+                logWriter.Flush();
+                Debug.Log(line);
+            }
+
+            void LogErr(string msg)
+            {
+                var line = $"[{DateTime.UtcNow:O}] ERROR: {msg}";
+                logWriter.WriteLine(line);
+                logWriter.Flush();
+                Debug.LogError(line);
+            }
+
+            try
+            {
+                Application.SetStackTraceLogType(LogType.Error, StackTraceLogType.Full);
+                Application.SetStackTraceLogType(LogType.Exception, StackTraceLogType.Full);
+            }
+            catch { /* ignore */ }
+
+            try
+            {
+                Log("ExportPerModuleUnityPackages started");
+                Log($"Unity={Application.unityVersion}, Platform={Application.platform}");
+                Log($"outDir={outDir}");
+
+                // Delegate to the real exporter.
+                MyToolzUnityPackageExporter.ExportPerModule_WithMergedDeps();
+
+                // ExportPerModule_WithMergedDeps is expected to call EditorApplication.Exit.
+                // If it doesn't (e.g., implementation changed), exit successfully.
+                Log("Exporter returned without exiting. Exiting with code 0.");
+                EditorApplication.Exit(0);
+            }
+            catch (Exception ex)
+            {
+                LogErr("Per-module export failed with exception:");
+                LogErr(ex.ToString());
+                logWriter.WriteLine("CI_EXPORT_FAILED=1");
+                logWriter.Flush();
+                EditorApplication.Exit(1);
+            }
+        }
+
         public static void ExportWholeRepoUnityPackage()
         {
             var outDir = "build_output";
