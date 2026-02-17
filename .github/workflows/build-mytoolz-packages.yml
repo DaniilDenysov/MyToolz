@@ -81,26 +81,15 @@ jobs:
           fi
           echo "UNITY_LICENSE present (length=${#UNITY_LICENSE})."
 
-      - name: Prepare module list file
+      - name: Write module list file
         shell: bash
         run: |
-          set -euo pipefail
-          mkdir -p "${OUT_DIR}"
-          echo "${{ needs.discover.outputs.modules_b64 }}" | base64 -d > mytoolz-modules.json
-          echo "Decoded modules file:"
+          echo '${{ needs.discover.outputs.modules }}' > mytoolz-modules.json
           cat mytoolz-modules.json
-
+      
       - name: Export per-module unitypackages (merged deps)
         uses: game-ci/unity-builder@v4
-        env:
-          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
-          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
-          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
         with:
-          unityVersion: ${{ env.UNITY_VERSION }}
-          projectPath: .
-          targetPlatform: StandaloneLinux64
-          allowDirtyBuild: true
           buildMethod: MyToolzUnityPackageExporter.ExportPerModule_WithMergedDeps
           customParameters: >-
             -logFile ${{ github.workspace }}/UnityEditor-ci.log
