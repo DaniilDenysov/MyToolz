@@ -56,15 +56,22 @@ namespace MyToolz.CI
                 var outputPath = Path.Combine(outDir, $"{SanitizeFileName(packageName)}.unitypackage");
                 Log($"Exporting '{rootToExport}' -> {outputPath}");
 
-                // IncludeDependencies exports all referenced assets too (safe for "whole Assets")
                 AssetDatabase.ExportPackage(
                     rootToExport,
                     outputPath,
-                    ExportPackageOptions.Interactive | ExportPackageOptions.Recurse | ExportPackageOptions.IncludeDependencies
+                    ExportPackageOptions.Recurse | ExportPackageOptions.IncludeDependencies
                 );
 
-                Log("Export completed successfully.");
+                // Make sure the file is really written before exiting
+                AssetDatabase.SaveAssets();
+                AssetDatabase.Refresh();
+
+                if (!File.Exists(outputPath))
+                    throw new FileNotFoundException($"Unity did not create the unitypackage at: {outputPath}");
+
+                Log($"Export completed. File exists: {outputPath}");
                 EditorApplication.Exit(0);
+
             }
             catch (Exception ex)
             {
