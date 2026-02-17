@@ -1,6 +1,8 @@
 #if UNITY_EDITOR
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using UnityEditor;
 using UnityEngine;
 
@@ -9,15 +11,22 @@ namespace MyToolz.CI
     public static class CIEntryPoint
     {
         /// <summary>
-        /// CI export: produce one unitypackage per tool/module under Assets/Packages/&lt;Tool&gt;.
-        /// The exporter itself performs dependency merging.
+        /// Exports one unitypackage per folder in Assets/Packages/<Tool>/ (must contain package.json).
+        /// Optionally merges tool-to-tool deps (via package.json dependencies on com.mytoolz.*)
+        /// and also merges "project dependencies" discovered by AssetDatabase.GetDependencies.
+        ///
+        /// Args:
+        ///  -mytoolzOutDir <path>                (default: build_output)
+        ///  -mytoolzMergeDeps <true|false>       (default: true)
+        ///  -mytoolzIncludeProjectDeps <true|false> (default: true)
         /// </summary>
-        public static void ExportPerModuleUnityPackages()
+        public static void ExportAllToolsUnderAssetsPackages()
         {
-            // NOTE: Keep this relative. In CI we upload build_output as artifact.
-            var outDir = "build_output";
-            Directory.CreateDirectory(outDir);
+            var outDir = GetArg("-mytoolzOutDir") ?? "build_output";
+            var mergeDeps = IsTrue(GetArg("-mytoolzMergeDeps"), defaultValue: true);
+            var includeProjectDeps = IsTrue(GetArg("-mytoolzIncludeProjectDeps"), defaultValue: true);
 
+            Directory.CreateDirectory(outDir);
             var exporterLogPath = Path.Combine(outDir, "Exporter-ci.log");
             using var logWriter = new StreamWriter(exporterLogPath, append: false);
 
@@ -46,92 +55,43 @@ namespace MyToolz.CI
 
             try
             {
-                Log("ExportPerModuleUnityPackages started");
+                Log("ExportAllToolsUnderAssetsPackages started");
                 Log($"Unity={Application.unityVersion}, Platform={Application.platform}");
                 Log($"outDir={outDir}");
+                Log($"mergeDeps={mergeDeps}, includeProjectDeps={includeProjectDeps}");
 
-                // Delegate to the real exporter.
-                MyToolzUnityPackageExporter.ExportPerModule_WithMergedDeps();
+                var packagesRoot = "Assets/Packages";
+                if (!AssetDatabase.IsValidFolder(packagesRoot))
+                    throw new DirectoryNotFoundException($"Folder not found: {packagesRoot}");
 
-                // ExportPerModule_WithMergedDeps is expected to call EditorApplication.Exit.
-                // If it doesn't (e.g., implementation changed), exit successfully.
-                Log("Exporter returned without exiting. Exiting with code 0.");
-                EditorApplication.Exit(0);
-            }
-            catch (Exception ex)
-            {
-                LogErr("Per-module export failed with exception:");
-                LogErr(ex.ToString());
-                logWriter.WriteLine("CI_EXPORT_FAILED=1");
-                logWriter.Flush();
-                EditorApplication.Exit(1);
-            }
-        }
+                // Discover tool folders (Assets/Packages/<Tool>/package.json)
+                var toolFolders = Directory.GetDirectories(packagesRoot)
+                    .Select(d => d.Replace('\\', '/'))
+                    .Where(d => File.Exists(Path.Combine(d, "package.json")))
+                    .Select(d => d.Substring(packagesRoot.Length + 1)) // folder name only
+                    .OrderBy(x => x, StringComparer.Ordinal)
+                    .ToArray();
 
-        public static void ExportWholeRepoUnityPackage()
-        {
-            var outDir = "build_output";
-            var packageName = GetArg("-mytoolzPackageName") ?? $"MyToolz-{DateTime.UtcNow:yyyyMMdd-HHmmss}";
+                if (toolFolders.Length == 0)
+                    throw new Exception($"No packages found under {packagesRoot} (expected Assets/Packages/<Tool>/package.json).");
 
-            Directory.CreateDirectory(outDir);
+                Log($"Discovered {toolFolders.Length} tool(s): {string.Join(", ", toolFolders)}");
 
-            var exporterLogPath = Path.Combine(outDir, "Exporter-ci.log");
-            using var logWriter = new StreamWriter(exporterLogPath, append: false);
-
-            void Log(string msg)
-            {
-                var line = $"[{DateTime.UtcNow:O}] {msg}";
-                logWriter.WriteLine(line);
-                logWriter.Flush();
-                Debug.Log(line);
-            }
-
-            void LogErr(string msg)
-            {
-                var line = $"[{DateTime.UtcNow:O}] ERROR: {msg}";
-                logWriter.WriteLine(line);
-                logWriter.Flush();
-                Debug.LogError(line);
-            }
-
-            try
-            {
-                Application.SetStackTraceLogType(LogType.Error, StackTraceLogType.Full);
-                Application.SetStackTraceLogType(LogType.Exception, StackTraceLogType.Full);
-            }
-            catch { /* ignore */ }
-
-            try
-            {
-                Log("ExportWholeRepoUnityPackage started");
-                Log($"Unity={Application.unityVersion}, Platform={Application.platform}");
-                Log($"outDir={outDir}");
-                Log($"packageName={packageName}");
-
-                // Unity packages can only contain Assets/ content
-                const string rootToExport = "Assets";
-                if (!AssetDatabase.IsValidFolder(rootToExport))
-                    throw new DirectoryNotFoundException("Assets folder not found (unexpected).");
-
-                var outputPath = Path.Combine(outDir, $"{SanitizeFileName(packageName)}.unitypackage");
-                Log($"Exporting '{rootToExport}' -> {outputPath}");
-
-                AssetDatabase.ExportPackage(
-                    rootToExport,
-                    outputPath,
-                    ExportPackageOptions.Recurse | ExportPackageOptions.IncludeDependencies
+                // Call your existing exporter
+                MyToolzUnityPackageExporter.ExportFolders(
+                    toolFolders,
+                    outDir,
+                    mergeDeps,
+                    includeProjectDeps,
+                    Log,
+                    LogErr
                 );
 
-                // Make sure the file is really written before exiting
                 AssetDatabase.SaveAssets();
                 AssetDatabase.Refresh();
 
-                if (!File.Exists(outputPath))
-                    throw new FileNotFoundException($"Unity did not create the unitypackage at: {outputPath}");
-
-                Log($"Export completed. File exists: {outputPath}");
+                Log("ExportAllToolsUnderAssetsPackages completed successfully");
                 EditorApplication.Exit(0);
-
             }
             catch (Exception ex)
             {
@@ -152,11 +112,11 @@ namespace MyToolz.CI
             return null;
         }
 
-        private static string SanitizeFileName(string name)
+        private static bool IsTrue(string s, bool defaultValue)
         {
-            foreach (var c in Path.GetInvalidFileNameChars())
-                name = name.Replace(c, '_');
-            return name;
+            if (string.IsNullOrWhiteSpace(s)) return defaultValue;
+            s = s.Trim().ToLowerInvariant();
+            return s is "1" or "true" or "yes" or "y";
         }
     }
 }

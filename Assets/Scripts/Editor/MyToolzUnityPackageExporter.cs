@@ -6,223 +6,148 @@ using System.Linq;
 using UnityEditor;
 using UnityEngine;
 
-
-/// <summary>
-/// Generated with ChatGPT for automation purposes
-/// </summary>
 public static class MyToolzUnityPackageExporter
 {
-    public static void ExportPerModule_WithMergedDeps()
+    public static void ExportFolders(
+        string[] toolFolderNames,          // ["EventBus","UIManagement",...]
+        string outDir,
+        bool mergeToolDeps,
+        bool includeProjectDeps,
+        Action<string> log,
+        Action<string> logErr)
     {
-        try
+        // Read all package.json metadata for the discovered tools
+        var metas = new Dictionary<string, PackageMeta>(StringComparer.Ordinal); // folder -> meta
+        var nameToFolder = new Dictionary<string, string>(StringComparer.Ordinal); // com.mytoolz.* -> folder
+
+        foreach (var folder in toolFolderNames)
         {
-            // Args supported (preferred in CI):
-            //   -mytoolzModulesFile <path-to-json-array>
-            //   -mytoolzModules <json-array>
-            //   -mytoolzOutDir <output-folder>
-            //   -mytoolzMergeDeps <true|false>
-            // Env fallbacks:
-            //   MODULES, OUT_DIR, MERGE_DEPS
-
-            var modulesJson = "[]";
-
-            var modulesFile = GetArg("-mytoolzModulesFile");
-            if (!string.IsNullOrWhiteSpace(modulesFile))
+            var root = $"Assets/Packages/{folder}";
+            var pkgJsonPath = Path.Combine(root, "package.json");
+            if (!File.Exists(pkgJsonPath))
             {
-                if (!File.Exists(modulesFile))
+                logErr($"Missing package.json: {pkgJsonPath}");
+                continue;
+            }
+
+            var meta = PackageMeta.Load(folder, root, pkgJsonPath);
+            metas[folder] = meta;
+
+            if (!string.IsNullOrWhiteSpace(meta.PackageName))
+                nameToFolder[meta.PackageName] = folder;
+        }
+
+        foreach (var folder in toolFolderNames)
+        {
+            if (!metas.TryGetValue(folder, out var meta))
+                continue;
+
+            // 1) Decide which tool folders to include (merge internal tool-to-tool deps)
+            var foldersToInclude = new HashSet<string>(StringComparer.Ordinal) { folder };
+
+            if (mergeToolDeps)
+            {
+                var stack = new Stack<string>();
+                stack.Push(folder);
+
+                while (stack.Count > 0)
                 {
-                    Debug.LogError($"Modules file not found: {modulesFile}");
-                    EditorApplication.Exit(1);
-                    return;
-                }
-                modulesJson = File.ReadAllText(modulesFile);
-            }
-            else
-            {
-                modulesJson = GetArg("-mytoolzModules")
-                              ?? Environment.GetEnvironmentVariable("MODULES")
-                              ?? "[]";
-            }
+                    var cur = stack.Pop();
+                    var curMeta = metas[cur];
 
-            // CI tip: keep this relative by default; absolute paths can cause runner path surprises.
-            var outDir = GetArg("-mytoolzOutDir")
-                         ?? Environment.GetEnvironmentVariable("OUT_DIR")
-                         ?? "build_output";
-
-            var mergeDeps = IsTrue(GetArg("-mytoolzMergeDeps")
-                                   ?? Environment.GetEnvironmentVariable("MERGE_DEPS"));
-
-            Debug.Log($"[MyToolzUnityPackageExporter] outDir='{outDir}', mergeDeps={mergeDeps}");
-            Debug.Log($"[MyToolzUnityPackageExporter] modulesJson='{modulesJson}'");
-
-            var moduleFolders = ParseJsonStringArray(modulesJson);
-            if (moduleFolders.Length == 0)
-            {
-                Debug.LogError("No modules provided. Provide -mytoolzModulesFile, -mytoolzModules, or set env MODULES to a JSON array.");
-                EditorApplication.Exit(1);
-                return;
-            }
-
-            Directory.CreateDirectory(outDir);
-
-            // Read all package.json metadata
-            var metas = new Dictionary<string, PackageMeta>(); // folder -> meta
-            var nameToFolder = new Dictionary<string, string>(StringComparer.Ordinal);
-
-            foreach (var folder in moduleFolders)
-            {
-                var root = $"Assets/Packages/{folder}";
-                var pkgJsonPath = Path.Combine(root, "package.json");
-                if (!File.Exists(pkgJsonPath))
-                {
-                    Debug.LogError($"Missing package.json: {pkgJsonPath}");
-                    continue;
-                }
-
-                var meta = PackageMeta.Load(folder, root, pkgJsonPath);
-                metas[folder] = meta;
-
-                // Map package name -> folder, e.g. com.mytoolz.eventbus -> EventBus
-                if (!string.IsNullOrWhiteSpace(meta.PackageName))
-                    nameToFolder[meta.PackageName] = folder;
-            }
-
-            foreach (var folder in moduleFolders)
-            {
-                if (!metas.TryGetValue(folder, out var meta))
-                    continue;
-
-                // Compute transitive internal deps (by com.mytoolz.* names)
-                var foldersToInclude = new HashSet<string>(StringComparer.Ordinal) { folder };
-
-                if (mergeDeps)
-                {
-                    var stack = new Stack<string>();
-                    stack.Push(folder);
-
-                    while (stack.Count > 0)
+                    foreach (var depName in curMeta.InternalDependencyNames)
                     {
-                        var cur = stack.Pop();
-                        var curMeta = metas[cur];
+                        if (!nameToFolder.TryGetValue(depName, out var depFolder))
+                            continue; // dependency not in this repo/tools set
 
-                        foreach (var depName in curMeta.InternalDependencyNames)
-                        {
-                            if (!nameToFolder.TryGetValue(depName, out var depFolder))
-                                continue; // dependency not in this repo/modules list
-
-                            if (foldersToInclude.Add(depFolder))
-                                stack.Push(depFolder);
-                        }
+                        if (foldersToInclude.Add(depFolder))
+                            stack.Push(depFolder);
                     }
                 }
+            }
 
-                // Collect *starting* assets from module folder(s)
-                var exportRoots = foldersToInclude
-                    .Select(f => metas[f].RootFolder)
+            var exportRoots = foldersToInclude
+                .Select(f => metas[f].RootFolder)
+                .Distinct()
+                .ToArray();
+
+            // 2) Collect ALL assets inside included roots
+            var rootGuids = AssetDatabase.FindAssets("", exportRoots);
+            var rootPaths = rootGuids
+                .Select(AssetDatabase.GUIDToAssetPath)
+                .Where(p => !string.IsNullOrEmpty(p))
+                .Select(p => p.Replace('\\', '/'))
+                .Where(p => exportRoots.Any(r => p.StartsWith(r, StringComparison.Ordinal)))
+                .Distinct()
+                .ToArray();
+
+            // 3) Optionally pull "project dependencies" (assets referenced outside the tool folders)
+            //    This is the safety net that usually avoids compilation errors after import.
+            IEnumerable<string> allPaths = rootPaths;
+
+            if (includeProjectDeps)
+            {
+                var deps = AssetDatabase.GetDependencies(rootPaths, recursive: true)
+                    .Select(p => p.Replace('\\', '/'))
+                    .Where(p => p.StartsWith("Assets/", StringComparison.Ordinal)) // unitypackage can only export Assets/*
+                    .Where(p => !p.StartsWith("Assets/Packages/", StringComparison.Ordinal) // keep package roots already included
+                                || exportRoots.Any(r => p.StartsWith(r, StringComparison.Ordinal)))
                     .Distinct()
                     .ToArray();
 
-                var startGuids = AssetDatabase.FindAssets("", exportRoots);
-                var startPaths = startGuids
-                    .Select(AssetDatabase.GUIDToAssetPath)
-                    .Where(p => p.StartsWith("Assets/", StringComparison.Ordinal))
-                    .Where(p => exportRoots.Any(r => p.StartsWith(r, StringComparison.Ordinal)))
-                    .Distinct()
-                    .ToArray();
-
-                if (startPaths.Length == 0)
+                // Important: also include any dependency that lives in Assets/Packages but outside current roots
+                // ONLY when mergeToolDeps is on, otherwise you can accidentally “leak” other tools in.
+                if (mergeToolDeps)
                 {
-                    Debug.LogWarning($"No assets found under: {string.Join(", ", exportRoots)} (skipping {folder})");
-                    continue;
-                }
-
-                // Dependency merging:
-                // - If mergeDeps==true, include all referenced project assets (outside Assets/Packages too)
-                // - Unity packages can only include Assets/, so we filter to Assets/
-                var finalPaths = startPaths;
-                if (mergeDeps)
-                {
-                    var deps = AssetDatabase.GetDependencies(startPaths, recursive: true);
-                    finalPaths = deps
+                    deps = deps
                         .Where(p => p.StartsWith("Assets/", StringComparison.Ordinal))
                         .Distinct()
                         .ToArray();
                 }
-
-                var outPath = Path.Combine(outDir, $"MyToolz-{folder}-{meta.Version}{(mergeDeps ? "-with-deps" : "")}.unitypackage");
-
-                AssetDatabase.ExportPackage(
-                    finalPaths,
-                    outPath,
-                    ExportPackageOptions.Recurse
-                );
-
-                Debug.Log($"Exported: {outPath}");
-            }
-
-            AssetDatabase.Refresh();
-            EditorApplication.Exit(0);
-        }
-        catch (Exception e)
-        {
-            Debug.LogException(e);
-            EditorApplication.Exit(1);
-        }
-    }
-
-    private static string? GetArg(string key)
-    {
-        var args = Environment.GetCommandLineArgs();
-        for (int i = 0; i < args.Length - 1; i++)
-        {
-            if (string.Equals(args[i], key, StringComparison.Ordinal))
-                return args[i + 1];
-        }
-        return null;
-    }
-
-    private static bool IsTrue(string? s)
-    {
-        if (string.IsNullOrWhiteSpace(s)) return false;
-        s = s.Trim().ToLowerInvariant();
-        return s is "1" or "true" or "yes" or "y";
-    }
-
-    private static string[] ParseJsonStringArray(string json)
-    {
-        // minimal parser for ["A","B"]
-        var list = new List<string>();
-        bool inStr = false;
-        var cur = "";
-        for (int i = 0; i < json.Length; i++)
-        {
-            char c = json[i];
-            if (c == '"' && (i == 0 || json[i - 1] != '\\'))
-            {
-                inStr = !inStr;
-                if (!inStr)
+                else
                 {
-                    if (!string.IsNullOrWhiteSpace(cur)) list.Add(cur);
-                    cur = "";
+                    // If mergeToolDeps is false, strictly prevent pulling other tool folders:
+                    deps = deps
+                        .Where(p => !p.StartsWith("Assets/Packages/", StringComparison.Ordinal)
+                                    || exportRoots.Any(r => p.StartsWith(r, StringComparison.Ordinal)))
+                        .Distinct()
+                        .ToArray();
                 }
-                continue;
+
+                allPaths = rootPaths.Concat(deps).Distinct();
             }
-            if (inStr) cur += c;
+
+            Directory.CreateDirectory(outDir);
+            var suffix = $"{(mergeToolDeps ? "-with-deps" : "")}{(includeProjectDeps ? "-projectdeps" : "")}";
+            var outPath = Path.Combine(outDir, $"MyToolz-{folder}-{meta.Version}{suffix}.unitypackage");
+
+            log($"Exporting '{folder}' -> {outPath}");
+            log($"  Included roots: {string.Join(", ", exportRoots)}");
+            log($"  Files exported: {allPaths.Count()}");
+
+            AssetDatabase.ExportPackage(
+                allPaths.ToArray(),
+                outPath,
+                ExportPackageOptions.Recurse
+            );
+
+            if (!File.Exists(outPath))
+                logErr($"Unity did not create the unitypackage at: {outPath}");
+            else
+                log($"Exported OK: {outPath}");
         }
-        return list.ToArray();
     }
 
     private sealed class PackageMeta
     {
         public string FolderName = "";
-        public string RootFolder = ""; // Assets/Packages/<Folder>
-        public string PackageName = ""; // com.mytoolz.something
+        public string RootFolder = "";
+        public string PackageName = "";
         public string Version = "0.0.0";
-        public List<string> InternalDependencyNames = new(); // com.mytoolz.*
+        public List<string> InternalDependencyNames = new();
 
         public static PackageMeta Load(string folderName, string rootFolder, string pkgJsonPath)
         {
-            // lightweight parse; avoids bringing JSON libs
             var text = File.ReadAllText(pkgJsonPath);
 
             string GetString(string key)
@@ -249,7 +174,7 @@ public static class MyToolzUnityPackageExporter
                 Version = GetString("version")
             };
 
-            // parse dependencies object and keep com.mytoolz.* keys
+            // Parse dependencies keys; keep com.mytoolz.* as "internal"
             var depsKey = "\"dependencies\"";
             var dIdx = text.IndexOf(depsKey, StringComparison.Ordinal);
             if (dIdx >= 0)
@@ -269,17 +194,18 @@ public static class MyToolzUnityPackageExporter
                             if (depth == 0) { i++; break; }
                         }
                     }
-                    var obj = text.Substring(start, i - start);
 
-                    // very simple: find all quoted keys and filter
+                    var obj = text.Substring(start, i - start);
                     for (int j = 0; j < obj.Length; j++)
                     {
                         if (obj[j] != '"') continue;
                         int k = obj.IndexOf('"', j + 1);
                         if (k < 0) break;
+
                         var key = obj.Substring(j + 1, k - (j + 1));
                         if (key.StartsWith("com.mytoolz.", StringComparison.Ordinal))
                             meta.InternalDependencyNames.Add(key);
+
                         j = k;
                     }
                 }
