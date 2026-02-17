@@ -118,8 +118,7 @@ public static class MyToolzUnityPackageExporter
             }
 
             Directory.CreateDirectory(outDir);
-            var suffix = $"{(mergeToolDeps ? "-with-deps" : "")}{(includeProjectDeps ? "-projectdeps" : "")}";
-            var outPath = Path.Combine(outDir, $"MyToolz-{folder}-{meta.Version}{suffix}.unitypackage");
+            var outPath = Path.Combine(outDir, $"MyToolz-{folder}-{meta.Version}.unitypackage");
 
             log($"Exporting '{folder}' -> {outPath}");
             log($"  Included roots: {string.Join(", ", exportRoots)}");
