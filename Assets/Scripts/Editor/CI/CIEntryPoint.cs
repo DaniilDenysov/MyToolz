@@ -10,7 +10,7 @@ namespace MyToolz.CI
     {
         public static void ExportWholeRepoUnityPackage()
         {
-            var outDir = GetArg("-mytoolzOutDir") ?? "build_output";
+            var outDir = "build_output";
             var packageName = GetArg("-mytoolzPackageName") ?? $"MyToolz-{DateTime.UtcNow:yyyyMMdd-HHmmss}";
 
             Directory.CreateDirectory(outDir);
