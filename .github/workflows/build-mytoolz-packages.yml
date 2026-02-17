@@ -1,4 +1,4 @@
-name: Export MyToolz UnityPackages
+name: Export MyToolz UnityPackage (single)
 
 on:
   push:
@@ -11,56 +11,17 @@ permissions:
   contents: write
 
 env:
-  PACKAGES_ROOT: Assets/Packages
-  OUT_DIR: build_output
   UNITY_VERSION: 2022.3.46f1
+  OUT_DIR: build_output
 
 jobs:
-  discover:
-    name: Discover modules
-    runs-on: ubuntu-22.04
-    outputs:
-      modules_b64: ${{ steps.discover.outputs.modules_b64 }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Discover package folders
-        id: discover
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          if [ ! -d "$PACKAGES_ROOT" ]; then
-            echo "::error ::PACKAGES_ROOT not found: $PACKAGES_ROOT"
-            exit 1
-          fi
-
-          mapfile -t files < <(find "$PACKAGES_ROOT" -mindepth 2 -maxdepth 2 -name package.json -print | sort)
-          if [ ${#files[@]} -eq 0 ]; then
-            echo "::error ::No packages found in $PACKAGES_ROOT (expected Assets/Packages/<Module>/package.json)."
-            exit 1
-          fi
-
-          modules=()
-          for f in "${files[@]}"; do
-            modules+=("$(basename "$(dirname "$f")")")
-          done
-
-          json="$(printf '%s\n' "${modules[@]}" | jq -R . | jq -s -c .)"
-          b64="$(printf '%s' "$json" | base64 -w0)"
-
-          echo "modules_b64=$b64" >> "$GITHUB_OUTPUT"
-          echo "Modules JSON: $json"
-
   export:
-    name: Export unitypackages
-    needs: discover
+    name: Export unitypackage
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout (full history)
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
@@ -81,16 +42,13 @@ jobs:
           fi
           echo "UNITY_LICENSE present (len=${#UNITY_LICENSE})"
 
-      - name: Prepare modules file + output dir
+      - name: Prepare output dir
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p "${OUT_DIR}"
-          echo "${{ needs.discover.outputs.modules_b64 }}" | base64 -d > mytoolz-modules.json
-          echo "mytoolz-modules.json:"
-          cat mytoolz-modules.json
 
-      - name: Export unitypackages (with forced logging)
+      - name: Export unitypackage (whole Assets/)
         uses: game-ci/unity-builder@v4
         env:
           UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
@@ -101,7 +59,7 @@ jobs:
           projectPath: .
           targetPlatform: StandaloneLinux64
           allowDirtyBuild: true
-          buildMethod: MyToolz.CI.CIEntryPoint.ExportUnityPackages
+          buildMethod: MyToolz.CI.CIEntryPoint.ExportWholeRepoUnityPackage
           customParameters: >-
             -batchmode
             -nographics
@@ -109,9 +67,8 @@ jobs:
             -logFile ${{ github.workspace }}/UnityEditor-ci.log
             -stackTraceLogType Full
             -logTimestamp
-            -mytoolzModulesFile ${{ github.workspace }}/mytoolz-modules.json
             -mytoolzOutDir ${{ github.workspace }}/${{ env.OUT_DIR }}
-            -mytoolzMergeDeps true
+            -mytoolzPackageName ${{ github.event.repository.name }}-${{ github.ref_name }}-${{ github.sha }}
 
       - name: Dump logs to console (on failure)
         if: failure()
@@ -121,15 +78,15 @@ jobs:
           if [ -f "UnityEditor-ci.log" ]; then tail -n 200 "UnityEditor-ci.log"; else echo "UnityEditor-ci.log missing"; fi
           echo "===== Tail: Exporter-ci.log ====="
           if [ -f "${OUT_DIR}/Exporter-ci.log" ]; then tail -n 200 "${OUT_DIR}/Exporter-ci.log"; else echo "Exporter-ci.log missing"; fi
-          echo "===== Files in OUT_DIR ====="
+          echo "===== OUT_DIR content ====="
           ls -la "${OUT_DIR}" || true
-          find "${OUT_DIR}" -maxdepth 3 -type f -print || true
+          find "${OUT_DIR}" -type f -maxdepth 2 -print || true
 
-      - name: Upload unitypackage artifacts
+      - name: Upload unitypackage artifact
         uses: actions/upload-artifact@v4
         with:
-          name: mytoolz-unitypackages
-          path: ${{ env.OUT_DIR }}/**/*.unitypackage
+          name: mytoolz-unitypackage-single
+          path: ${{ env.OUT_DIR }}/*.unitypackage
           if-no-files-found: error
           retention-days: 14
 
@@ -140,9 +97,10 @@ jobs:
           name: unity-logs
           path: |
             UnityEditor-ci.log
-            mytoolz-modules.json
             ${{ env.OUT_DIR }}/Exporter-ci.log
-            ${{ env.OUT_DIR }}/**/*.log
             /home/runner/.config/unity3d/Editor.log
             /home/runner/.config/unity3d/Logs/**/*
             /github/home/.config/unity3d/Editor.log
+            /github/home/.config/unity3d/Logs/**/*
+          if-no-files-found: warn
+          retention-days: 14

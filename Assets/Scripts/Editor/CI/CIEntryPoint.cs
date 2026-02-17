@@ -8,19 +8,16 @@ namespace MyToolz.CI
 {
     public static class CIEntryPoint
     {
-        /// <summary>
-        /// Wrapper for CI that guarantees:
-        /// - Full exception + stack trace is written to OUT_DIR/Exporter-ci.log
-        /// - Non-zero exit code on failure
-        /// </summary>
-        public static void ExportUnityPackages()
+        public static void ExportWholeRepoUnityPackage()
         {
-            // Resolve output directory early (so logging works even if exporter fails)
-            var outDir = GetArg("-mytoolzOutDir") ?? Environment.GetEnvironmentVariable("OUT_DIR") ?? "build_output";
-            try { Directory.CreateDirectory(outDir); } catch { /* ignore */ }
+            var outDir = GetArg("-mytoolzOutDir") ?? "build_output";
+            var packageName = GetArg("-mytoolzPackageName") ?? $"MyToolz-{DateTime.UtcNow:yyyyMMdd-HHmmss}";
+
+            Directory.CreateDirectory(outDir);
 
             var exporterLogPath = Path.Combine(outDir, "Exporter-ci.log");
             using var logWriter = new StreamWriter(exporterLogPath, append: false);
+
             void Log(string msg)
             {
                 var line = $"[{DateTime.UtcNow:O}] {msg}";
@@ -28,6 +25,7 @@ namespace MyToolz.CI
                 logWriter.Flush();
                 Debug.Log(line);
             }
+
             void LogErr(string msg)
             {
                 var line = $"[{DateTime.UtcNow:O}] ERROR: {msg}";
@@ -36,12 +34,8 @@ namespace MyToolz.CI
                 Debug.LogError(line);
             }
 
-            Log("CIEntryPoint.ExportUnityPackages started.");
-            Log($"UnityVersion={Application.unityVersion}, Platform={Application.platform}");
-
             try
             {
-                // Force full stack traces even if Unity defaults differ
                 Application.SetStackTraceLogType(LogType.Error, StackTraceLogType.Full);
                 Application.SetStackTraceLogType(LogType.Exception, StackTraceLogType.Full);
             }
@@ -49,10 +43,25 @@ namespace MyToolz.CI
 
             try
             {
-                // Delegate to your real exporter method.
-                // IMPORTANT: keep using the updated exporter that understands -mytoolzModulesFile etc.
-                Log("Invoking MyToolzUnityPackageExporter.ExportPerModule_WithMergedDeps...");
-                MyToolzUnityPackageExporter.ExportPerModule_WithMergedDeps();
+                Log("ExportWholeRepoUnityPackage started");
+                Log($"Unity={Application.unityVersion}, Platform={Application.platform}");
+                Log($"outDir={outDir}");
+                Log($"packageName={packageName}");
+
+                // Unity packages can only contain Assets/ content
+                const string rootToExport = "Assets";
+                if (!AssetDatabase.IsValidFolder(rootToExport))
+                    throw new DirectoryNotFoundException("Assets folder not found (unexpected).");
+
+                var outputPath = Path.Combine(outDir, $"{SanitizeFileName(packageName)}.unitypackage");
+                Log($"Exporting '{rootToExport}' -> {outputPath}");
+
+                // IncludeDependencies exports all referenced assets too (safe for "whole Assets")
+                AssetDatabase.ExportPackage(
+                    rootToExport,
+                    outputPath,
+                    ExportPackageOptions.Interactive | ExportPackageOptions.Recurse | ExportPackageOptions.IncludeDependencies
+                );
 
                 Log("Export completed successfully.");
                 EditorApplication.Exit(0);
@@ -60,12 +69,9 @@ namespace MyToolz.CI
             catch (Exception ex)
             {
                 LogErr("Export failed with exception:");
-                LogErr(ex.ToString()); // includes stack trace
-                // Also write a marker so you can grep quickly
+                LogErr(ex.ToString());
                 logWriter.WriteLine("CI_EXPORT_FAILED=1");
                 logWriter.Flush();
-
-                // Make Unity process fail loudly
                 EditorApplication.Exit(1);
             }
         }
@@ -74,11 +80,16 @@ namespace MyToolz.CI
         {
             var args = Environment.GetCommandLineArgs();
             for (int i = 0; i < args.Length - 1; i++)
-            {
                 if (args[i] == key)
                     return args[i + 1];
-            }
             return null;
+        }
+
+        private static string SanitizeFileName(string name)
+        {
+            foreach (var c in Path.GetInvalidFileNameChars())
+                name = name.Replace(c, '_');
+            return name;
         }
     }
 }
