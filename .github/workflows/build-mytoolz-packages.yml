@@ -4,7 +4,7 @@ on:
   push:
     branches: [ main ]
     tags:
-      - "v*"
+      - "v*" 
   workflow_dispatch:
 
 permissions:
@@ -19,10 +19,15 @@ jobs:
   discover:
     name: Discover modules
     runs-on: ubuntu-22.04
+
     outputs:
       modules_b64: ${{ steps.discover.outputs.modules_b64 }}
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 
 
       - name: Discover package folders
         id: discover
@@ -38,58 +43,64 @@ jobs:
           mapfile -t files < <(find "$PACKAGES_ROOT" -mindepth 2 -maxdepth 2 -name package.json -print | sort)
 
           if [ ${#files[@]} -eq 0 ]; then
-            echo "::error ::No packages found in $PACKAGES_ROOT (expected Assets/Packages/<Module>/package.json)."
+            echo "::error ::No packages found in $PACKAGES_ROOT"
             exit 1
           fi
-
-          echo "Discovered package.json files:"
-          printf '%s\n' "${files[@]}"
 
           modules=()
           for f in "${files[@]}"; do
             modules+=("$(basename "$(dirname "$f")")")
           done
 
-          # JSON array, compact (no whitespace/newlines)
           json="$(printf '%s\n' "${modules[@]}" | jq -R . | jq -s -c .)"
-
-          # Base64 encode to safely transport between jobs
           b64="$(printf '%s' "$json" | base64 -w0)"
 
-          {
-            echo "modules_b64=$b64"
-          } >> "$GITHUB_OUTPUT"
+          echo "modules_b64=$b64" >> "$GITHUB_OUTPUT"
 
-          echo "Modules JSON: $json"
+          echo "Modules JSON:"
+          echo "$json"
 
   export:
     name: Export unitypackages
     needs: discover
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
 
-      - name: Validate UNITY_LICENSE secret
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 
+
+      - name: Validate UNITY_LICENSE
         shell: bash
         env:
           UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
         run: |
           set -euo pipefail
           if [ -z "${UNITY_LICENSE:-}" ]; then
-            echo "::error ::UNITY_LICENSE secret is missing or empty. Paste the full .ulf file contents into the UNITY_LICENSE secret."
+            echo "::error ::UNITY_LICENSE secret is missing."
             exit 1
           fi
-          echo "UNITY_LICENSE present (length=${#UNITY_LICENSE})."
 
-      - name: Write module list file
+      - name: Prepare modules file
         shell: bash
         run: |
-          echo '${{ needs.discover.outputs.modules }}' > mytoolz-modules.json
+          mkdir -p "${OUT_DIR}"
+          echo "${{ needs.discover.outputs.modules_b64 }}" | base64 -d > mytoolz-modules.json
+          echo "Decoded modules file:"
           cat mytoolz-modules.json
-      
-      - name: Export per-module unitypackages (merged deps)
+
+      - name: Export unitypackages
         uses: game-ci/unity-builder@v4
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
         with:
+          unityVersion: ${{ env.UNITY_VERSION }}
+          projectPath: .
+          targetPlatform: StandaloneLinux64
+          allowDirtyBuild: true
           buildMethod: MyToolzUnityPackageExporter.ExportPerModule_WithMergedDeps
           customParameters: >-
             -logFile ${{ github.workspace }}/UnityEditor-ci.log
@@ -97,33 +108,25 @@ jobs:
             -mytoolzOutDir ${{ github.workspace }}/${{ env.OUT_DIR }}
             -mytoolzMergeDeps true
 
-      - name: List output directory (always)
+      - name: List output
         if: always()
-        shell: bash
         run: |
-          echo "OUT_DIR=${OUT_DIR}"
           ls -la "${OUT_DIR}" || true
-          find "${OUT_DIR}" -type f -name "*.unitypackage" -print || true
+          find "${OUT_DIR}" -name "*.unitypackage" || true
 
-      - name: Upload unitypackage artifacts
+      - name: Upload unitypackages
         uses: actions/upload-artifact@v4
         with:
           name: mytoolz-unitypackages
-          path: |
-            ${{ env.OUT_DIR }}/**/*.unitypackage
+          path: ${{ env.OUT_DIR }}/**/*.unitypackage
           if-no-files-found: error
-          retention-days: 14
 
-      - name: Upload Unity logs (always)
+      - name: Upload logs
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: unity-logs
           path: |
-            ${{ github.workspace }}/UnityEditor-ci.log
-            **/unitybuilder*.log
-            **/upm.log
-            /home/runner/.config/unity3d/Editor.log
-            /home/runner/.config/unity3d/Logs/**/*
-            /github/home/.config/unity3d/Editor.log
+            UnityEditor-ci.log
             mytoolz-modules.json
+            /home/runner/.config/unity3d/Editor.log
