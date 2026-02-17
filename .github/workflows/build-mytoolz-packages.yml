@@ -20,7 +20,7 @@ jobs:
     name: Discover modules
     runs-on: ubuntu-22.04
     outputs:
-      modules: ${{ steps.discover.outputs.modules }}
+      modules_b64: ${{ steps.discover.outputs.modules_b64 }}
     steps:
       - uses: actions/checkout@v4
 
@@ -50,15 +50,17 @@ jobs:
             modules+=("$(basename "$(dirname "$f")")")
           done
 
-          json="$(printf '%s\n' "${modules[@]}" | jq -R . | jq -s .)"
+          # JSON array, compact (no whitespace/newlines)
+          json="$(printf '%s\n' "${modules[@]}" | jq -R . | jq -s -c .)"
+
+          # Base64 encode to safely transport between jobs
+          b64="$(printf '%s' "$json" | base64 -w0)"
 
           {
-            echo "modules<<EOF"
-            echo "$json"
-            echo "EOF"
+            echo "modules_b64=$b64"
           } >> "$GITHUB_OUTPUT"
 
-          echo "Discovered modules JSON: $json"
+          echo "Modules JSON: $json"
 
   export:
     name: Export unitypackages
@@ -79,8 +81,15 @@ jobs:
           fi
           echo "UNITY_LICENSE present (length=${#UNITY_LICENSE})."
 
-      # Key change: pass arguments via customParameters so Unity definitely receives them.
-      # Also force Unity to write a log file in the workspace we can always upload.
+      - name: Prepare module list file
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "${OUT_DIR}"
+          echo "${{ needs.discover.outputs.modules_b64 }}" | base64 -d > mytoolz-modules.json
+          echo "Decoded modules file:"
+          cat mytoolz-modules.json
+
       - name: Export per-module unitypackages (merged deps)
         uses: game-ci/unity-builder@v4
         env:
@@ -89,13 +98,14 @@ jobs:
           UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
         with:
           unityVersion: ${{ env.UNITY_VERSION }}
+          projectPath: .
           targetPlatform: StandaloneLinux64
-          buildMethod: MyToolzUnityPackageExporter.ExportPerModule_WithMergedDeps
           allowDirtyBuild: true
+          buildMethod: MyToolzUnityPackageExporter.ExportPerModule_WithMergedDeps
           customParameters: >-
             -logFile ${{ github.workspace }}/UnityEditor-ci.log
-            -mytoolzModules '${{ needs.discover.outputs.modules }}'
-            -mytoolzOutDir '${{ env.OUT_DIR }}'
+            -mytoolzModulesFile ${{ github.workspace }}/mytoolz-modules.json
+            -mytoolzOutDir ${{ github.workspace }}/${{ env.OUT_DIR }}
             -mytoolzMergeDeps true
 
       - name: List output directory (always)
@@ -104,17 +114,17 @@ jobs:
         run: |
           echo "OUT_DIR=${OUT_DIR}"
           ls -la "${OUT_DIR}" || true
-          find "${OUT_DIR}" -maxdepth 1 -type f -name "*.unitypackage" -print || true
+          find "${OUT_DIR}" -type f -name "*.unitypackage" -print || true
 
       - name: Upload unitypackage artifacts
         uses: actions/upload-artifact@v4
         with:
           name: mytoolz-unitypackages
-          path: ${{ env.OUT_DIR }}/*.unitypackage
+          path: |
+            ${{ env.OUT_DIR }}/**/*.unitypackage
           if-no-files-found: error
           retention-days: 14
 
-      # Always upload logs, including the forced -logFile output and common Unity log folders.
       - name: Upload Unity logs (always)
         if: always()
         uses: actions/upload-artifact@v4
@@ -127,15 +137,4 @@ jobs:
             /home/runner/.config/unity3d/Editor.log
             /home/runner/.config/unity3d/Logs/**/*
             /github/home/.config/unity3d/Editor.log
-            /github/home/.config/unity3d/Logs/**/*
-          if-no-files-found: warn
-          retention-days: 14
-
-      - name: Create GitHub Release (tags only)
-        if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          generate_release_notes: true
-          files: ${{ env.OUT_DIR }}/*.unitypackage
+            mytoolz-modules.json

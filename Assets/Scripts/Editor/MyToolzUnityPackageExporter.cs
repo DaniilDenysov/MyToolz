@@ -16,14 +16,47 @@ public static class MyToolzUnityPackageExporter
     {
         try
         {
-            var modulesJson = Environment.GetEnvironmentVariable("MODULES") ?? "[]";
-            var outDir = Environment.GetEnvironmentVariable("OUT_DIR") ?? "build_output";
-            var mergeDeps = IsTrue(Environment.GetEnvironmentVariable("MERGE_DEPS"));
+            // Prefer command line args (most reliable in CI), then fall back to env vars.
+            // Args supported:
+            //   -mytoolzModulesFile <path-to-json-array>
+            //   -mytoolzModules <json-array>
+            //   -mytoolzOutDir <output-folder>
+            //   -mytoolzMergeDeps <true|false>
+
+            var modulesJson = "[]";
+
+            var modulesFile = GetArg("-mytoolzModulesFile");
+            if (!string.IsNullOrWhiteSpace(modulesFile))
+            {
+                if (!File.Exists(modulesFile))
+                {
+                    Debug.LogError($"Modules file not found: {modulesFile}");
+                    EditorApplication.Exit(1);
+                    return;
+                }
+                modulesJson = File.ReadAllText(modulesFile);
+            }
+            else
+            {
+                modulesJson = GetArg("-mytoolzModules")
+                              ?? Environment.GetEnvironmentVariable("MODULES")
+                              ?? "[]";
+            }
+
+            var outDir = GetArg("-mytoolzOutDir")
+                         ?? Environment.GetEnvironmentVariable("OUT_DIR")
+                         ?? "build_output";
+
+            var mergeDeps = IsTrue(GetArg("-mytoolzMergeDeps")
+                                   ?? Environment.GetEnvironmentVariable("MERGE_DEPS"));
+
+            Debug.Log($"[MyToolzUnityPackageExporter] outDir='{outDir}', mergeDeps={mergeDeps}");
+            Debug.Log($"[MyToolzUnityPackageExporter] modulesJson='{modulesJson}'");
 
             var moduleFolders = ParseJsonStringArray(modulesJson);
             if (moduleFolders.Length == 0)
             {
-                Debug.LogError("No modules provided. Set env MODULES to a JSON array.");
+                Debug.LogError("No modules provided. Provide -mytoolzModulesFile, -mytoolzModules, or set env MODULES to a JSON array.");
                 EditorApplication.Exit(1);
                 return;
             }
@@ -113,6 +146,17 @@ public static class MyToolzUnityPackageExporter
             Debug.LogException(e);
             EditorApplication.Exit(1);
         }
+    }
+
+    private static string? GetArg(string key)
+    {
+        var args = Environment.GetCommandLineArgs();
+        for (int i = 0; i < args.Length - 1; i++)
+        {
+            if (string.Equals(args[i], key, StringComparison.Ordinal))
+                return args[i + 1];
+        }
+        return null;
     }
 
     private static bool IsTrue(string? s)

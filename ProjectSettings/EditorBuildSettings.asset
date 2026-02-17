@@ -4,5 +4,11 @@
 EditorBuildSettings:
   m_ObjectHideFlags: 0
   serializedVersion: 2
-  m_Scenes: []
+  m_Scenes:
+  - enabled: 1
+    path: Assets/Scenes/ClockDemo.unity
+    guid: f4c9fa32b352d1e4f972069a142998e9
+  - enabled: 1
+    path: Assets/Scenes/HealthSystemDemo.unity
+    guid: 55162bf1eefbf8a45b78f4f1ee76d7cf
   m_configObjects: {}
