@@ -1,7 +1,7 @@
 using DG.Tweening;
+using MyToolz.EditorToolz;
 using MyToolz.Extensions;
 using MyToolz.ScriptableObjects.Audio;
-using Sirenix.OdinInspector;
 using UnityEngine;
 
 namespace MyToolz.Tweener.UI.Tweens

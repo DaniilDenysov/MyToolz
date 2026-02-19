@@ -1,10 +1,10 @@
-using MyToolz.Core;
+using MyToolz.Utilities.Debug;
 using System.Collections.Generic;
 using UnityEngine;
 
 namespace MyToolz.Player.FPS.LoadoutSystem.View
 {
-    public class SegmentSlider : MonoBehaviourPlus
+    public class SegmentSlider : MonoBehaviour
     {
         [Header("Value Settings")]
         [Tooltip("Minimum possible value (e.g. damage = 10)")]
@@ -112,7 +112,7 @@ namespace MyToolz.Player.FPS.LoadoutSystem.View
 
                 if (prefabToSpawn == null)
                 {
-                    LogError($"SegmentSlider: Missing prefab for segment at index {i}!");
+                    DebugUtility.LogError(this, $"SegmentSlider: Missing prefab for segment at index {i}!");
                     continue;
                 }
 

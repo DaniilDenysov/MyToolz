@@ -1,22 +1,22 @@
 using DG.Tweening;
 using MyToolz.DesignPatterns.EventBus;
+using MyToolz.EditorToolz;
 using MyToolz.Events;
 using MyToolz.HealthSystem;
 using MyToolz.HealthSystem.Interfaces;
-using MyToolz.HealthSystem.Model;
 using MyToolz.Projectiles;
-using Sirenix.OdinInspector;
+using MyToolz.Utilities.Debug;
 using UnityEngine;
 
 namespace ProjectClyde.Projectiles
 {
     public class Slash : Projectile
     {
-        [BoxGroup("Slash"), MinValue(0.01f)][SerializeField] private float damage = 10f;
-        [BoxGroup("Slash"), MinValue(0.01f)][SerializeField] private float height = 1f;
-        [BoxGroup("Slash"), MinValue(0.01f)][SerializeField] private float maxDistance = 3f;
-        [BoxGroup("Slash"), SerializeField] private Ease ease = Ease.OutQuad;
-        [BoxGroup("Layers"), SerializeField] private LayerMask targetMask;
+        [FoldoutGroup("Slash"), Min(0.01f)][SerializeField] private float damage = 10f;
+        [FoldoutGroup("Slash"), Min(0.01f)][SerializeField] private float height = 1f;
+        [FoldoutGroup("Slash"), Min(0.01f)][SerializeField] private float maxDistance = 3f;
+        [FoldoutGroup("Slash"), SerializeField] private Ease ease = Ease.OutQuad;
+        [FoldoutGroup("Layers"), SerializeField] private LayerMask targetMask;
 
         private Vector2 lastCenter;
         private Vector2 lastSize;
@@ -59,10 +59,10 @@ namespace ProjectClyde.Projectiles
                 {
                     damagable.DoDamage(damageType);
                 }
-                Log("Slash hit " + c.ToString());
+                DebugUtility.Log(this, "Slash hit " + c.ToString());
             }
 
-            Log("Slash cast from " + origin + " dir " + direction + " distance " + distance);
+            DebugUtility.Log(this, "Slash cast from " + origin + " dir " + direction + " distance " + distance);
 
             lastCenter = center;
             lastSize = size;

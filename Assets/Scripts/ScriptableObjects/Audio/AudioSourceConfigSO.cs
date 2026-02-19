@@ -1,5 +1,4 @@
 using MyToolz.ScriptableObjects.Audio;
-using Sirenix.OdinInspector;
 using UnityEngine;
 using UnityEngine.Audio;
 
@@ -39,7 +38,7 @@ namespace MyToolz.ScriptableObjects.Audio
         [SerializeField] private bool randomizePitch = false;
         public bool RandomizePitch { get => randomizePitch; }
 
-        [SerializeField, MinMaxSlider(0f, 3f, true)] private Vector2 pitchRange;
+        [SerializeField] private Vector2 pitchRange;
         public Vector2 PitchRange { get => pitchRange; }
 
         public float MaxPitch

@@ -1,6 +1,6 @@
 using DG.Tweening;
+using MyToolz.EditorToolz;
 using MyToolz.Utilities.Debug;
-using Sirenix.OdinInspector;
 using UnityEngine;
 
 namespace MyToolz.Tweener.UI.Tweens
@@ -32,7 +32,7 @@ namespace MyToolz.Tweener.UI.Tweens
         {
             if (rectTransform == null)
             {
-                LogError("MoveTweenStrategy requires RectTransform.");
+                DebugUtility.LogError(this, "MoveTweenStrategy requires RectTransform.");
                 return null;
             }
 
@@ -48,7 +48,7 @@ namespace MyToolz.Tweener.UI.Tweens
             {
                 if (from == null || to == null)
                 {
-                    LogError("MoveTweenStrategy Transform references are null.");
+                    DebugUtility.LogError(this, "MoveTweenStrategy Transform references are null.");
                     return null;
                 }
 

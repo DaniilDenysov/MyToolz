@@ -1,52 +1,51 @@
 using UnityEngine;
-using Sirenix.OdinInspector;
 using DG.Tweening;
-using MyToolz.Core;
+using MyToolz.EditorToolz;
 
 namespace MyToolz.ScriptableObjects.AI.Platformer
 {
     public enum EnabledKnockoffAxis { XOnly, YOnly, Both, None }
 
     [CreateAssetMenu(fileName = "EnemyMovementSO", menuName = "Enemies/EnemyMovementSO")]
-    public class EnemyMovementSO : ScriptableObjectPlus
+    public class EnemyMovementSO : ScriptableObject
     {
-        [FoldoutGroup("Navigation"), SerializeField, MinValue(0f)] private float arriveThreshold;
-        [FoldoutGroup("Navigation"), SerializeField, MinValue(0f)] private float canMoveDirCheckDistance;
+        [FoldoutGroup("Navigation"), SerializeField, Min(0f)] private float arriveThreshold;
+        [FoldoutGroup("Navigation"), SerializeField, Min(0f)] private float canMoveDirCheckDistance;
 
-        [FoldoutGroup("Friction"), SerializeField, MinValue(0f)] private float groundFriction = 10f;
-        [FoldoutGroup("Friction"), SerializeField, MinValue(0f)] private float airFriction = 10f;
+        [FoldoutGroup("Friction"), SerializeField, Min(0f)] private float groundFriction = 10f;
+        [FoldoutGroup("Friction"), SerializeField, Min(0f)] private float airFriction = 10f;
         [FoldoutGroup("Movement"), SerializeField] private LayerMask layerMask;
         [FoldoutGroup("Movement"), SerializeField] private LayerMask wallLayerMask;
-        [FoldoutGroup("Movement"), SerializeField, MinValue(0f)] private float maxSpeed = 5f;
+        [FoldoutGroup("Movement"), SerializeField, Min(0f)] private float maxSpeed = 5f;
 
         [FoldoutGroup("Acceleration"), SerializeField]
         private AnimationCurve accelerationCurve = AnimationCurve.Linear(0f, 0f, 1f, 1f);
 
-        [FoldoutGroup("Acceleration"), SerializeField, MinValue(0.01f)]
+        [FoldoutGroup("Acceleration"), SerializeField, Min(0.01f)]
         private float accelerationDuration = 0.25f;
 
         [FoldoutGroup("Deceleration"), SerializeField]
         private AnimationCurve decelerationCurve = AnimationCurve.Linear(0f, 0f, 1f, 1f);
 
-        [FoldoutGroup("Deceleration"), SerializeField, MinValue(0.01f)]
+        [FoldoutGroup("Deceleration"), SerializeField, Min(0.01f)]
         private float decelerationDuration = 0.2f;
 
-        [FoldoutGroup("Ground Check"), SerializeField, MinValue(0f)]
+        [FoldoutGroup("Ground Check"), SerializeField, Min(0f)]
         private float groundProbeRadius = 0.1f;
 
-        [FoldoutGroup("Edges"), SerializeField, ToggleLeft]
+        [FoldoutGroup("Edges"), SerializeField]
         private bool stopAtEdges = true;
 
-        [FoldoutGroup("Edges"), SerializeField, ShowIf("@stopAtEdges"), MinValue(0.01f)]
+        [FoldoutGroup("Edges"), SerializeField, ShowIf("@stopAtEdges"), Min(0.01f)]
         private float edgeProbeDepth = 0.3f;
 
-        [FoldoutGroup("Edges"), SerializeField, MinValue(0.01f), ShowIf("@useGravity")]
+        [FoldoutGroup("Edges"), SerializeField, Min(0.01f), ShowIf("@useGravity")]
         private float maxFallSpeed = 26f;
 
-        [FoldoutGroup("Edges"), SerializeField, MinValue(0.01f)]
+        [FoldoutGroup("Edges"), SerializeField, Min(0.01f)]
         private bool useGravity = true;
 
-        [FoldoutGroup("Visuals"), SerializeField, ToggleLeft]
+        [FoldoutGroup("Visuals"), SerializeField]
         private bool invertFlip = false;
 
         [FoldoutGroup("Layers"), SerializeField]
@@ -69,28 +68,28 @@ namespace MyToolz.ScriptableObjects.AI.Platformer
         [FoldoutGroup("Charge"), ShowIf("@enableCharge"), SerializeField]
         private EnabledKnockoffAxis chargeTargetAxis = EnabledKnockoffAxis.XOnly;
 
-        [FoldoutGroup("Patrol"), SerializeField, MinValue(0.01f)] 
+        [FoldoutGroup("Patrol"), SerializeField, Min(0.01f)] 
         private float arriveDistance = 0.2f;
 
-        [FoldoutGroup("Patrol"), SerializeField, MinValue(0f)] 
+        [FoldoutGroup("Patrol"), SerializeField, Min(0f)] 
         private float waitAtPoint = 0.25f;
 
-        [FoldoutGroup("Search"), SerializeField, MinValue(0.1f)] 
+        [FoldoutGroup("Search"), SerializeField, Min(0.1f)] 
         private float searchDuration = 3f;
 
-        [FoldoutGroup("Search"), SerializeField, MinValue(0.01f)] 
+        [FoldoutGroup("Search"), SerializeField, Min(0.01f)] 
         private float completeDistance = 0.4f;
 
-        [FoldoutGroup("Follow"), SerializeField, MinValue(0.01f)] 
+        [FoldoutGroup("Follow"), SerializeField, Min(0.01f)] 
         private float stopDistance = 1.25f;
 
-        [FoldoutGroup("Follow"), SerializeField, MinValue(0.01f)] 
+        [FoldoutGroup("Follow"), SerializeField, Min(0.01f)] 
         private float loseSightDistance = 12f;
 
         [FoldoutGroup("Jump"), SerializeField]
         private bool enableJump = false;
 
-        [FoldoutGroup("Jump"), SerializeField, MinValue(0.01f), ShowIf("@enableJump")]
+        [FoldoutGroup("Jump"), SerializeField, Min(0.01f), ShowIf("@enableJump")]
         private float jumpForce = 12f;
 
         [FoldoutGroup("KnockOff"), SerializeField] private EnabledKnockoffAxis enabledKnockoffAxis = EnabledKnockoffAxis.Both;

@@ -1,9 +1,11 @@
 ﻿using System;
 using System.Reflection;
 using System.Collections.Generic;
-using UnityEditor;
 using System.Linq;
 using MyToolz.Utilities.Debug;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 namespace MyToolz.DesignPatterns.EventBus
 {
@@ -12,11 +14,8 @@ namespace MyToolz.DesignPatterns.EventBus
     /// </summary>
     public static class EventBusUtil
     {
-        private static HashSet<Type> eventBusTypes = new HashSet<Type>();
-        public static IReadOnlyList<Type> EventBusTypes
-        {
-            get => eventBusTypes.ToList();
-        }
+        private static readonly HashSet<Type> eventBusTypes = new HashSet<Type>();
+        public static IReadOnlyCollection<Type> EventBusTypes => eventBusTypes;
 
 #if UNITY_EDITOR
         public static PlayModeStateChange PlayModeState { get; set; }
@@ -61,7 +60,7 @@ namespace MyToolz.DesignPatterns.EventBus
             DebugUtility.Log("Clearing all buses...", AutoTag.NamespaceSegments);
             for (int i = 0; i < EventBusTypes.Count; i++)
             {
-                var busType = EventBusTypes[i];
+                var busType = EventBusTypes.ElementAt(i);
                 var clearMethod = busType.GetMethod("Clear", BindingFlags.Static | BindingFlags.NonPublic);
                 clearMethod?.Invoke(null, null);
             }

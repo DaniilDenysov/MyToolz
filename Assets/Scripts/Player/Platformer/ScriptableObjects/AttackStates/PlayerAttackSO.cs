@@ -1,11 +1,10 @@
 using MyToolz.Animations;
 using MyToolz.Audio.Events;
-using MyToolz.Core;
 using MyToolz.DesignPatterns.EventBus;
 using MyToolz.DesignPatterns.StateMachine;
+using MyToolz.EditorToolz;
 using MyToolz.HealthSystem;
 using MyToolz.HealthSystem.Interfaces;
-using MyToolz.HealthSystem.Model;
 using MyToolz.Player.Input;
 using MyToolz.Player.Platformer.Combat;
 using MyToolz.Player.Platformer.Combat.Interfaces;
@@ -13,7 +12,6 @@ using MyToolz.Player.Platformer.Interfaces;
 using MyToolz.Player.Platformer.Movement.Interfaces;
 using MyToolz.ScriptableObjects.Audio;
 using MyToolz.ScriptableObjects.Inventory;
-using Sirenix.OdinInspector;
 using UnityEngine;
 using Zenject;
 
@@ -140,7 +138,7 @@ namespace MyToolz.Player.Platformer.Combat
 
 namespace MyToolz.ScriptableObjects.Player.Platformer.Combat
 {
-    public abstract class PlayerAttackSO : ScriptableObjectPlus
+    public abstract class PlayerAttackSO : ScriptableObject
     {
         [SerializeField, FoldoutGroup("Config")] protected bool enablePullforce;
         [SerializeField, FoldoutGroup("Config")] protected bool interruptedByMovement = true;

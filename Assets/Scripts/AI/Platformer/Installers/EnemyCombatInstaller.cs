@@ -1,7 +1,7 @@
 using MyToolz.AI.Platformer.Interfaces;
 using MyToolz.AI.Platformer.Presenters;
+using MyToolz.EditorToolz;
 using MyToolz.ScriptableObjects.AI.Platformer;
-using Sirenix.OdinInspector;
 using UnityEngine;
 using Zenject;
 

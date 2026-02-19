@@ -1,5 +1,4 @@
 using Mirror;
-using MyToolz.Core;
 using MyToolz.Networking.Extensions;
 using MyToolz.Player.FPS.InteractionSystem.Interfaces;
 using MyToolz.Player.FPS.InteractionSystem.Model;
@@ -19,7 +18,7 @@ namespace MyToolz.Player.FPS.InteractionSystem.Interfaces
 namespace MyToolz.Player.FPS.InteractionSystem.Model
 {
     [System.Serializable]
-    public class InteractionConnection : ObjectPlus
+    public class InteractionConnection
     {
         private static HashSet<uint> interactions = new();
         public event Action OnConnectionClosed;
@@ -49,7 +48,7 @@ namespace MyToolz.Player.FPS.InteractionSystem.Model
 
         private InteractionConnection(NetworkInteractable interactable, PlayerInteractor interactor)
         {
-            Log($"Interaction connection is opened for {interactable.name} and {interactor.name}");
+            DebugUtility.Log(this, $"Interaction connection is opened for {interactable.name} and {interactor.name}");
             InteractableNetId = interactable.netId;
             InteractorNetId = interactor.netId;
             interactable.OnInteractStart(this);
@@ -90,7 +89,7 @@ namespace MyToolz.Player.FPS.InteractionSystem.Model
             if (Interactable.netIdentity != null) interactions.Remove(InteractableNetId);
             if (Interactor.netIdentity != null) interactions.Remove(InteractorNetId);  
             OnConnectionClosed?.Invoke();
-            Log($"Interaction connection is closed for {Interactable.name} and {Interactor.name}");
+            DebugUtility.Log(this, $"Interaction connection is closed for {Interactable.name} and {Interactor.name}");
         }
     }
 

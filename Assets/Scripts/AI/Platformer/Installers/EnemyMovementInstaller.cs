@@ -1,5 +1,5 @@
 using MyToolz.AI.Platformer.Presenters;
-using Sirenix.OdinInspector;
+using MyToolz.EditorToolz;
 using UnityEngine;
 using Zenject;
 

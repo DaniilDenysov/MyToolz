@@ -1,8 +1,8 @@
-using MyToolz.Core;
+using UnityEngine;
 
 namespace MyToolz.UI.Labels
 {
-    public abstract class Label : MonoBehaviourPlus
+    public abstract class Label : MonoBehaviour
     {
        
     }

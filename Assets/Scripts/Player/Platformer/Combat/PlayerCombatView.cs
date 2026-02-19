@@ -1,8 +1,7 @@
-using MyToolz.Core;
+using MyToolz.EditorToolz;
 using MyToolz.Player.Platformer.Interfaces;
 using MyToolz.ScriptableObjects.Inventory;
 using MyToolz.ScriptableObjects.Player.Platformer.Combat;
-using Sirenix.OdinInspector;
 using System;
 using UnityEngine;
 using Zenject;
@@ -24,7 +23,7 @@ namespace MyToolz.Player.Platformer.Interfaces
 
 namespace MyToolz.Player.Platformer.Combat.View
 {
-    public class PlayerCombatView : MonoBehaviourPlus, IPlayerCombatView
+    public class PlayerCombatView : MonoBehaviour, IPlayerCombatView
     {
         [SerializeField, Required] private Transform player;
         [SerializeField, Required] private Transform crosshair;

@@ -1,6 +1,6 @@
+using MyToolz.EditorToolz;
 using MyToolz.Player.Platformer.Interfaces;
 using MyToolz.Player.Platformer.Movement.Interfaces;
-using Sirenix.OdinInspector;
 using UnityEngine;
 using Zenject;
 
@@ -28,23 +28,23 @@ namespace MyToolz.ScriptableObjects.Player.Platformer.Movement
         [SerializeField, Range(0.1f, 1f), Tooltip("Time to reach jump peak")] protected float timeTillJumpApex = 0.35f;
 
         [FoldoutGroup("Jump/Apex")]
-        [LabelText("Upward Cancel Time")]
+        //Upward Cancel Time"
         [SerializeField, Range(0.01f, 0.2f), Tooltip("Delay before upward velocity is canceled on early release")] protected float timeForUpwardCancel = 0.027f;
 
         [FoldoutGroup("Jump/Apex")]
-        [LabelText("Apex Threshold")]
+        //Apex Threshold
         [SerializeField, Range(0.5f, 1f), Tooltip("Portion of ascent where apex behavior begins")] protected float apexThreshold = 0.97f;
 
         [FoldoutGroup("Jump/Apex")]
-        [LabelText("Apex Hang Time")]
+        //Apex Hang Time
         [SerializeField, Range(0.01f, 0.2f), Tooltip("Duration player can “hover” at apex")] protected float apexHangTime = 0.075f;
 
         [FoldoutGroup("Jump/Buffer")]
-        [LabelText("Buffer Time")]
+        //Buffer Time
         [SerializeField, Range(0.01f, 0.3f), Tooltip("Grace period after pressing jump for input to still register")] protected float jumpBufferTime = 0.125f;
 
         [FoldoutGroup("Jump/Buffer")]
-        [LabelText("Coyote Time")]
+        //Coyote Time
         [SerializeField, Range(0.01f, 0.3f), Tooltip("Grace period after leaving ground where jump is still valid")] protected float jumpCayoteTime = 0.1f;
 
         public int NumberOfJumpsAllowed => numberOfJumpsAllowed;

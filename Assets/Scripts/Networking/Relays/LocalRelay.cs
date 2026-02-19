@@ -4,10 +4,11 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using System.Threading;
 using UnityEngine;
-using Sirenix.OdinInspector;
 using System.Linq;
 using System.Net;
 using MyToolz.Networking.ScriptableObjects;
+using MyToolz.EditorToolz;
+using MyToolz.Utilities.Debug;
 
 namespace MyToolz.Networking.Relays
 {
@@ -45,7 +46,7 @@ namespace MyToolz.Networking.Relays
             {
                 if (lobbyDTO == null)
                 {
-                    LogError("JoinLobby called with null lobbyDTO.");
+                    DebugUtility.LogError(this, "JoinLobby called with null lobbyDTO.");
                     return ResultCode.Error_Unknown;
                 }
 
@@ -53,7 +54,7 @@ namespace MyToolz.Networking.Relays
 
                 if (localLobbyDTO == null)
                 {
-                    LogError("JoinLobby called with null lobbyDTO.");
+                    DebugUtility.LogError(this, "JoinLobby called with null lobbyDTO.");
                     return ResultCode.Error_Unknown;
                 }
 
@@ -61,7 +62,7 @@ namespace MyToolz.Networking.Relays
 
                 if (Transport.active == null)
                 {
-                    LogError("JoinLobby: no active transport present.");
+                    DebugUtility.LogError(this, "JoinLobby: no active transport present.");
                     return ResultCode.Error_Unknown;
                 }
 
@@ -69,11 +70,11 @@ namespace MyToolz.Networking.Relays
 
                 if (customNetworkManager == null)
                 {
-                    LogError("Network Manager is not initialized!");
+                    DebugUtility.LogError(this, "Network Manager is not initialized!");
                     return ResultCode.Error_Unknown;
                 }
 
-                Log($"JoinLobby: connecting to {localLobbyDTO.IP} ...");
+                DebugUtility.Log(this, $"JoinLobby: connecting to {localLobbyDTO.IP} ...");
                 try
                 {
                     customNetworkManager.GameModeSO = localLobbyDTO.GameModeSO;
@@ -83,17 +84,17 @@ namespace MyToolz.Networking.Relays
                 }
                 catch (Exception cx)
                 {
-                    LogError($"JoinLobby: ClientConnect/StartClient threw: {cx.Message}");
+                    DebugUtility.LogError(this, $"JoinLobby: ClientConnect/StartClient threw: {cx.Message}");
                     networkDiscovery?.BeginSearching();
                     return ResultCode.Error_Unknown;
                 }
 
-                Log("JoinLobby: connected successfully.");
+                DebugUtility.Log(this, "JoinLobby: connected successfully.");
                 return ResultCode.Success_LobbyJoined;
             }
             catch (OperationCanceledException)
             {
-                LogWarning("JoinLobby: cancelled by token.");
+                DebugUtility.LogWarning(this, "JoinLobby: cancelled by token.");
                 try
                 {
                     var nm = (CustomNetworkManager)NetworkManager.singleton;
@@ -109,7 +110,7 @@ namespace MyToolz.Networking.Relays
             }
             catch (Exception ex)
             {
-                LogError($"JoinLobby: unexpected error: {ex.Message}");
+                DebugUtility.LogError(this, $"JoinLobby: unexpected error: {ex.Message}");
                 try
                 {
                     var nm = (CustomNetworkManager)NetworkManager.singleton;
@@ -130,21 +131,21 @@ namespace MyToolz.Networking.Relays
         {
             if (gameModeSO == null)
             {
-                LogError("CreateLobby called with null gameModeSO.");
+                DebugUtility.LogError(this, "CreateLobby called with null gameModeSO.");
                 return ResultCode.Error_Unknown;
             }
 
             string map = gameModeSO.GetRandomMap();
             if (string.IsNullOrEmpty(map))
             {
-                LogError($"No maps found for game mode {gameModeSO.Title}");
+                DebugUtility.LogError(this, $"No maps found for game mode {gameModeSO.Title}");
                 return ResultCode.Error_Unknown;
             }
 
             CustomNetworkManager customNetworkManager = (CustomNetworkManager)NetworkManager.singleton;
             if (customNetworkManager == null)
             {
-                LogError("Network Manager is not initialized!");
+                DebugUtility.LogError(this, "Network Manager is not initialized!");
                 return ResultCode.Error_Unknown;
             }
             networkDiscovery?.EndSearching();
@@ -154,14 +155,14 @@ namespace MyToolz.Networking.Relays
             customNetworkManager.StartHost();
 
             networkDiscovery?.AdvertiseServer();
-            Log($"[Relay] Hosting:{customNetworkManager.networkAddress}");
+            DebugUtility.Log(this, $"[Relay] Hosting:{customNetworkManager.networkAddress}");
             return ResultCode.Success_LobbyCreated;
         }
 
         public override async Task<IReadOnlyList<LobbyDTO>> GetLobbyList()
         {
             var hosts = networkDiscovery.GetAvailableHosts();
-            Log($"Hosts:{hosts.Count}");
+            DebugUtility.Log(this, $"Hosts:{hosts.Count}");
             return hosts.Select(host => new LocalLobbyDTO()
             {
                 URI = host.URI,

@@ -1,4 +1,4 @@
-using Sirenix.OdinInspector;
+using MyToolz.EditorToolz;
 using UnityEngine;
 
 namespace MyToolz.Player.FPS.CombatSystem.Model
@@ -10,7 +10,7 @@ namespace MyToolz.Player.FPS.CombatSystem.Model
         [SerializeField, Range(0, 180f), HideIf("random")] private float amount= 1;
         [SerializeField, Range(0,180f), HideIf("@!random")] private float radius = 1;
         [SerializeField, HideIf("@!random")]
-        [PropertyRange("radius", 180f)]
+        //[PropertyRange("radius", 180f)]
         private float maxRadius = 1f;
 
         public float MaxRadius

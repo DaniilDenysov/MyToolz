@@ -1,8 +1,8 @@
-using MyToolz.Core;
 using MyToolz.EditorToolz;
 using MyToolz.HealthSystem.Interfaces;
 using MyToolz.Player.Input;
 using MyToolz.UI.Management;
+using MyToolz.Utilities.Debug;
 using System;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -10,7 +10,7 @@ using UnityEngine.InputSystem;
 namespace MyToolz.FreeCamera
 {
     [RequireComponent(typeof(Camera))]
-    public class FreeCameraController : MonoBehaviourPlus, IEventListener
+    public class FreeCameraController : MonoBehaviour, IEventListener
     {
         [Header("Settings")]
         [SerializeField, Range(0.1f, 10f)] private float scrollSensitivity = 0.5f;
@@ -87,7 +87,7 @@ namespace MyToolz.FreeCamera
 
         private void OnCameraTggled(InputCommandSO inputCommandSO)
         {
-            Log("Free camera toggled!");
+            DebugUtility.Log(this, "Free camera toggled!");
             cameraToggled = !cameraToggled;
             audioListener.enabled = cameraToggled;
             if (cameraToggled) freeCamera.enabled = true;
@@ -128,7 +128,7 @@ namespace MyToolz.FreeCamera
             }
             else
             {
-                LogError("ToggleAction is missing, it is not allowed!");
+                DebugUtility.LogError(this, "ToggleAction is missing, it is not allowed!");
             }
 
             if (scrollInputCommandSO)
@@ -137,7 +137,7 @@ namespace MyToolz.FreeCamera
             }
             else
             {
-                LogError("ScrollAction is missing, it is not allowed!");
+                DebugUtility.LogError(this, "ScrollAction is missing, it is not allowed!");
             }
         }
 
@@ -149,7 +149,7 @@ namespace MyToolz.FreeCamera
             }
             else
             {
-                LogError("ToggleAction is missing, it is not allowed!");
+                DebugUtility.LogError(this, "ToggleAction is missing, it is not allowed!");
             }
 
             if (scrollInputCommandSO)
@@ -158,7 +158,7 @@ namespace MyToolz.FreeCamera
             }
             else
             {
-                LogError("ScrollAction is missing, it is not allowed!");
+                DebugUtility.LogError(this, "ScrollAction is missing, it is not allowed!");
             }
         }
     }

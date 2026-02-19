@@ -1,7 +1,6 @@
-using MyToolz.Core;
 using MyToolz.DesignPatterns.ObjectPool.Interfaces;
+using MyToolz.EditorToolz;
 using MyToolz.HealthSystem;
-using Sirenix.OdinInspector;
 using UnityEngine;
 
 namespace MyToolz.Projectiles
@@ -13,7 +12,7 @@ namespace MyToolz.Projectiles
         public DamageType DamageType;
     }
 
-    public abstract class Projectile : MonoBehaviourPlus, IPoolable
+    public abstract class Projectile : MonoBehaviour, IPoolable
     {
         [FoldoutGroup("Config"), SerializeField, Min(0.1f)] protected float speed = 10f;
         [FoldoutGroup("Config"), SerializeField] protected LayerMask hitMask;

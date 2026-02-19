@@ -1,9 +1,8 @@
-using MyToolz.Core;
 using UnityEngine;
 
 namespace MyToolz.Player.FPS.CombatSystem.View
 {
-    public class FeedbackHandler : MonoBehaviourPlus
+    public class FeedbackHandler : MonoBehaviour
     {
         //[SerializeField] private MMF_Player killFeedback;
         //public MMF_Player KillFeedback

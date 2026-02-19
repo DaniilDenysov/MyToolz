@@ -1,5 +1,3 @@
-using MyToolz.Core;
-using MyToolz.DesignPatterns.StateMachine.SimplePriorityBased;
 using MyToolz.Utilities.Debug;
 using System;
 using System.Linq;
@@ -167,7 +165,7 @@ namespace MyToolz.DesignPatterns.StateMachine.MultiThreadPriorityBased
         public virtual void OnExit() { }
     }
 
-    public abstract class PriorityStateMachine<T> : MonoBehaviourPlus, IStateMachine<T> where T : PriorityState
+    public abstract class PriorityStateMachine<T> : MonoBehaviour, IStateMachine<T> where T : PriorityState
     {
         [Header("States")]
         [SerializeReference] protected T[] behaviourStates;

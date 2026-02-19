@@ -1,6 +1,5 @@
-using MyToolz.Core;
+using MyToolz.EditorToolz;
 using MyToolz.Utilities.Debug;
-using Sirenix.OdinInspector;
 using System;
 using System.Linq;
 using System.Runtime.CompilerServices;
@@ -10,7 +9,7 @@ using Zenject;
 namespace MyToolz.DesignPatterns.StateMachine.PriorityBased
 {
     [Serializable]
-    public abstract class PriorityState : ObjectPlus, IState
+    public abstract class PriorityState : IState
     {
         public uint Priority => priority;
         public bool Interuptable => interuptable;
@@ -36,7 +35,7 @@ namespace MyToolz.DesignPatterns.StateMachine.PriorityBased
         }
     }
 
-    public abstract class PriorityStateMachine<T> : MonoBehaviourPlus, IStateMachine<T> where T : PriorityState
+    public abstract class PriorityStateMachine<T> : MonoBehaviour, IStateMachine<T> where T : PriorityState
     {
         public T Current => current;
         [FoldoutGroup("Config"), SerializeReference] protected T[] behaviourStates;
@@ -148,7 +147,7 @@ namespace MyToolz.DesignPatterns.StateMachine.PriorityBased
             current = state;
             current.OnEnter();
             currentState = current?.GetType().Name ?? "Error, null state!";
-            Log($"Enemy state switched to {state.GetType()}");
+            DebugUtility.Log(this, $"Enemy state switched to {state.GetType()}");
         }
 
         public virtual bool TryGetCurrentState(out T state)

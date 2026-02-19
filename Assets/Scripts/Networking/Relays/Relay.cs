@@ -1,4 +1,3 @@
-using MyToolz.Core;
 using MyToolz.Networking.ScriptableObjects;
 using System;
 using System.Collections.Generic;
@@ -54,7 +53,7 @@ namespace MyToolz.Networking.Relays
         }
     }
 
-    public abstract class Relay : ObjectPlus
+    public abstract class Relay
     {
         protected LobbyDTO currentLobby;
        

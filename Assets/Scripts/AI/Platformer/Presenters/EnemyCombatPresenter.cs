@@ -1,12 +1,12 @@
 using MyToolz.AI.Platformer.Interfaces;
-using MyToolz.Core;
 using MyToolz.DesignPatterns.EventBus;
+using MyToolz.EditorToolz;
 using MyToolz.Events;
 using MyToolz.HealthSystem.Interfaces;
 using MyToolz.Player.Platformer.Interfaces;
 using MyToolz.Projectiles;
 using MyToolz.ScriptableObjects.AI.Platformer;
-using Sirenix.OdinInspector;
+using MyToolz.Utilities.Debug;
 using UnityEngine;
 using Zenject;
 
@@ -25,7 +25,7 @@ namespace MyToolz.AI.Platformer.Interfaces
 
 namespace MyToolz.AI.Platformer.Presenters
 {
-    public class EnemyCombatPresenter : MonoBehaviourPlus, IEnemyCombatPresenter
+    public class EnemyCombatPresenter : MonoBehaviour, IEnemyCombatPresenter
     {
         [SerializeField, Required] protected Transform attackPoint;
         protected EnemyCombatSO enemyCombatSO => enemyModel?.EnemyCombatSO;
@@ -170,8 +170,8 @@ namespace MyToolz.AI.Platformer.Presenters
                         Origin = pos,
                         Direction = dir,
                         DamageType = enemyCombatSO.DamageType,
-                    });                  
-                    Log($"Enemy fired projectile at {dir} from {pos}");
+                    });
+                    DebugUtility.Log(this, $"Enemy fired projectile at {dir} from {pos}");
                 }
             });
         }

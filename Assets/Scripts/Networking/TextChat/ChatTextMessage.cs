@@ -1,4 +1,4 @@
-using Sirenix.OdinInspector;
+using MyToolz.EditorToolz;
 using System;
 using TMPro;
 using UnityEngine;

@@ -1,21 +1,20 @@
-using Sirenix.OdinInspector;
 using System;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using System.Linq;
-using MyToolz.Core;
 using MyToolz.Player.FPS.LoadoutSystem.View;
 using MyToolz.Player.FPS.CombatSystem.View;
+using MyToolz.EditorToolz;
 
 namespace MyToolz.Player.FPS.Inventory
 {
     [CreateAssetMenu(fileName = "create new weapon", menuName = "NoSaints/CombatSystem/Weapon")]
-    public class ItemSO : ScriptableObjectPlus
+    public class ItemSO : ScriptableObject
     {
         [SerializeField, FoldoutGroup("Item")] private string itemName;
         public string ItemName { get => itemName; }
 
-        [SerializeField, PreviewField, FoldoutGroup("Item")] private Sprite itemIcon;
+        [SerializeField, FoldoutGroup("Item")] private Sprite itemIcon;
         public Sprite ItemIcon { get => itemIcon; }
 
         [SerializeField, TextArea, FoldoutGroup("Item")] private string itemDescription;
@@ -32,7 +31,7 @@ namespace MyToolz.Player.FPS.Inventory
         [SerializeField, FoldoutGroup("Item")] private LoadoutSlotCategory loadoutSlotCategory;
         public LoadoutSlotCategory LoadoutCategory { get => loadoutSlotCategory; }
 
-        [Sirenix.OdinInspector.Button("Generate Guid")]
+        [Button("Generate Guid")]
         private void GenerateWeaponGuid()
         {
             itemGuid = Guid.NewGuid().ToString();

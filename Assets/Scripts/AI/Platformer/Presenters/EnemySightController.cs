@@ -1,8 +1,7 @@
-using MyToolz.Core;
+using MyToolz.EditorToolz;
 using MyToolz.HealthSystem.Interfaces;
-using MyToolz.HealthSystem.Model;
 using MyToolz.ScriptableObjects.AI.Platformer;
-using Sirenix.OdinInspector;
+using MyToolz.Utilities.Debug;
 using UnityEngine;
 using UnityEngine.Events;
 using Zenject;
@@ -30,7 +29,7 @@ namespace MyToolz.AI.Platformer.Presenters
     }
 
     [System.Serializable]
-    public class EnemyModel : ObjectPlus, IEnemyModel
+    public class EnemyModel :  IEnemyModel
     {
         public Transform Context => context;
         [SerializeField, Required] private Transform context;
@@ -66,7 +65,7 @@ namespace MyToolz.AI.Platformer.Presenters
         {
             if (enemyMovementSO == null || enemyCombatSO == null)
             {
-                LogError("SO's are null!");
+                DebugUtility.LogError(this, "SO's are null!");
                 return;
             }
             this.enemyMovementSO = enemyMovementSO;

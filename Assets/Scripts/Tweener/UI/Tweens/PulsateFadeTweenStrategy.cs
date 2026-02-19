@@ -19,7 +19,7 @@ namespace MyToolz.Tweener.UI.Tweens
 
             if (baseTween == null)
             {
-                LogWarning("PulsateFadeTweenStrategy: base fade tween returned null.");
+                DebugUtility.LogWarning(this, "PulsateFadeTweenStrategy: base fade tween returned null.");
                 return null;
             }
 

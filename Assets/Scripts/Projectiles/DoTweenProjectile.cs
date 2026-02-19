@@ -1,10 +1,9 @@
 using DG.Tweening;
 using MyToolz.DesignPatterns.EventBus;
+using MyToolz.EditorToolz;
 using MyToolz.Events;
 using MyToolz.HealthSystem;
 using MyToolz.HealthSystem.Interfaces;
-using MyToolz.HealthSystem.Model;
-using Sirenix.OdinInspector;
 using UnityEngine;
 
 namespace MyToolz.Projectiles

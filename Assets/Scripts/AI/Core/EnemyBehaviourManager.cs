@@ -1,9 +1,9 @@
 using MyToolz.AI.Platformer.Interfaces;
 using MyToolz.AI.Platformer.Presenters;
 using MyToolz.DesignPatterns.StateMachine.PriorityBased;
-using MyToolz.HealthSystem.Interfaces;
+using MyToolz.EditorToolz;
 using MyToolz.ScriptableObjects.AI.Platformer;
-using Sirenix.OdinInspector;
+using MyToolz.Utilities.Debug;
 using System;
 using UnityEngine;
 using Zenject;
@@ -194,10 +194,10 @@ namespace MyToolz.AI.Core
     [Serializable]
     public class FollowPlayerEnemyBehaviourState : MovementEnemyBehaviourState
     {
-        [FoldoutGroup("Runtime"), ReadOnly, SerializeField] private float stopDistance => enemyModel?.EnemyMovementSO?.StopDistance ?? 1.25f;
-        [FoldoutGroup("Runtime"), ReadOnly, SerializeField] private float loseSightDistance => enemyModel?.EnemyMovementSO?.LoseSightDistance ?? 12f;
         [FoldoutGroup("Runtime"), ReadOnly, SerializeField] private float currentDistance;
 
+        private float stopDistance => enemyModel?.EnemyMovementSO?.StopDistance ?? 1.25f;
+        private float loseSightDistance => enemyModel?.EnemyMovementSO?.LoseSightDistance ?? 12f;
         private Transform player => enemyModel.Player;
         private IReadOnlyEnemyModel enemyModel;
         private FollowEnemyMovementState followEnemyMovementState = new();
@@ -213,12 +213,12 @@ namespace MyToolz.AI.Core
             if (player == null) return;
             followEnemyMovementState.Initialize(player);
             enemyMovementPresenter.Do(followEnemyMovementState);
-            Log("Follow state entered");
+            DebugUtility.Log(this, "Follow state entered");
         }
 
         public override void OnExit()
         {
-            Log("Follow state exited");
+            DebugUtility.Log(this, "Follow state exited");
         }
 
         public override void OnUpdate()
@@ -252,13 +252,13 @@ namespace MyToolz.AI.Core
         [FoldoutGroup("Path"), SerializeField] private Transform[] points;
         [FoldoutGroup("Path"), SerializeField] private AxisMode axis = AxisMode.Both;
 
-        [FoldoutGroup("Runtime"), ReadOnly, SerializeField] private float arriveDistance => enemyModel?.EnemyMovementSO?.ArriveDistance ?? 0.2f;
-        [FoldoutGroup("Runtime"), ReadOnly, SerializeField] private float waitAtPoint => enemyModel?.EnemyMovementSO?.WaitAtPoint ?? 0.25f;
         [FoldoutGroup("Runtime"), ReadOnly, SerializeField] private int index;
         [FoldoutGroup("Runtime"), ReadOnly, SerializeField] private float waitTimer;
         [FoldoutGroup("Runtime"), ReadOnly, SerializeField] private bool waiting;
         private MoveToEnemyMovementState moveToEnemyMovementState = new();
         private IReadOnlyEnemyModel enemyModel;
+        private float arriveDistance => enemyModel?.EnemyMovementSO?.ArriveDistance ?? 0.2f;
+        private float waitAtPoint => enemyModel?.EnemyMovementSO?.WaitAtPoint ?? 0.25f;
 
         [Inject]
         private void Construct(IReadOnlyEnemyModel enemyModel)
@@ -278,12 +278,12 @@ namespace MyToolz.AI.Core
         {
             if (points == null || points.Length == 0) return;
             MoveToCurrent();
-            Log("Patrol state entered");
+            DebugUtility.Log(this, "Patrol state entered");
         }
 
         public override void OnExit()
         {
-            Log("Patrol state exited");
+            DebugUtility.Log(this, "Patrol state exited");
         }
 
         public override void OnUpdate()
@@ -374,12 +374,12 @@ namespace MyToolz.AI.Core
     [Serializable]
     public class SearchPlayerEnemyBehaviourState : MovementEnemyBehaviourState
     {
-        [FoldoutGroup("Runtime"), ReadOnly, SerializeField] private float duration => enemyModel?.EnemyMovementSO?.SearchDuration ?? 3f;
-        [FoldoutGroup("Runtime"), ReadOnly, SerializeField] private float completeDistance => enemyModel?.EnemyMovementSO?.CompleteDistance ?? 0.4f;
-        [FoldoutGroup("Runtime"), ReadOnly, SerializeField] private Vector3 lastKnownPlayerPosition => enemyModel?.LastKnownPlayerPosition ?? Vector3.zero;
         [FoldoutGroup("Runtime"), ReadOnly, SerializeField] private float timer;
         [FoldoutGroup("Runtime"), ReadOnly, SerializeField] private bool reached;
 
+        private float duration => enemyModel?.EnemyMovementSO?.SearchDuration ?? 3f;
+        private float completeDistance => enemyModel?.EnemyMovementSO?.CompleteDistance ?? 0.4f;
+        private Vector3 lastKnownPlayerPosition => enemyModel?.LastKnownPlayerPosition ?? Vector3.zero;
         private IEnemyModel enemyModel;
         private MoveToEnemyMovementState moveToEnemyMovementState = new();
         private Vector2 enemyMovementPresenterPosition2D
@@ -403,7 +403,7 @@ namespace MyToolz.AI.Core
             reached = false;
             moveToEnemyMovementState.Initialize(lastKnownPlayerPosition);
             enemyMovementPresenter.Do(moveToEnemyMovementState);
-            Log("Search state entered");
+            DebugUtility.Log(this, "Search state entered");
         }
 
         public override void OnExit()
@@ -411,7 +411,7 @@ namespace MyToolz.AI.Core
             timer = 0f;
             reached = false;
             enemyModel.SetLastKnownPlayerPosition(Vector3.zero);
-            Log("Search state exited");
+            DebugUtility.Log(this, "Search state exited");
         }
 
         public override void OnUpdate()

@@ -1,6 +1,7 @@
 using DG.Tweening;
+using MyToolz.EditorToolz;
 using MyToolz.ScriptableObjects.UI.Tweens;
-using Sirenix.OdinInspector;
+using MyToolz.Utilities.Debug;
 using UnityEngine;
 
 namespace MyToolz.Tweener.UI.Tweens
@@ -10,13 +11,13 @@ namespace MyToolz.Tweener.UI.Tweens
     {
         [SerializeField, Required] protected CanvasGroup canvasGroup;
 
-        [SerializeField, Required] protected FadeTweenData data;
+        [SerializeField, Required] protected FadeTweenSO data;
 
         public override Tween GetTween()
         {
             if (canvasGroup == null)
             {
-                LogError("FadeTweenStrategy requires a CanvasGroup.");
+                DebugUtility.LogError(this, "FadeTweenStrategy requires a CanvasGroup.");
                 return null;
             }
 

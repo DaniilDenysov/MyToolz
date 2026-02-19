@@ -1,7 +1,8 @@
 using System.Collections.Generic;
 using UnityEngine;
-using Sirenix.OdinInspector;
 using MyToolz.DataStructures;
+using MyToolz.EditorToolz;
+
 #if UNITY_EDITOR
 using UnityEditor;
 #endif

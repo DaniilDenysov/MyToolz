@@ -1,6 +1,6 @@
+using MyToolz.EditorToolz;
 using MyToolz.Player.FPS.CombatSystem.Presenter;
 using MyToolz.Player.FPS.Inventory;
-using Sirenix.OdinInspector;
 using System.Collections.Generic;
 using UnityEngine;
 

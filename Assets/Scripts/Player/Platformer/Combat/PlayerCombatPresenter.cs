@@ -1,10 +1,10 @@
-using MyToolz.Core;
 using MyToolz.DesignPatterns.StateMachine;
+using MyToolz.EditorToolz;
 using MyToolz.Player.Platformer.Combat.Interfaces;
 using MyToolz.Player.Platformer.Interfaces;
 using MyToolz.ScriptableObjects.Inventory;
 using MyToolz.ScriptableObjects.Player.Platformer.Combat;
-using Sirenix.OdinInspector;
+using MyToolz.Utilities.Debug;
 using System;
 using System.Collections.Generic;
 using UnityEngine;
@@ -27,7 +27,7 @@ namespace MyToolz.Player.Platformer.Combat.Interfaces
 
 namespace MyToolz.Player.Platformer.Combat.Presenter
 {
-    public class PlayerCombatPresenter : MonoBehaviourPlus, IPlayerCombatPresenter
+    public class PlayerCombatPresenter : MonoBehaviour, IPlayerCombatPresenter
     {
         [SerializeField, Required] protected Transform shootPoint;
 
@@ -96,7 +96,7 @@ namespace MyToolz.Player.Platformer.Combat.Presenter
                 _currentlyBoundAttacks.Add(atk);
             }
 
-            Log("Rebound stance attacks: " + _currentlyBoundAttacks.Count);
+            DebugUtility.Log(this, "Rebound stance attacks: " + _currentlyBoundAttacks.Count);
         }
 
         private void UnbindAllAttacks()
@@ -109,7 +109,7 @@ namespace MyToolz.Player.Platformer.Combat.Presenter
                 atk.UnregisterBinding();
             }
             _currentlyBoundAttacks.Clear();
-            Log("Unbound all stance attacks");
+            DebugUtility.Log(this, "Unbound all stance attacks");
         }
 
         private void OnWeaponChanged(WeaponSO sO)

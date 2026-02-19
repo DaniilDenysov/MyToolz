@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using UnityEngine;
-using MyToolz.Core;
 
 namespace MyToolz.Pathfinding
 {
@@ -208,7 +207,7 @@ namespace MyToolz.Pathfinding
         }
     }
 
-    public class AStarPath<TPos, TTile> : ObjectPlus where TTile : class, IMapTile<TPos>
+    public class AStarPath<TPos, TTile> where TTile : class, IMapTile<TPos>
     {
         private readonly IMap<TPos, TTile> map;
         private readonly IHeuristic<TPos> heuristic;

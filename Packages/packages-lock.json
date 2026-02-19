@@ -1,12 +1,5 @@
 {
   "dependencies": {
-    "com.lbg.subclassselector": {
-      "version": "https://github.com/spiney199/Subclass-Selector.git?path=Assets/Subclass-Selector/Subclass-Selector",
-      "depth": 0,
-      "source": "git",
-      "dependencies": {},
-      "hash": "f3a2de7a0d6fd6059088c9125007a872770f863b"
-    },
     "com.unity.2d.animation": {
       "version": "9.1.1",
       "depth": 1,

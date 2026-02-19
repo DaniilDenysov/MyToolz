@@ -1,0 +1,13 @@
+{
+  "name": "com.mytoolz.objectpool",
+  "displayName": "ObjectPool",
+  "version": "1.0.0",
+  "unity": "2022.3",
+  "unityRelease": "46f1",
+  "description": "Object pool solution using event bus and zenject",
+  "license": "MIT",
+  "dependencies": {
+    "com.mytoolz.debugutility": "1.0.0",
+    "com.mytoolz.eventbus": "1.0.0"
+  }
+}

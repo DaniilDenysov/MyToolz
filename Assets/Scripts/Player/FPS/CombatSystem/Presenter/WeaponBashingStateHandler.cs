@@ -1,6 +1,7 @@
 using MyToolz.HealthSystem;
 using MyToolz.HealthSystem.Interfaces;
 using MyToolz.Player.FPS.CombatSystem.View;
+using MyToolz.Utilities.Debug;
 using System.Threading.Tasks;
 using UnityEngine;
 
@@ -17,14 +18,14 @@ namespace MyToolz.Player.FPS.CombatSystem.Presenter
 
         private async void Bash()
         {
-            Log("Bashing");
+            DebugUtility.Log(this, "Bashing");
             if (Physics.Raycast(mainCamera.transform.position, mainCamera.transform.forward, out var raycastHit, weaponSO.BashRange, weaponModel.GetHitLayerMask()))
             {
                  ProcessHit(raycastHit, weaponSO.BashDamage,1f);
             }
             //TODO: [MP] add animations
             await Task.Delay((int)(weaponSO.BashDelay * 1000));
-            Log("Ended bashing");
+            DebugUtility.Log(this, "Ended bashing");
             Exit();
         }
 

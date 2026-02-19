@@ -1,4 +1,5 @@
 using MyToolz.Player.FPS.CombatSystem.Model;
+using MyToolz.Utilities.Debug;
 using UnityEngine;
 
 namespace MyToolz.Player.FPS.CombatSystem.Presenter
@@ -17,7 +18,7 @@ namespace MyToolz.Player.FPS.CombatSystem.Presenter
         {
             if (weaponSO.WeaponInfo == WeaponType.Melee)
             {
-                LogError("Unable to handle reload state for melee!");
+                DebugUtility.LogError(this, "Unable to handle reload state for melee!");
                 return;
             }
             weaponSFXHandler.PlayReloadSFX();

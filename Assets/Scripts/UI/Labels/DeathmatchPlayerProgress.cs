@@ -1,5 +1,5 @@
+using MyToolz.EditorToolz;
 using MyToolz.UI.Labels;
-using Sirenix.OdinInspector;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;

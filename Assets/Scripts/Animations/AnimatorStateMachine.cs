@@ -1,6 +1,7 @@
 using MyToolz.DesignPatterns.StateMachine;
 using MyToolz.DesignPatterns.StateMachine.PriorityBased;
-using Sirenix.OdinInspector;
+using MyToolz.EditorToolz;
+using MyToolz.Utilities.Debug;
 using System;
 using UnityEngine;
 
@@ -208,7 +209,7 @@ namespace MyToolz.Animations
             current = state;
             current.OnEnter();
             animator.CrossFade(state.AnimationHash, 0f);
-            Log($"Animator switched to {state.GetType().Name}");
+            DebugUtility.Log(this, $"Animator switched to {state.GetType().Name}");
         }
 
         public float GetCurrentAninationDuration()

@@ -1,5 +1,5 @@
-using MyToolz.Core;
 using MyToolz.EditorToolz;
+using MyToolz.Utilities.Debug;
 using System;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -18,7 +18,7 @@ namespace MyToolz.Player.Input
     }
 
     [CreateAssetMenu(fileName = "InputCommandSO", menuName = "MyToolz/Input/InputCommandSO")]
-    public class InputCommandSO : ScriptableObjectPlus
+    public class InputCommandSO : ScriptableObject
     {
         private DefaultInputActions inputActions;
 
@@ -93,33 +93,33 @@ namespace MyToolz.Player.Input
             {
                 case InputPhase.Started:
                     if (context.phase != UnityEngine.InputSystem.InputActionPhase.Started) return;
-                    Log($"{name} started!");
+                    DebugUtility.Log(this, $"{name} started!");
                     Performed?.Invoke(this);
                     break;
 
                 case InputPhase.Performed:
                     if (context.phase != UnityEngine.InputSystem.InputActionPhase.Performed) return;
-                    Log($"{name} performed!");
+                    DebugUtility.Log(this, $"{name} performed!");
                     Performed?.Invoke(this);
                     break;
 
                 case InputPhase.Canceled:
                     if (context.phase != UnityEngine.InputSystem.InputActionPhase.Canceled) return;
-                    Log($"{name} canceled!");
+                    DebugUtility.Log(this, $"{name} canceled!");
                     Canceled?.Invoke(this);
                     break;
 
                 case InputPhase.Pressed:
                     if (context.phase != UnityEngine.InputSystem.InputActionPhase.Started) return;
                     if (!IsPressed()) return;
-                    Log($"{name} pressed!");
+                    DebugUtility.Log(this, $"{name} pressed!");
                     Pressed?.Invoke(this);
                     break;
 
                 case InputPhase.Released:
                     if (context.phase != UnityEngine.InputSystem.InputActionPhase.Canceled) return;
                     if (!WasPressedThisFrame()) return;
-                    Log($"{name} released!");
+                    DebugUtility.Log(this, $"{name} released!");
                     Released?.Invoke(this);
                     break;
             }

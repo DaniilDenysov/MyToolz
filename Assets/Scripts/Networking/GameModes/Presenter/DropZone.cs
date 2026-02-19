@@ -1,11 +1,11 @@
 using Mirror;
 using MyToolz.DesignPatterns.EventBus;
+using MyToolz.EditorToolz;
 using MyToolz.Networking.Events;
 using MyToolz.Networking.GameModes.Events;
 using MyToolz.Networking.GameModes.Model;
 using MyToolz.Player.FPS.CombatSystem.Model;
 using MyToolz.Player.FPS.PickUpSystem;
-using Sirenix.OdinInspector;
 using UnityEngine;
 using UnityEngine.UI;
 

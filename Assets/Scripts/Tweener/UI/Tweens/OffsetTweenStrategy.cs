@@ -19,7 +19,7 @@ namespace MyToolz.Tweener.UI.Tweens
         {
             if (rectTransform == null)
             {
-                LogError("OffsetTweenStrategy requires RectTransform.");
+                DebugUtility.LogError(this, "OffsetTweenStrategy requires RectTransform.");
                 return null;
             }
 

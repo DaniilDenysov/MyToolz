@@ -1,10 +1,9 @@
-using MyToolz.Core;
 using UnityEngine;
 
 namespace MyToolz
 {
     [CreateAssetMenu(fileName = "TerrainTileSO", menuName = "MyToolz/TerrainTileSO")]
-    public class TerrainTileSO : ScriptableObjectPlus
+    public class TerrainTileSO : ScriptableObject
     {
         public bool IsWalkable = true;
 

@@ -1,7 +1,6 @@
 using DG.Tweening;
 using MyToolz.Extensions;
 using MyToolz.Utilities.Debug;
-using Sirenix.OdinInspector;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -38,7 +37,7 @@ namespace MyToolz.Tweener.UI
         [SerializeField] private CanvasGroup canvasGroup;
 
         [SerializeField]
-        [InfoBox("If enabled, the UI will block interactions during transitions.")]
+        //If enabled, the UI will block interactions during transitions
         private bool blockInteractionDuringTween = true;
 
         private Dictionary<ActivationTrigger, List<TweenStrategy>> strategies = new Dictionary<ActivationTrigger, List<TweenStrategy>>();

@@ -1,4 +1,3 @@
-using LBG;
 using MyToolz.Player.FPS.CombatSystem.Model;
 using System;
 using System.Collections;

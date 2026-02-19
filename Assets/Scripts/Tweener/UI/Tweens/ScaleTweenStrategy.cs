@@ -1,7 +1,7 @@
 using DG.Tweening;
+using MyToolz.EditorToolz;
 using MyToolz.ScriptableObjects.UI.Tweens;
 using MyToolz.Utilities.Debug;
-using Sirenix.OdinInspector;
 using UnityEngine;
 
 namespace MyToolz.Tweener.UI.Tweens
@@ -9,7 +9,7 @@ namespace MyToolz.Tweener.UI.Tweens
     [System.Serializable]
     public class ScaleTweenStrategy : TweenStrategy
     {
-        [SerializeField, Required] private ScaleTweenData data;
+        [SerializeField, Required] private ScaleTweenSO data;
 
         [SerializeField, Required]
         private RectTransform targetTransform;
@@ -18,7 +18,7 @@ namespace MyToolz.Tweener.UI.Tweens
         {
             if (targetTransform == null)
             {
-                LogError("ScaleTweenStrategy requires a Transform.");
+                DebugUtility.LogError(this, "ScaleTweenStrategy requires a Transform.");
                 return null;
             }
 

@@ -1,0 +1,13 @@
+{
+  "name": "com.mytoolz.tweener",
+  "displayName": "Tweener",
+  "version": "1.0.0",
+  "unity": "2022.3",
+  "unityRelease": "46f1",
+  "description": "Base of for the custom tweening solutions",
+  "license": "MIT",
+  "dependencies": {
+    "com.mytoolz.debugutility": "1.0.0",
+    "com.mytoolz.eventbus": "1.0.0"
+  }
+}

@@ -1,14 +1,14 @@
-using MyToolz.Core;
 using MyToolz.Player.FPS.CombatSystem.Model;
 using MyToolz.Player.FPS.CombatSystem.View;
 using MyToolz.ScriptableObjects.Player.Platformer.Movement;
+using MyToolz.Utilities.Debug;
 using UnityEngine;
 using Zenject;
 
 namespace MyToolz.Player.FPS.CombatSystem.Presenter
 {
     [System.Serializable]
-    public abstract class CombatSystemStateHandler : ObjectPlus
+    public abstract class CombatSystemStateHandler
     {
         #region Private fields
 
@@ -100,7 +100,7 @@ namespace MyToolz.Player.FPS.CombatSystem.Presenter
 
                 if (pattern == null)
                 {
-                    Log("Pattern is null!");
+                    DebugUtility.Log(this, "Pattern is null!");
                     return baseDirection;
                 }
                 else
@@ -142,11 +142,11 @@ namespace MyToolz.Player.FPS.CombatSystem.Presenter
               FeedbackHandler weaponFeedbackHandler
           )
         {
-            if (weaponAnimationsHandler == null) LogError("WeaponAnimationsHandler is null!");
-            if (weaponVFXHandler == null) LogError("WeaponVFXHandler is null!");
-            if (weaponSFXHandler == null) LogError("WeaponSFXHandler is null!");
-            if (weaponController == null) LogError("CombatSystemController is null!");
-            if (weaponFeedbackHandler == null) LogError("FeedbackHandler is null!");
+            if (weaponAnimationsHandler == null) DebugUtility.LogError(this, "WeaponAnimationsHandler is null!");
+            if (weaponVFXHandler == null) DebugUtility.LogError(this, "WeaponVFXHandler is null!");
+            if (weaponSFXHandler == null) DebugUtility.LogError(this, "WeaponSFXHandler is null!");
+            if (weaponController == null) DebugUtility.LogError(this, "CombatSystemController is null!");
+            if (weaponFeedbackHandler == null) DebugUtility.LogError(this, "FeedbackHandler is null!");
 
             this.weaponFeedbackHandler = weaponFeedbackHandler;
             this.weaponAnimationsHandler = weaponAnimationsHandler;

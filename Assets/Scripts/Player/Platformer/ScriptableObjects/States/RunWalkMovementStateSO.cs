@@ -1,4 +1,4 @@
-using Sirenix.OdinInspector;
+using MyToolz.EditorToolz;
 using UnityEngine;
 
 namespace MyToolz.ScriptableObjects.Player.Platformer.Movement
@@ -7,8 +7,7 @@ namespace MyToolz.ScriptableObjects.Player.Platformer.Movement
     public class RunWalkMovementState : HorizontalMovementSO
     {
         [FoldoutGroup("Walk"), SerializeField, Range(1f, 1000f), Tooltip("Maximum horizontal speed while walking")] private float maxWalkSpeed = 80f;
-        [FoldoutGroup("Run")]
-        [SerializeField, PropertyRange("@maxWalkSpeed", 1000f), Tooltip("Maximum horizontal speed while running")] private float maxRunSpeed = 120f;
+        [FoldoutGroup("Run"), SerializeField, Tooltip("Maximum horizontal speed while running")] private float maxRunSpeed = 120f;
 
         public override void CalculateMovement(float acceleration, float decelleration, Vector2 moveInput)
         {

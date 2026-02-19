@@ -1,11 +1,10 @@
-using MyToolz.Core;
 using UnityEngine;
 using Zenject;
 
 
 namespace MyToolz.MiniMap
 {
-    public class MinimapWorldObject : MonoBehaviourPlus, IMinimapObject
+    public class MinimapWorldObject : MonoBehaviour, IMinimapObject
     {
         [SerializeField] private bool followObject = false;
         [SerializeField] private Sprite minimapIcon;

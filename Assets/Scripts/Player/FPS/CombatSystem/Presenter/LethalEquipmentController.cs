@@ -1,10 +1,10 @@
 using Mirror;
 using MyToolz.DesignPatterns.EventBus;
+using MyToolz.EditorToolz;
 using MyToolz.HealthSystem;
 using MyToolz.HealthSystem.Interfaces;
 using MyToolz.Player.FPS.CombatSystem.Model;
 using MyToolz.ScriptableObjects.Audio;
-using Sirenix.OdinInspector;
 using System;
 using System.Collections;
 using UnityEngine;
@@ -15,7 +15,7 @@ namespace MyToolz.Player.FPS.CombatSystem.Presenter
     {
         [SerializeField, Required] protected T lethalEquipmentSO;
         public T LethalEquipmentS => lethalEquipmentSO;
-        [SerializeField, Optional] private Transform forcePoint; 
+        [SerializeField] private Transform forcePoint; 
         [SerializeField, Required] protected Rigidbody _rigidbody;
         [SerializeField] protected AudioClipSO collision_sfx;
         [SerializeField, Range(0, 10)] protected float sfx_force_trashold = 2;

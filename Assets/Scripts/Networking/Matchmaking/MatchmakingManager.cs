@@ -6,7 +6,6 @@ using System;
 using System.Linq;
 using Zenject;
 using System.Threading;
-using Sirenix.OdinInspector;
 using MyToolz.DesignPatterns.Singleton;
 using MyToolz.Networking.ScriptableObjects;
 using MyToolz.DesignPatterns.EventBus;
@@ -14,12 +13,14 @@ using MyToolz.Events;
 using MyToolz.Networking.Relays;
 using MyToolz.UI.Labels;
 using MyToolz.Networking.Matchmaking.View;
+using MyToolz.EditorToolz;
+using MyToolz.Utilities.Debug;
 
 namespace MyToolz.Networking.Matchmaking
 {
     public class MatchmakingManager : Singleton<MatchmakingManager>
     {
-        [SerializeField, Required] private string gameId = "NoSaints";
+        [SerializeField, Required] private string gameId = "Game";
         [SerializeField, Range(1f, 60f)] private float listRefreshDelay = 3f;
         [SerializeField, Range(1, 12)] private int maxPlayersInLobby;
         [SerializeField] private List<GameModeSO> availableGameModes;
@@ -237,7 +238,7 @@ namespace MyToolz.Networking.Matchmaking
             if (activeLobby != null)
             {
                 await relay.LeaveLobby(activeLobby);
-                Log($"Left lobby due to search cancellation.");
+                DebugUtility.Log(this, $"Left lobby due to search cancellation.");
                 activeLobby = null;
             }
         }
@@ -250,11 +251,6 @@ namespace MyToolz.Networking.Matchmaking
                 return;
             }
             CreateLobby(gameMode);
-        }
-
-        public override MatchmakingManager GetInstance()
-        {
-            return this;
         }
     }
 }

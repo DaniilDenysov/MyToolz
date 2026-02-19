@@ -1,6 +1,6 @@
 using DG.Tweening;
+using MyToolz.EditorToolz;
 using MyToolz.Utilities.Debug;
-using Sirenix.OdinInspector;
 using UnityEngine;
 
 namespace MyToolz.Tweener.UI.Tweens
@@ -18,18 +18,18 @@ namespace MyToolz.Tweener.UI.Tweens
         [SerializeField]
         private PulsateMode mode = PulsateMode.Scale;
 
-        [SerializeField, ShowIf("mode", PulsateMode.Scale)] private RectTransform targetTransform;
-        [SerializeField, ShowIf("mode", PulsateMode.SizeDelta)] private RectTransform targetRect;
-        [SerializeField, ShowIf("mode", PulsateMode.Fade)] private CanvasGroup canvasGroup;
+        [SerializeField, ShowIf("@mode==PulsateMode.Scale")] private RectTransform targetTransform;
+        [SerializeField, ShowIf("@mode==PulsateMode.SizeDelta")] private RectTransform targetRect;
+        [SerializeField, ShowIf("@mode==PulsateMode.Fade")] private CanvasGroup canvasGroup;
         [SerializeField] private float duration = 0.5f;
         [SerializeField] private int loops = -1; // -1 = infinite
         [SerializeField] private Ease ease = Ease.InOutSine;
-        [SerializeField, ShowIf("mode", PulsateMode.Scale)] private Vector3 fromScale = Vector3.one;
-        [SerializeField, ShowIf("mode", PulsateMode.Scale)] private Vector3 toScale = Vector3.one * 1.2f;
-        [SerializeField, ShowIf("mode", PulsateMode.SizeDelta)] private Vector2 fromPercentage = Vector2.one;
-        [SerializeField, ShowIf("mode", PulsateMode.SizeDelta)] private Vector2 toPercentage = new Vector2(1.2f, 1.2f);
-        [SerializeField, ShowIf("mode", PulsateMode.Fade)] private float fromAlpha = 1f;
-        [SerializeField, ShowIf("mode", PulsateMode.Fade)] private float toAlpha = 0.5f;
+        [SerializeField, ShowIf("@mode==PulsateMode.Scale")] private Vector3 fromScale = Vector3.one;
+        [SerializeField, ShowIf("@mode==PulsateMode.Scale")] private Vector3 toScale = Vector3.one * 1.2f;
+        [SerializeField, ShowIf("@mode==PulsateMode.SizeDelta")] private Vector2 fromPercentage = Vector2.one;
+        [SerializeField, ShowIf("@mode==PulsateMode.SizeDelta")] private Vector2 toPercentage = new Vector2(1.2f, 1.2f);
+        [SerializeField, ShowIf("@mode==PulsateMode.Fade")] private float fromAlpha = 1f;
+        [SerializeField, ShowIf("@mode==PulsateMode.Fade")] private float toAlpha = 0.5f;
 
         public override Tween GetTween()
         {
@@ -40,7 +40,7 @@ namespace MyToolz.Tweener.UI.Tweens
                 case PulsateMode.Scale:
                     if (targetTransform == null)
                     {
-                        LogError("PulsateTweenStrategy: RectTransform is null.");
+                        DebugUtility.LogError(this, "PulsateTweenStrategy: RectTransform is null.");
                         return null;
                     }
 
@@ -55,7 +55,7 @@ namespace MyToolz.Tweener.UI.Tweens
                 case PulsateMode.SizeDelta:
                     if (targetRect == null)
                     {
-                        LogError("PulsateTweenStrategy: RectTransform is null.");
+                        DebugUtility.LogError(this, "PulsateTweenStrategy: RectTransform is null.");
                         return null;
                     }
 
@@ -82,7 +82,7 @@ namespace MyToolz.Tweener.UI.Tweens
                 case PulsateMode.Fade:
                     if (canvasGroup == null)
                     {
-                        LogError("PulsateTweenStrategy: CanvasGroup is null.");
+                        DebugUtility.LogError(this, "PulsateTweenStrategy: CanvasGroup is null.");
                         return null;
                     }
 

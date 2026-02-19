@@ -257,8 +257,7 @@ namespace MyToolz.Networking
                 EventBus<SceneLoading>.Raise(new SceneLoading()
                 {
                     AsyncOperation = loadingSceneAsync,
-                    SceneName = newSceneName,
-                    SceneOperation = sceneOperation
+                    SceneName = newSceneName
                 });
             }
 

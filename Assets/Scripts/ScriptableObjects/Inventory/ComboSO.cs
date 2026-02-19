@@ -1,12 +1,11 @@
 using MyToolz.DesignPatterns.EventBus;
+using MyToolz.EditorToolz;
 using MyToolz.HealthSystem;
 using MyToolz.HealthSystem.Interfaces;
-using MyToolz.HealthSystem.Model;
 using MyToolz.Player.Input;
 using MyToolz.Player.Platformer.Events;
 using MyToolz.Player.Platformer.Interfaces;
 using MyToolz.Player.Platformer.Movement.Interfaces;
-using Sirenix.OdinInspector;
 using System.Collections.Generic;
 using UnityEngine;
 using Zenject;

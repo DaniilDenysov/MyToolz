@@ -1,16 +1,15 @@
 using UnityEngine;
-using Sirenix.OdinInspector;
 using MyToolz.InventorySystem.Views;
+using MyToolz.EditorToolz;
 
 namespace MyToolz.ScriptableObjects.Inventory
 {
     public abstract class ItemSO : ScriptableObject
     {
-        [FoldoutGroup("Item"), HorizontalGroup("Item/Header", 64)]
-        [VerticalGroup("Item/Header/Left", 64), PreviewField(64, ObjectFieldAlignment.Left), HideLabel, Required]
+        [FoldoutGroup("Item"), Required]
         [SerializeField] protected Sprite icon;
 
-        [FoldoutGroup("Item"), VerticalGroup("Item/Header/Right"), LabelWidth(100), Required, DelayedProperty]
+        [FoldoutGroup("Item")]
         [SerializeField] protected string itemName;
         [FoldoutGroup("Item"), SerializeField] protected InventoryItemView<ItemSO> inventoryItemViewPrefab;
         [FoldoutGroup("Item"), TextArea(3, 6)]

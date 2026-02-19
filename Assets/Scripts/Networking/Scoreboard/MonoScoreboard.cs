@@ -1,5 +1,4 @@
 using Mirror;
-using MyToolz.Core;
 using MyToolz.HealthSystem.Interfaces;
 using MyToolz.Networking.ScriptableObjects;
 using MyToolz.Player.Input;
@@ -10,7 +9,7 @@ using Zenject;
 
 namespace MyToolz.Networking.Scoreboards
 {
-    public abstract class ScoreboardBackend : ObjectPlus, IEventListener
+    public abstract class ScoreboardBackend : IEventListener
     {
         [SerializeField] protected InputCommandSO openCloseInputCommandSO;
 

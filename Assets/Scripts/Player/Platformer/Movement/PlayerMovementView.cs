@@ -1,8 +1,6 @@
-using MyToolz.Core;
+using MyToolz.EditorToolz;
 using MyToolz.Player.Platformer.Interfaces;
 using MyToolz.Player.Platformer.Movement.Interfaces;
-using MyToolz.ScriptableObjects.Player.Platformer.Movement;
-using Sirenix.OdinInspector;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -22,7 +20,7 @@ namespace MyToolz.Player.Platformer.Movement.Interfaces
 
 namespace MyToolz.Player.Platformer.Movement.View
 {
-    public class PlayerMovementView : MonoBehaviourPlus, IPlayerVerticalMovementView, IPlayerHorizontalMovementView, IPlayerDashView
+    public class PlayerMovementView : MonoBehaviour, IPlayerVerticalMovementView, IPlayerHorizontalMovementView, IPlayerDashView
     {
         [SerializeField] private Image dashCD;
         //[SerializeField] private WorldVFX dashVFX;

@@ -1,0 +1,14 @@
+{
+  "name": "com.mytoolz.mvpclock",
+  "displayName": "MVP Clock",
+  "version": "1.0.0",
+  "unity": "2022.3",
+  "unityRelease": "46f1",
+  "description": "MVP clock with stop watch and timer functionalities",
+  "license": "MIT",
+  "dependencies": {
+    "com.mytoolz.debugutility": "1.0.0",
+    "com.mytoolz.editortoolz": "1.0.0",
+    "com.mytoolz.mvpuimanagementsystem": "1.0.0"
+  }
+}

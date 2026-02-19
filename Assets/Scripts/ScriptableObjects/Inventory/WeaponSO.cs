@@ -1,6 +1,6 @@
+using MyToolz.EditorToolz;
 using MyToolz.HealthSystem;
 using MyToolz.ScriptableObjects.Audio;
-using Sirenix.OdinInspector;
 using UnityEngine;
 
 namespace MyToolz.ScriptableObjects.Inventory

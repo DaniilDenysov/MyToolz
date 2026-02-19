@@ -1,8 +1,8 @@
 using Mirror;
+using MyToolz.EditorToolz;
 using MyToolz.Player.FPS.CombatSystem.Model;
 using MyToolz.Player.FPS.CombatSystem.Presenter;
 using MyToolz.Player.FPS.Inventory;
-using Sirenix.OdinInspector;
 using UnityEngine;
 
 namespace MyToolz.Player.FPS.CombatSystem.Model
@@ -21,7 +21,7 @@ namespace MyToolz.Player.FPS.CombatSystem.Model
         [SerializeField, Range(0, 100)] protected float damageAmount = 100f;
         public float DamageAmount { get => damageAmount; }
         [SerializeField] protected bool enableDamageOnHit = false;
-        [SerializeField, HideIf("@!enableDamageOnHit")] protected float damageOnHit = 2f;
+        [SerializeField, HideIf("@enableDamageOnHit")] protected float damageOnHit = 2f;
         public float DamageOnHit { get => damageOnHit; }
         [SerializeField, HideIf("@!enableDamageOnHit")] protected float damageOnHitThreshold = 0.6f;
         public float DamageOnHitThreshold { get => damageOnHitThreshold; }

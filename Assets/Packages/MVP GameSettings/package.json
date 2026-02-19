@@ -1,0 +1,14 @@
+{
+  "name": "com.mytoolz.mvpgamesettings",
+  "displayName": "MVP GameSettings",
+  "version": "1.0.0",
+  "unity": "2022.3",
+  "unityRelease": "46f1",
+  "description": "",
+  "license": "MIT",
+  "dependencies": {
+    "com.mytoolz.debugutility": "1.0.0",
+    "com.mytoolz.editortoolz": "1.0.0",
+    "com.mytoolz.io": "1.0.0"
+  }
+}

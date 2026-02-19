@@ -1,8 +1,7 @@
 using MyToolz.DesignPatterns.EventBus;
+using MyToolz.EditorToolz;
 using MyToolz.Events;
 using MyToolz.Projectiles;
-using MyToolz.ScriptableObjects.Player.Platformer.Combat;
-using Sirenix.OdinInspector;
 using UnityEngine;
 
 namespace MyToolz.ScriptableObjects.Player.Platformer.Combat

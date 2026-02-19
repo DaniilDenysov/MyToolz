@@ -1,6 +1,5 @@
 using DG.Tweening;
 using MyToolz.Utilities.Debug;
-using Sirenix.OdinInspector;
 using UnityEngine;
 
 namespace MyToolz.Tweener.UI.Tweens
@@ -8,7 +7,7 @@ namespace MyToolz.Tweener.UI.Tweens
     [System.Serializable]
     public class MergeTweenStrategy : TweenStrategy
     {
-        [InfoBox("Only parent trigger is taken into account!")]
+        //Only parent trigger is taken into account!
         [SerializeField]
         private bool parallel = true;
 
@@ -19,7 +18,7 @@ namespace MyToolz.Tweener.UI.Tweens
         {
             if (innerStrategies == null || innerStrategies.Length == 0)
             {
-                LogWarning("MergeTweenStrategy: No inner strategies assigned.");
+                DebugUtility.LogWarning(this, "MergeTweenStrategy: No inner strategies assigned.");
                 return null;
             }
 

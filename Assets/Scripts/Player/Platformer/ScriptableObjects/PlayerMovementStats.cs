@@ -1,4 +1,4 @@
-using Sirenix.OdinInspector;
+using MyToolz.EditorToolz;
 using UnityEngine;
 
 namespace MyToolz.ScriptableObjects.Player.Platformer.Movement

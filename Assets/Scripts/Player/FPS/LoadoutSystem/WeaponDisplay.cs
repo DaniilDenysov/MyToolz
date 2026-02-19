@@ -1,6 +1,6 @@
+using MyToolz.EditorToolz;
 using MyToolz.Player.FPS.CombatSystem.Model;
 using MyToolz.Player.FPS.CombatSystem.View;
-using Sirenix.OdinInspector;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;

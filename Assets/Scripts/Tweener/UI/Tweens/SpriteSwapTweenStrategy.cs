@@ -1,6 +1,6 @@
 using DG.Tweening;
+using MyToolz.EditorToolz;
 using MyToolz.Utilities.Debug;
-using Sirenix.OdinInspector;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -18,7 +18,7 @@ namespace MyToolz.Tweener.UI.Tweens
         {
             if (spriteRenderer == null || newSprite == null)
             {
-                LogError("SpriteSwapTweenStrategy: SpriteRenderer or NewSprite is null.");
+                DebugUtility.LogError(this, "SpriteSwapTweenStrategy: SpriteRenderer or NewSprite is null.");
                 return null;
             }
 

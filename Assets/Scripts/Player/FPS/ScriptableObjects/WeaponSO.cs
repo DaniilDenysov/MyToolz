@@ -1,10 +1,10 @@
-using Sirenix.OdinInspector;
 using System;
 using UnityEngine;
 using UnityEngine.Serialization;
 using MyToolz.ScriptableObjects.Audio;
 using MyToolz.Player.FPS.Inventory;
 using MyToolz.Player.FPS.LoadoutSystem.View;
+using MyToolz.EditorToolz;
 
 namespace MyToolz.Player.FPS.CombatSystem.Model
 {

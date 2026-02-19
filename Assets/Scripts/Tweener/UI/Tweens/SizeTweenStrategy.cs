@@ -17,7 +17,7 @@ namespace MyToolz.Tweener.UI.Tweens
         {
             if (rectTransform == null)
             {
-                LogError("SizeTweenStrategy requires a RectTransform.");
+                DebugUtility.LogError(this, "SizeTweenStrategy requires a RectTransform.");
                 return null;
             }
 

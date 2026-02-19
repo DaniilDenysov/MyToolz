@@ -1,8 +1,5 @@
-using Sirenix.OdinInspector;
-using MyToolz.DataStructures;
-using MyToolz.Math;
-using MyToolz.Pathfinding;
 using UnityEngine;
+using MyToolz.EditorToolz;
 
 namespace MyToolz.ScriptableObjects
 {

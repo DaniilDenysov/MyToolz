@@ -1,17 +1,17 @@
 using DG.Tweening;
+using MyToolz.Utilities.Debug;
 using System.Collections.Generic;
 using UnityEngine;
-using MyToolz.Core;
 
 namespace MyToolz.Tweener
 {
     [System.Serializable]
-    public abstract class AbstractTweenStrategy : ObjectPlus
+    public abstract class AbstractTweenStrategy
     {
         public abstract Tween GetTween();
     }
 
-    public abstract class Tweener<T> : MonoBehaviourPlus where T : AbstractTweenStrategy
+    public abstract class Tweener<T> : MonoBehaviour where T : AbstractTweenStrategy
     {
 
         [SerializeField]
@@ -86,7 +86,7 @@ namespace MyToolz.Tweener
             }
 
             runningTweens.Clear();
-            Log("UITweener tweens cancelled.");
+            DebugUtility.Log(this, "UITweener tweens cancelled.");
         }
     }
 }

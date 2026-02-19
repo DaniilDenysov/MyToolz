@@ -62,11 +62,6 @@ namespace MyToolz.MiniMap
             this.miniMapSO = miniMapSO;
         }
 
-        public override MinimapController GetInstance()
-        {
-            return this;
-        }
-
         private void MapMinimapsToHeightmaps ()
         {
             heightMaps.Clear();

@@ -1,13 +1,12 @@
-using MyToolz.Core;
 using MyToolz.DesignPatterns.EventBus;
 using MyToolz.DesignPatterns.StateMachine.SimplePriorityBased;
+using MyToolz.EditorToolz;
 using MyToolz.HealthSystem.Interfaces;
 using MyToolz.Player.Input;
 using MyToolz.Player.Platformer.Interfaces;
 using MyToolz.Player.Platformer.Movement.Interfaces;
 using MyToolz.ScriptableObjects.Inventory;
 using MyToolz.ScriptableObjects.Player.Platformer.Movement;
-using Sirenix.OdinInspector;
 using System;
 using UnityEngine;
 using Zenject;
@@ -41,7 +40,7 @@ namespace MyToolz.Player.Platformer.Movement.Presenter
 {
 
     [RequireComponent(typeof(Rigidbody2D), typeof(CapsuleCollider2D))]
-    public class PlayerMovementPresenter : MonoBehaviourPlus, IKnockOffable, IPriorityState, IPlayerMovementPresenter
+    public class PlayerMovementPresenter : MonoBehaviour, IKnockOffable, IPriorityState, IPlayerMovementPresenter
     {
         [SerializeField, Range(0, 100)] protected uint priority = 100;
         [FoldoutGroup("References"), SerializeField, Required] private SpriteRenderer spriteRenderer;

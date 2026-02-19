@@ -1,9 +1,9 @@
 using DG.Tweening;
 using DG.Tweening.Core.Easing;
+using MyToolz.EditorToolz;
 using MyToolz.HealthSystem.Interfaces;
 using MyToolz.Player.Platformer.Interfaces;
 using MyToolz.Player.Platformer.Movement.Interfaces;
-using Sirenix.OdinInspector;
 using UnityEngine;
 using Zenject;
 
@@ -24,7 +24,7 @@ namespace MyToolz.ScriptableObjects.Player.Platformer.Movement
     [CreateAssetMenu(fileName = "DashMovementStateSO", menuName = "ProjectClyde/Player/MovementStates/DashMovementStateSO")]
     public class DashMovementStateSO : HorizontalMovementSO
     {
-        [FoldoutGroup("Dash"), SerializeField, PropertyRange(0f, 1000f), Tooltip("Initial horizontal dash force")] private float dashForce = 300f;
+        [FoldoutGroup("Dash"), SerializeField, Tooltip("Initial horizontal dash force")] private float dashForce = 300f;
         [FoldoutGroup("Dash"), SerializeField, Tooltip("Curve controlling dash force falloff over time")] private Ease forceMultiplierCurve = Ease.InOutSine;
         [FoldoutGroup("Dash"), SerializeField, Range(0.1f, 10f), Tooltip("Minimum time before next dash")] private float dashTimeCoolDown = 5f;
         [FoldoutGroup("Dash"), SerializeField, Range(0.1f, 5f), Tooltip("Duration dash force applies")] private float dashDuration = 2f;

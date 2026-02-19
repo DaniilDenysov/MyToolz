@@ -1,6 +1,6 @@
+using MyToolz.EditorToolz;
 using MyToolz.Player.FPS.LoadoutSystem.View;
 using MyToolz.UI.Labels;
-using Sirenix.OdinInspector;
 using TMPro;
 using UnityEngine;
 

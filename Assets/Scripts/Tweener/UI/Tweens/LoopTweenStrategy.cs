@@ -16,7 +16,7 @@ namespace MyToolz.Tweener.UI.Tweens
 
             if (baseTween == null)
             {
-                LogWarning("LoopTweenStrategy: Underlying MergeTweenStrategy returned null.");
+                DebugUtility.LogWarning(this, "LoopTweenStrategy: Underlying MergeTweenStrategy returned null.");
                 return null;
             }
 

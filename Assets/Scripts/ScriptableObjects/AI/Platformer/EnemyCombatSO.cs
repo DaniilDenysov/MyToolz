@@ -1,8 +1,6 @@
-using MyToolz.Core;
+using MyToolz.EditorToolz;
 using MyToolz.HealthSystem;
-using MyToolz.HealthSystem.Model;
 using MyToolz.Projectiles;
-using Sirenix.OdinInspector;
 using UnityEngine;
 
 namespace MyToolz.ScriptableObjects.AI.Platformer
@@ -14,7 +12,7 @@ namespace MyToolz.ScriptableObjects.AI.Platformer
     public enum SightCastType { Ray, Circle,  Box }
 
     [CreateAssetMenu(fileName = "EnemyCombatSO", menuName = "Enemies/EnemyCombatSO")]
-    public class EnemyCombatSO : ScriptableObjectPlus
+    public class EnemyCombatSO : ScriptableObject
     {
         [FoldoutGroup("Sight"), SerializeField, Range(0.1f, 1000f)] private float viewDistance;
         [FoldoutGroup("Sight"), SerializeField, HideIf(nameof(NotUsingBoxSight))] private Vector2 sightBoxSize = Vector2.one;
@@ -39,23 +37,23 @@ namespace MyToolz.ScriptableObjects.AI.Platformer
 
         [FoldoutGroup("Cooldown"), SerializeField, Range(0f, 1000f)] private float attackDuration;
         [FoldoutGroup("Cooldown"), SerializeField, Range(0f, 1000f), HideIf("@randomizeCoolDown")] private float coolDown;
-        [FoldoutGroup("Cooldown"), SerializeField, PropertyRange(0f, 1000f), ShowIf("@randomizeCoolDown")] private Vector2 randomCoolDown;
+        [FoldoutGroup("Cooldown"), SerializeField, ShowIf("@randomizeCoolDown")] private Vector2 randomCoolDown;
         [FoldoutGroup("Cooldown"), SerializeField] private bool randomizeCoolDown;
 
         [FoldoutGroup("Damage"), SerializeReference] private DamageType damageType = new PhysicalDamageType();
 
         [FoldoutGroup("Range"), SerializeField, Range(0f, 1000f), HideIf("@randomizeRange")] private float attackRange;
         [FoldoutGroup("Range"), SerializeField, Range(0f, 1000f), HideIf("@randomizeRange")] private float effectiveOutOfRangeDistance = 10f;
-        [FoldoutGroup("Range"), SerializeField, PropertyRange(0f, 1000f), ShowIf("@randomizeRange")] private Vector2 randomAttackRange;
+        [FoldoutGroup("Range"), SerializeField, ShowIf("@randomizeRange")] private Vector2 randomAttackRange;
         [FoldoutGroup("Range"), SerializeField] private bool randomizeRange;
 
-        [FoldoutGroup("Geometry"), SerializeField, ShowIf("@castType == AttackCastType.Circle"), MinValue(0f)] private float circleRadius = 0.5f;
+        [FoldoutGroup("Geometry"), SerializeField, ShowIf("@castType == AttackCastType.Circle"), Min(0f)] private float circleRadius = 0.5f;
         [FoldoutGroup("Geometry"), SerializeField, ShowIf("@castType == AttackCastType.Box")] private Vector2 boxSize = Vector2.one;
 
         [FoldoutGroup("KnockOff"), SerializeField] private bool enableKnockOff = true;
         [FoldoutGroup("KnockOff"), SerializeField, Range(0f, 1000f), ShowIf("@enableKnockOff")] private float knockOffForce = 10f;
         [FoldoutGroup("KnockOff"), SerializeField, Range(0f, 1000f), ShowIf("@enableKnockOff")] private float closeCombatKnockOffForce = 100f;
-        [FoldoutGroup("KnockOff"), SerializeField, PropertyRange(0f, 1000f), ShowIf("@randomizeKnockOff")] private Vector2 randomKnockOffForce = new Vector2(5f, 15f);
+        [FoldoutGroup("KnockOff"), SerializeField, ShowIf("@randomizeKnockOff")] private Vector2 randomKnockOffForce = new Vector2(5f, 15f);
         [FoldoutGroup("KnockOff"), SerializeField, ShowIf("@enableKnockOff")] private bool randomizeKnockOff;
 
         public float EffectiveOutOfRangeDistance => effectiveOutOfRangeDistance;

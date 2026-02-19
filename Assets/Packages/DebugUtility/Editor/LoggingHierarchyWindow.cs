@@ -1,10 +1,11 @@
 #if UNITY_EDITOR
+using System.IO;
+using System.Text.RegularExpressions;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEditor;
 using UnityEngine;
-using MyToolz.Core;
 using MyToolz.Utilities.Debug;
 
 namespace MyToolz.EditorToolz.Logging
@@ -117,10 +118,12 @@ namespace MyToolz.EditorToolz.Logging
 
             if (nextEnabled != enabled)
             {
-                settings.Set(node.Path, nextEnabled);
+                ApplyToggle(node, nextEnabled);
+
                 LogGate.ClearCache();
                 EditorUtility.SetDirty(settings);
             }
+
 
             x += ToggleWidth + 2f;
 
@@ -142,25 +145,238 @@ namespace MyToolz.EditorToolz.Logging
             }
         }
 
+        private void ApplyToggle(Node node, bool enable)
+        {
+            if (node == null || root == null)
+                return;
+
+            if (enable)
+            {
+                // Enable everything along the path to this node (namespaces + type),
+                // and optionally the whole subtree if the node is a namespace/group.
+                EnablePath(node.Path);
+                EnableSubtree(node);
+                ExpandFoldoutsAlongPath(node.Path);
+            }
+            else
+            {
+                DisableSubtree(node);
+                // Walk upwards and disable parents that no longer contain any enabled types.
+                DisableEmptyAncestors(node.Path);
+            }
+        }
+
+        private void EnablePath(string targetPath)
+        {
+            if (string.IsNullOrEmpty(targetPath))
+                return;
+
+            // Enable each prefix segment: A, A.B, A.B.C ...
+            int dot = targetPath.IndexOf('.');
+            while (dot > 0)
+            {
+                settings.Set(targetPath[..dot], true);
+                dot = targetPath.IndexOf('.', dot + 1);
+            }
+
+            // And the full node path itself.
+            settings.Set(targetPath, true);
+        }
+
+        private void EnableSubtree(Node node)
+        {
+            if (node == null)
+                return;
+
+            foreach (var n in EnumerateSubtree(node))
+                settings.Set(n.Path, true);
+        }
+
+        private void DisableSubtree(Node node)
+        {
+            foreach (var n in EnumerateSubtree(node))
+                settings.Set(n.Path, false);
+        }
+
+        private void DisableEmptyAncestors(string fromPath)
+        {
+            if (string.IsNullOrEmpty(fromPath) || root == null)
+                return;
+
+            string walk = ParentPath(fromPath);
+            while (!string.IsNullOrEmpty(walk))
+            {
+                var n = FindNodeByPath(walk);
+                if (n == null)
+                    break;
+
+                // If this ancestor still contains any enabled types, stop.
+                if (CountEnabledTypes(n) > 0)
+                    break;
+
+                settings.Set(walk, false);
+                walk = ParentPath(walk);
+            }
+        }
+
+        private static string ParentPath(string path)
+        {
+            if (string.IsNullOrEmpty(path))
+                return null;
+
+            int dot = path.LastIndexOf('.');
+            return dot > 0 ? path[..dot] : null;
+        }
+
+        private Node FindNodeByPath(string path)
+        {
+            if (root == null || string.IsNullOrEmpty(path))
+                return null;
+
+            var parts = path.Split('.');
+            var current = root;
+            for (int i = 0; i < parts.Length; i++)
+            {
+                if (!current.Children.TryGetValue(parts[i], out var next))
+                    return null;
+
+                current = next;
+            }
+
+            // Some nodes (types) store Path as full name; namespace nodes store cumulative prefix.
+            // Either way, require exact match.
+            return string.Equals(current.Path, path, StringComparison.Ordinal) ? current : null;
+        }
+
+        private int CountEnabledTypes(Node node)
+        {
+            int count = 0;
+            foreach (var n in EnumerateSubtree(node))
+            {
+                if (!n.IsType)
+                    continue;
+
+                if (GetEffective(n.Path))
+                    count++;
+            }
+
+            return count;
+        }
+
+        private IEnumerable<Node> EnumerateAllNodes()
+        {
+            if (root == null)
+                yield break;
+
+            foreach (var child in root.Children.Values)
+                foreach (var n in EnumerateSubtree(child))
+                    yield return n;
+        }
+
+        private static IEnumerable<Node> EnumerateSubtree(Node node)
+        {
+            if (node == null)
+                yield break;
+
+            yield return node;
+            foreach (var child in node.Children.Values)
+                foreach (var n in EnumerateSubtree(child))
+                    yield return n;
+        }
+
+        private static bool IsOnPath(string nodePath, string targetPath)
+        {
+            if (string.IsNullOrEmpty(nodePath) || string.IsNullOrEmpty(targetPath))
+                return false;
+
+            if (nodePath.Length > targetPath.Length)
+                return false;
+
+            if (!targetPath.StartsWith(nodePath, StringComparison.Ordinal))
+                return false;
+
+            return nodePath.Length == targetPath.Length || targetPath[nodePath.Length] == '.';
+        }
+
+        private void ExpandFoldoutsAlongPath(string targetPath)
+        {
+            if (string.IsNullOrEmpty(targetPath))
+                return;
+
+            int dot = targetPath.IndexOf('.');
+            while (dot > 0)
+            {
+                var prefix = targetPath[..dot];
+                _foldouts[prefix] = true;
+                dot = targetPath.IndexOf('.', dot + 1);
+            }
+        }
+
+
         private void RebuildTree()
         {
             root = new Node { Name = "ROOT" };
             _foldouts.Clear();
 
-            var types = new HashSet<Type>();
-            TypeCache.GetTypesDerivedFrom<MonoBehaviourPlus>().ToList().ForEach(t => types.Add(t));
-            TypeCache.GetTypesDerivedFrom<ScriptableObjectPlus>().ToList().ForEach(t => types.Add(t));
-            TypeCache.GetTypesDerivedFrom<ObjectPlus>().ToList().ForEach(t => types.Add(t));
-
-            foreach (var t in types.Where(t =>
-                         t != null &&
-                         t.IsClass &&
-                         !t.IsAbstract &&
-                         t.Assembly.GetName().Name.StartsWith(assemblyPrefix)))
-            {
+            foreach (var t in FindTypesCallingDebugUtility(assemblyPrefix))
                 AddType(t);
+        }
+
+        private static readonly Regex DebugUtilityInvocationRegex =
+            new(@"\b(?:MyToolz\.Utilities\.Debug\.)?DebugUtility\s*\.\s*[A-Za-z_]\w*\s*\(",
+                RegexOptions.Compiled);
+
+        private static readonly Regex StripCommentsAndStringsRegex =
+            new(
+                @"//.*?$|/\*.*?\*/|@""(?:""""|[^""])*""|""(?:\\.|[^""\\])*""|'(?:\\.|[^'\\])*'",
+                RegexOptions.Compiled | RegexOptions.Singleline | RegexOptions.Multiline);
+
+        private static IEnumerable<Type> FindTypesCallingDebugUtility(string assemblyNamePrefix)
+        {
+            var guids = AssetDatabase.FindAssets("t:MonoScript", new[] { "Assets" });
+            var yielded = new HashSet<Type>();
+
+            for (int i = 0; i < guids.Length; i++)
+            {
+                var assetPath = AssetDatabase.GUIDToAssetPath(guids[i]);
+                if (string.IsNullOrEmpty(assetPath))
+                    continue;
+
+                if (!assetPath.EndsWith(".cs", StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                string text;
+                try
+                {
+                    text = File.ReadAllText(assetPath);
+                }
+                catch
+                {
+                    continue;
+                }
+
+                text = StripCommentsAndStringsRegex.Replace(text, " ");
+                if (!DebugUtilityInvocationRegex.IsMatch(text))
+                    continue;
+
+                var script = AssetDatabase.LoadAssetAtPath<MonoScript>(assetPath);
+                if (script == null)
+                    continue;
+
+                var type = script.GetClass();
+                if (type == null || !type.IsClass || type.IsAbstract)
+                    continue;
+
+                if (!string.IsNullOrEmpty(assemblyNamePrefix) &&
+                    !type.Assembly.GetName().Name.StartsWith(assemblyNamePrefix, StringComparison.Ordinal))
+                    continue;
+
+                if (yielded.Add(type))
+                    yield return type;
             }
         }
+
+
 
         private void AddType(Type t)
         {

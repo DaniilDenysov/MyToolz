@@ -1,8 +1,7 @@
-using MyToolz.Core;
+using MyToolz.EditorToolz;
 using MyToolz.HealthSystem.Interfaces;
-using MyToolz.HealthSystem.Model;
 using MyToolz.ScriptableObjects.AI.Platformer;
-using Sirenix.OdinInspector;
+using MyToolz.Utilities.Debug;
 using UnityEngine;
 using Zenject;
 
@@ -30,7 +29,7 @@ namespace MyToolz.AI.Platformer.Presenters
     }
 
     [System.Serializable]
-    public abstract class EnemyMovementState : ObjectPlus
+    public abstract class EnemyMovementState
     {
         public Vector2 ExternalVelocity => externalVelocity;
         protected Vector2 externalVelocity;
@@ -445,7 +444,7 @@ namespace MyToolz.AI.Platformer.Presenters
 
 
     [RequireComponent(typeof(Rigidbody2D))]
-    public class EnemyMovementPresenter : MonoBehaviourPlus, IReadOnlyEnemyMovementModel, IEnemyMovementPresenter
+    public class EnemyMovementPresenter : MonoBehaviour, IReadOnlyEnemyMovementModel, IEnemyMovementPresenter
     {
         [FoldoutGroup("References"), Required, SerializeField] private Transform groundCheck;
         [FoldoutGroup("References"), Required, SerializeField] private Transform leftCheck;
@@ -491,7 +490,7 @@ namespace MyToolz.AI.Platformer.Presenters
         {
             IsActive = true;
             rb = GetComponent<Rigidbody2D>();
-            if (enemyMovementSO == null) LogError(name + ": EnemyMovementSO is missing.");
+            if (enemyMovementSO == null) DebugUtility.LogError(this, name + ": EnemyMovementSO is missing.");
         }
 
         private void FixedUpdate()
@@ -561,7 +560,7 @@ namespace MyToolz.AI.Platformer.Presenters
 
         private void ChangeState(EnemyMovementState enemyMovementState)
         {
-            Log($"[EnemyMovementPresenter] changed state from {this.enemyMovementState?.GetType().Name} to {enemyMovementState?.GetType().Name}");
+            DebugUtility.Log(this, $"[EnemyMovementPresenter] changed state from {this.enemyMovementState?.GetType().Name} to {enemyMovementState?.GetType().Name}");
             this.enemyMovementState?.OnExit();
             this.enemyMovementState = enemyMovementState;
             if (enemyMovementState != null) container.Inject(enemyMovementState);
