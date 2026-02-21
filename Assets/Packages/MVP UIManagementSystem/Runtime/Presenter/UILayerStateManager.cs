@@ -54,7 +54,7 @@ namespace MyToolz.UI.Management
 
             if (so == CurrentLayer || layerStackList.Contains(so))
             {
-                DebugUtility.Log(this, $"Re-entering screen in active layer {so.name}");
+                DebugUtility.Log(this, $"Re-entering loadingScreen in active layer {so.name}");
                 layer.OnEnter();
                 if (layerStacks.TryGetValue(so, out var screens))
                 {

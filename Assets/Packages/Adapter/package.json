@@ -1,0 +1,9 @@
+{
+  "name": "com.mytoolz.adapter",
+  "displayName": "Adapter",
+  "version": "1.0.0",
+  "unity": "2022.3",
+  "unityRelease": "46f1",
+  "description": "Simple adapter design pattern implementation, can be used in cases when it is needed to cleanly access not serializable in inspector refrences",
+  "license": "MIT"
+}

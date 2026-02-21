@@ -1,5 +1,5 @@
 using MyToolz.EditorToolz;
-using MyToolz.HealthSystem.Interfaces;
+using MyToolz.Events;
 using MyToolz.Player.Input;
 using MyToolz.UI.Management;
 using MyToolz.Utilities.Debug;

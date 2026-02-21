@@ -11,7 +11,7 @@ using MyToolz.Utilities.Debug;
 using MyToolz.Tweener.UI;
 using MyToolz.Player.Input;
 using MyToolz.EditorToolz;
-using MyToolz.HealthSystem.Interfaces;
+using MyToolz.Events;
 
 namespace MyToolz.Networking.TextChat
 {

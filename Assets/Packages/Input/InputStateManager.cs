@@ -10,10 +10,10 @@ namespace MyToolz.Input
 
         public void ChangeState(IPlayerInputState playerInputState)
         {
-            DebugUtility.LogError(this, $"Exiting {currentState}...");
+            DebugUtility.Log(this, $"Exiting {currentState}...");
             currentState?.OnExit();
             currentState = playerInputState;
-            DebugUtility.LogError(this, $"Entering {currentState}...");
+            DebugUtility.Log(this, $"Entering {currentState}...");
             currentState?.OnEnter();
         }
     }

@@ -4,7 +4,7 @@ using MyToolz.Clock.Model;
 using MyToolz.Clock.Presenter;
 using MyToolz.DesignPatterns.EventBus;
 using MyToolz.EditorToolz;
-using MyToolz.HealthSystem.Interfaces;
+using MyToolz.Events;
 using MyToolz.Networking.DesignPatterns.Singleton;
 using MyToolz.Networking.Events;
 using MyToolz.Networking.Killfeed;

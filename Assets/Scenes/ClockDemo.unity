@@ -426,7 +426,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c6919d645881600489e926637bc40f3e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  enableLogging: 1
   clockMode: 1
   presenter:
     rid: 7331165560324751361
@@ -439,12 +438,10 @@ MonoBehaviour:
     RefIds:
     - rid: 7331165560324751361
       type: {class: ClockPresenter, ns: MyToolz.Clock.Presenter, asm: Assembly-CSharp}
-      data:
-        enableLogging: 1
+      data: 
     - rid: 7331165560324751362
       type: {class: ClockView, ns: MyToolz.Clock.View, asm: Assembly-CSharp}
       data:
-        enableLogging: 1
         timeFormatStrategy:
           rid: 7331165560324751365
         screen: {fileID: 0}
@@ -1360,7 +1357,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c6919d645881600489e926637bc40f3e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  enableLogging: 1
   clockMode: 0
   presenter:
     rid: 7331165560324751361
@@ -1373,12 +1369,10 @@ MonoBehaviour:
     RefIds:
     - rid: 7331165560324751361
       type: {class: ClockPresenter, ns: MyToolz.Clock.Presenter, asm: Assembly-CSharp}
-      data:
-        enableLogging: 1
+      data: 
     - rid: 7331165560324751362
       type: {class: ClockView, ns: MyToolz.Clock.View, asm: Assembly-CSharp}
       data:
-        enableLogging: 1
         timeFormatStrategy:
           rid: 7331165560324751365
         screen: {fileID: 0}

@@ -1,6 +1,6 @@
 using Mirror;
 using MyToolz.DesignPatterns.EventBus;
-using MyToolz.HealthSystem.Interfaces;
+using MyToolz.Events;
 using MyToolz.Networking.GameModes.Events;
 using MyToolz.Networking.PickUpSystem;
 using UnityEngine;

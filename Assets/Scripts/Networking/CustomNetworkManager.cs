@@ -245,9 +245,9 @@ namespace MyToolz.Networking
 
             if (newSceneName != offlineScene)
             {
-                EventBus<StartedSceneLoading>.Raise(new StartedSceneLoading()
+                EventBus<LoadScene>.Raise(new LoadScene()
                 {
-                    GameModeSO = GameModeSO,
+                    //GameModeSO = GameModeSO,
                     SceneName = newSceneName
                 });
 
@@ -269,9 +269,9 @@ namespace MyToolz.Networking
 
             if (newSceneName != offlineScene)
             {
-                EventBus<StartedSceneLoading>.Raise(new StartedSceneLoading()
+                EventBus<LoadScene>.Raise(new LoadScene()
                 {
-                    GameModeSO = GameModeSO,
+                    //GameModeSO = GameModeSO,
                     SceneName = newSceneName
                 });
 

@@ -26,12 +26,6 @@ namespace MyToolz.HealthSystem.Interfaces
         public void Hide();
     }
 
-    public interface IEventListener
-    {
-        public void RegisterEvents();
-        public void UnregisterEvents();
-    }
-
     public interface IHealthModel : IDamagable, IHealable
     {
         public (float currentHealth, float min, float max) CurrentHealth { get; }

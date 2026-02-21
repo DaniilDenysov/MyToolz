@@ -18,14 +18,13 @@ namespace MyToolz.UI.ToolTip
         private void Construct(ITooltipPresenter tooltipPresenter)
         {
             this.tooltipPresenter = tooltipPresenter;
-            DebugUtility.Log(this, $"[TooltipArea] injected!");
         }
 
         public void Initialize(string description)
         {
             if (string.IsNullOrEmpty(description) || string.IsNullOrWhiteSpace(description))
             {
-                DebugUtility.LogError(this, $"[TooltipArea] unable to initialize, description is null!");
+                DebugUtility.LogError(this, $"Unable to initialize, description is null!");
                 return;
             }
             this.description = description;
@@ -35,13 +34,13 @@ namespace MyToolz.UI.ToolTip
         {
             if (string.IsNullOrEmpty(description) || string.IsNullOrWhiteSpace(description)) return;
             tooltipPresenter?.Show(description);
-            DebugUtility.Log(this, $"[TooltipArea] entered!");
+            DebugUtility.Log(this, $"Entered tooltip area!");
         }
 
         public void OnPointerExit(PointerEventData eventData)
         {
             tooltipPresenter?.Hide();
-            DebugUtility.Log(this, $"[TooltipArea] exited!");
+            DebugUtility.Log(this, $"Exited tooltip area!");
         }
     }
 }

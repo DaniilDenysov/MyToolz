@@ -4,7 +4,6 @@ using System.Linq;
 using System.Threading.Tasks;
 using MyToolz.EditorToolz;
 using MyToolz.Utilities.Debug;
-using Newtonsoft.Json;
 using UnityEngine;
 using Zenject;
 
@@ -27,89 +26,85 @@ namespace MyToolz.IO
             TemporaryCachePath
         }
 
-
         [FoldoutGroup("Save Settings"), SerializeField, Tooltip("Where to create/read the save folder.")]
         [OnValueChanged(nameof(RebuildPaths))]
-        private SaveRoot _root = SaveRoot.PersistentDataPath;
+        private SaveRoot root = SaveRoot.PersistentDataPath;
 
         [FoldoutGroup("Save Settings"), SerializeField, Tooltip("Subfolder inside the chosen root. Will be created if missing.")]
         [OnValueChanged(nameof(RebuildPaths))]
-        private string _filePath = "Saves";
+        private string filePath = "Saves";
 
-        [FoldoutGroup("Save Settings"), SerializeField, Tooltip("File name without or with .json extension. Invalid characters are removed.")]
+        [FoldoutGroup("Save Settings"), SerializeField, Tooltip("File name without extension. Invalid characters are removed. Extension is provided by the chosen strategy.")]
         [OnValueChanged(nameof(RebuildPaths))]
-        private string _fileName = "save.json";
+        private string fileName = "save";
 
         [FoldoutGroup("Save Settings"), SerializeField]
-        private bool _useCache = false;
-        private string _resolvedFolder => _resolvedFolderCache;
+        private bool useCache = false;
 
-        private string _fullPathPreview => _fullPath;
+        [FoldoutGroup("Save Settings"), SerializeField, SubclassSelector]
+        private SerializationStrategy<T> serializationStrategy = new NewtonsoftJsonStrategy<T>(); 
 
-        //[GUIColor(nameof(FileExistsColor))]
-        private bool _fileExistsInspector => FileExists();
+        private string resolvedFolder => resolvedFolderCache;
+        private string fullPathPreview => fullPath;
+        private bool fileExistsInspector => FileExists();
 
         protected T cache;
 
-        //[FoldoutGroup("Actions")]
-        //[Button(ButtonSizes.Medium)]
+        protected string fullPath;
+        private string tempPath;
+        private string backupPath;
+        private string resolvedFolderCache;
+
+        private bool _hasSavedThisSession;
+
         [Button]
         private void OpenFolder()
         {
 #if UNITY_EDITOR
             EnsureFolderExists();
-            UnityEditor.EditorUtility.RevealInFinder(_resolvedFolderCache);
+            UnityEditor.EditorUtility.RevealInFinder(resolvedFolderCache);
 #else
-            DebugUtility.LogWarning("OpenFolder is only available in the Editor.");
+            DebugUtility.LogWarning(this, "OpenFolder is only available in the Editor.");
 #endif
         }
 
-        //[FoldoutGroup("Actions")]
-        //[Button(ButtonSizes.Medium)]
         [Button]
         private void RevealFile()
         {
 #if UNITY_EDITOR
             EnsureFolderExists();
-            if (!File.Exists(_fullPath))
-                File.WriteAllText(_fullPath, "{}");
-            UnityEditor.EditorUtility.RevealInFinder(_fullPath);
+            if (!File.Exists(fullPath))
+                File.WriteAllText(fullPath, "{}");
+            UnityEditor.EditorUtility.RevealInFinder(fullPath);
 #else
-            DebugUtility.LogWarning("RevealFile is only available in the Editor.");
+            DebugUtility.LogWarning(this, "RevealFile is only available in the Editor.");
 #endif
         }
 
-        //[FoldoutGroup("Actions")]
-        //[Button(ButtonSizes.Medium)]
         [Button]
         private void CopyFullPathToClipboard()
         {
 #if UNITY_EDITOR
-            UnityEditor.EditorGUIUtility.systemCopyBuffer = _fullPath;
-            DebugUtility.Log(this, $"Copied path:\n{_fullPath}");
+            UnityEditor.EditorGUIUtility.systemCopyBuffer = fullPath;
+            DebugUtility.Log(this, $"Copied path:\n{fullPath}");
 #else
             DebugUtility.LogWarning(this, "Copy path is only available in the Editor.");
 #endif
         }
 
-        //[FoldoutGroup("Actions")]
-        //[Button(ButtonSizes.Medium), GUIColor(0.9f, 0.3f, 0.3f)]
         [Button]
         private void DeleteFile()
         {
-            if (File.Exists(_fullPath))
+            if (File.Exists(fullPath))
             {
-                File.Delete(_fullPath);
-                DebugUtility.LogWarning(this, $"Deleted file: {_fullPath}");
+                File.Delete(fullPath);
+                DebugUtility.LogWarning(this, $"Deleted file: {fullPath}");
             }
             else
             {
                 DebugUtility.LogWarning(this, "No file to delete.");
             }
         }
-
-        protected string _fullPath;
-        private string _resolvedFolderCache;
 
         public override void InstallBindings()
         {
@@ -118,9 +113,10 @@ namespace MyToolz.IO
 
         protected virtual void Awake()
         {
+            EnsureStrategyAssigned();
             RebuildPaths();
             EnsureFolderExists();
-            DebugUtility.Log(this, $"[SaveLoadBase] Awake {GetType().Name} instanceId={GetInstanceID()} scene={gameObject.scene.name} useCache={_useCache}");
+            DebugUtility.Log(this, $"[SaveLoadBase] Awake {GetType().Name} instanceId={GetInstanceID()} scene={gameObject.scene.name} useCache={useCache} strategy={serializationStrategy.GetType().Name}");
         }
 
 #if UNITY_EDITOR
@@ -130,13 +126,20 @@ namespace MyToolz.IO
         }
 #endif
 
+        private void EnsureStrategyAssigned()
+        {
+            if (serializationStrategy != null) return;
+
+            serializationStrategy = new NewtonsoftJsonStrategy<T>();
+            DebugUtility.LogWarning(this, "No serialization strategy assigned in the inspector. Defaulting to NewtonsoftJsonStrategy.");
+        }
+
         private void RebuildPaths()
         {
-            _fileName = SanitizeFileName(_fileName);
-            if (!Path.GetExtension(_fileName).Equals(".json", StringComparison.OrdinalIgnoreCase))
-                _fileName = Path.ChangeExtension(_fileName, ".json");
+            string sanitized = SanitizeFileName(fileName);
+            string extension = serializationStrategy?.FileExtension ?? ".json";
 
-            string rootPath = _root switch
+            string rootPath = root switch
             {
                 SaveRoot.PersistentDataPath => Application.persistentDataPath,
                 SaveRoot.DataPath => Application.dataPath,
@@ -145,27 +148,29 @@ namespace MyToolz.IO
                 _ => Application.persistentDataPath
             };
 
-            _resolvedFolderCache = string.IsNullOrWhiteSpace(_filePath)
+            resolvedFolderCache = string.IsNullOrWhiteSpace(filePath)
                 ? rootPath
-                : Path.Combine(rootPath, _filePath);
+                : Path.Combine(rootPath, filePath);
 
-            _fullPath = Path.Combine(_resolvedFolderCache, _fileName);
+            fullPath = Path.Combine(resolvedFolderCache, sanitized + extension);
+            tempPath = fullPath + ".tmp";
+            backupPath = fullPath + ".bak";
         }
 
         private static string SanitizeFileName(string name)
         {
             if (string.IsNullOrWhiteSpace(name))
-                return "save.json";
+                return "save";
 
             var invalid = Path.GetInvalidFileNameChars();
             var cleaned = new string(name.Where(c => !invalid.Contains(c)).ToArray());
-            return string.IsNullOrWhiteSpace(cleaned) ? "save.json" : cleaned;
+            return string.IsNullOrWhiteSpace(cleaned) ? "save" : cleaned;
         }
 
         private void EnsureFolderExists()
         {
-            if (!Directory.Exists(_resolvedFolderCache))
-                Directory.CreateDirectory(_resolvedFolderCache);
+            if (!Directory.Exists(resolvedFolderCache))
+                Directory.CreateDirectory(resolvedFolderCache);
         }
 
         private Color FileExistsColor() => FileExists() ? new Color(0.5f, 0.9f, 0.5f) : new Color(0.9f, 0.6f, 0.4f);
@@ -173,28 +178,81 @@ namespace MyToolz.IO
         protected void SaveToFile(T data)
         {
             EnsureFolderExists();
+
+            string raw = serializationStrategy.Serialize(data);
+
+            File.WriteAllText(tempPath, raw);
+
+            if (File.Exists(fullPath))
+                File.Copy(fullPath, backupPath, overwrite: true);
+
+            File.Move(tempPath, fullPath);
+
             DebugUtility.Log(this, "Saved!");
-            string jsonData = JsonConvert.SerializeObject(data, Formatting.Indented);
-            File.WriteAllText(_fullPath, jsonData);
         }
 
         protected T LoadFromFile()
         {
-            if (!File.Exists(_fullPath)) return null;
-            DebugUtility.Log(this, "Loaded!");
-            string jsonData = File.ReadAllText(_fullPath);
-            return JsonConvert.DeserializeObject<T>(jsonData);
+            if (File.Exists(fullPath))
+            {
+                try
+                {
+                    string raw = File.ReadAllText(fullPath);
+                    T result = serializationStrategy.Deserialize(raw);
+
+                    if (result != null)
+                    {
+                        DebugUtility.Log(this, "Loaded!");
+                        return result;
+                    }
+                }
+                catch (Exception e)
+                {
+                    DebugUtility.LogError(this, $"Failed to load save file, attempting backup. Reason: {e.Message}");
+                }
+            }
+
+            if (File.Exists(backupPath))
+            {
+                try
+                {
+                    DebugUtility.LogWarning(this, "Loading from backup file.");
+                    string raw = File.ReadAllText(backupPath);
+                    T result = serializationStrategy.Deserialize(raw);
+
+                    if (result != null)
+                    {
+                        File.Copy(backupPath, fullPath, overwrite: true);
+                        DebugUtility.Log(this, "Restored save from backup.");
+                        return result;
+                    }
+                }
+                catch (Exception e)
+                {
+                    DebugUtility.LogError(this, $"Backup file also failed to load. Reason: {e.Message}");
+                }
+            }
+
+            return null;
         }
 
         protected async Task SaveToFileAsync(T data)
         {
             EnsureFolderExists();
+
+            string raw = serializationStrategy.Serialize(data);
+
+            await File.WriteAllTextAsync(tempPath, raw);
+
+            if (File.Exists(fullPath))
+                File.Copy(fullPath, backupPath, overwrite: true);
+
+            File.Move(tempPath, fullPath);
+
             DebugUtility.Log(this, "Saved!");
-            string jsonData = JsonConvert.SerializeObject(data, Formatting.Indented);
-            await File.WriteAllTextAsync(_fullPath, jsonData);
         }
 
-        protected bool FileExists() => File.Exists(_fullPath);
+        protected bool FileExists() => File.Exists(fullPath);
 
         public void Save(T obj)
         {
@@ -203,12 +261,14 @@ namespace MyToolz.IO
                 DebugUtility.LogWarning(this, "Save called with null object.");
                 return;
             }
+
             SaveToFile(obj);
+            _hasSavedThisSession = true;
         }
 
         public T Load()
         {
-            if (_useCache)
+            if (useCache)
             {
                 if (cache == null)
                     cache = LoadFromFile() ?? new T();
@@ -221,7 +281,7 @@ namespace MyToolz.IO
 
         public virtual void Save()
         {
-            if (_useCache)
+            if (useCache)
             {
                 if (cache == null) cache = new();
                 Save(cache);
@@ -244,12 +304,17 @@ namespace MyToolz.IO
 
         private void OnApplicationPause(bool pause)
         {
-            if (pause) Save();
+            if (pause)
+            {
+                _hasSavedThisSession = false;
+                Save();
+            }
         }
 
         private void OnDestroy()
         {
-            Save();
+            if (!_hasSavedThisSession)
+                Save();
         }
     }
 }

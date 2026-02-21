@@ -5,5 +5,9 @@
   "unity": "2022.3",
   "unityRelease": "46f1",
   "description": "IO system",
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "com.unity.nuget.newtonsoft-json": "3.2.1",
+    "com.mytoolz.debugutility": "1.0.0"
+  }
 }

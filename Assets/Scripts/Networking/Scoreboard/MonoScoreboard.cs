@@ -1,5 +1,5 @@
 using Mirror;
-using MyToolz.HealthSystem.Interfaces;
+using MyToolz.Events;
 using MyToolz.Networking.ScriptableObjects;
 using MyToolz.Player.Input;
 using MyToolz.UI.Management;

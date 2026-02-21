@@ -7,7 +7,7 @@ using MyToolz.DesignPatterns.EventBus;
 using MyToolz.Player.Input;
 using MyToolz.Player.FPS.CombatSystem.Presenter;
 using MyToolz.Utilities.Debug;
-using MyToolz.HealthSystem.Interfaces;
+using MyToolz.Events;
 using MyToolz.Networking.Core;
 using MyToolz.Networking.Events;
 using MyToolz.Player.FPS.CombatSystem.Model;
