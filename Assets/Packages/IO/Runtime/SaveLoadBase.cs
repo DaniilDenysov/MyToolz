@@ -26,23 +26,23 @@ namespace MyToolz.IO
             TemporaryCachePath
         }
 
-        [FoldoutGroup("Save Settings"), SerializeField, Tooltip("Where to create/read the save folder.")]
+        [FoldoutGroup("Persistance Settings"), SerializeField, Tooltip("Where to create/read the save folder.")]
         [OnValueChanged(nameof(RebuildPaths))]
         private SaveRoot root = SaveRoot.PersistentDataPath;
 
-        [FoldoutGroup("Save Settings"), SerializeField, Tooltip("Subfolder inside the chosen root. Will be created if missing.")]
+        [FoldoutGroup("Persistance Settings"), SerializeField, Tooltip("Subfolder inside the chosen root. Will be created if missing.")]
         [OnValueChanged(nameof(RebuildPaths))]
         private string filePath = "Saves";
 
-        [FoldoutGroup("Save Settings"), SerializeField, Tooltip("File name without extension. Invalid characters are removed. Extension is provided by the chosen strategy.")]
+        [FoldoutGroup("Persistance Settings"), SerializeField, Tooltip("File name without extension. Invalid characters are removed. Extension is provided by the chosen strategy.")]
         [OnValueChanged(nameof(RebuildPaths))]
         private string fileName = "save";
 
-        [FoldoutGroup("Save Settings"), SerializeField]
+        [FoldoutGroup("Persistance Settings"), SerializeField]
         private bool useCache = false;
 
-        [FoldoutGroup("Save Settings"), SerializeField, SubclassSelector]
-        private SerializationStrategy<T> serializationStrategy = new NewtonsoftJsonStrategy<T>(); 
+        [FoldoutGroup("Persistance Settings"), SerializeField, SubclassSelector]
+        private SerializationStrategy<T> serializationStrategy = new NewtonsoftJsonStrategy<T>();
 
         private string resolvedFolder => resolvedFolderCache;
         private string fullPathPreview => fullPath;
@@ -186,6 +186,9 @@ namespace MyToolz.IO
             if (File.Exists(fullPath))
                 File.Copy(fullPath, backupPath, overwrite: true);
 
+            if (File.Exists(fullPath))
+                File.Delete(fullPath);
+
             File.Move(tempPath, fullPath);
 
             DebugUtility.Log(this, "Saved!");
@@ -247,6 +250,9 @@ namespace MyToolz.IO
             if (File.Exists(fullPath))
                 File.Copy(fullPath, backupPath, overwrite: true);
 
+            if (File.Exists(fullPath))
+                File.Delete(fullPath);
+
             File.Move(tempPath, fullPath);
 
             DebugUtility.Log(this, "Saved!");
@@ -258,7 +264,7 @@ namespace MyToolz.IO
         {
             if (obj == null)
             {
-                DebugUtility.LogWarning(this, "Save called with null object.");
+                DebugUtility.LogWarning(this, "Persistance called with null object.");
                 return;
             }
 

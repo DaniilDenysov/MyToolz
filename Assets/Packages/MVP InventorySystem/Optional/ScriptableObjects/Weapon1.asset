@@ -1,0 +1,22 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1afcbf16fb9cc1d4b9011f02cfb51bf8, type: 3}
+  m_Name: Weapon1
+  m_EditorClassIdentifier: 
+  itemName: WeaponA
+  itemIcon: {fileID: 21300000, guid: 13ba34da9011744c884f459ce4699444, type: 3}
+  itemDescription: 
+  requiredLevel: 0
+  itemGuid: dcce23bf-47de-427b-9cde-c726c37aa561
+  hudDisplayItem: {fileID: 0}
+  loadoutSlotCategory: 0
+  hotKey: {fileID: 0}

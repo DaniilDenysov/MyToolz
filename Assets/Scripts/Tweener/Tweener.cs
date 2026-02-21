@@ -17,7 +17,7 @@ namespace MyToolz.Tweener
         [SerializeField]
         protected bool paralelExecution;
 
-        [SerializeReference] protected T[] tweenStrategies;
+        [SerializeReference, SubclassSelector] protected T[] tweenStrategies;
 
         protected List<Tween> runningTweens = new List<Tween>();
 

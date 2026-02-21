@@ -11,7 +11,7 @@ namespace MyToolz.UI.Management
         [SerializeField] private bool enterOnStart;
         [Header("Config")]
         [SerializeField] private UIScreenBase defaultScreen;
-        [SerializeField, HideIf("@parent")] private UILayerSO layer;
+        [SerializeField] private UILayerSO layer;
         private bool isRoot => parent == null && layer != null;
 
         protected UIStateManager localUIStateManager = new UIStateManager();
@@ -21,7 +21,7 @@ namespace MyToolz.UI.Management
 
         public UILayerSO Layer => layer;
         [Header("Input Config")]
-        [SerializeReference] private InputMode input;
+        [SerializeReference, SubclassSelector] private InputMode input;
         protected InputStateManager inputStateManager;
 
 

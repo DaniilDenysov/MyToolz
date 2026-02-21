@@ -9,14 +9,22 @@ namespace MyToolz.InventorySystem.Models
     {
         public event Action<T, uint> OnItemUpdated;
         public IReadOnlyDictionary<T, uint> InventoryItems {  get; }
-        public void Initialize();
+        public void Initialize(InitialItem<T>[] items = null);
         public void Add(T item, uint amount = 1);
         public void Remove(T item, uint amount = 1);
     }
 
     [System.Serializable]
+    public struct InitialItem<T>
+    {
+        public T Item;
+        public uint Amount;
+    }
+
+    [System.Serializable]
     public abstract class InventoryModel<T> : IInventoryModel<T> where T : ScriptableObject
     {
+        protected InitialItem<T> [] initialPool; 
         public event Action<T, uint> OnItemUpdated;
         protected Dictionary<T, uint> inventoryItems = new Dictionary<T, uint>();
 
@@ -25,7 +33,17 @@ namespace MyToolz.InventorySystem.Models
             get => inventoryItems;
         }
 
-        public abstract void Initialize();
+        public virtual void Initialize(InitialItem<T>[] items = null)
+        {
+            if (items != null && items.Length > 0)
+            {
+                foreach (var entry in items)
+                {
+                    if (entry.Item != null)
+                        Add(entry.Item, entry.Amount);
+                }
+            }
+        }
 
         public virtual void Add(T inventoryItemSO, uint amount = 1)
         {
@@ -44,10 +62,13 @@ namespace MyToolz.InventorySystem.Models
 
             uint newAmount = (uint)Mathf.Max(0, currentAmount - amount);
             DebugUtility.Log(this, $"{newAmount}");
-            if (newAmount > 0)
+            if (newAmount == 0)
+            {
+                inventoryItems.Remove(inventoryItemSO);
+            }
+            else
             {
                 inventoryItems[inventoryItemSO] = newAmount;
-                OnItemUpdated?.Invoke(inventoryItemSO, newAmount);
             }
             OnItemUpdated?.Invoke(inventoryItemSO, newAmount);
         }

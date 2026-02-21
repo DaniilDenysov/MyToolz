@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 914f2a6ac4e4cd94f96e3ab983baf582, type: 3}
+  m_Name: InventorySettings
+  m_EditorClassIdentifier: 
+  itemViewPrefab: {fileID: 5841878284241231727, guid: bf8246d0fe9dfce46b2e505139dfb267, type: 3}
+  cellPrefab: {fileID: 424053655460090071, guid: 177272d4b3301a749be1777152cfdd30, type: 3}
+  ghostPrefab: {fileID: 3395563074741925469, guid: 5024d505d62e4394eb0424ca1a864f3d, type: 3}
+  inventorySize: 20
+  initialItems:
+  - Item: {fileID: 11400000, guid: b68a2a862317a4d498714faeda13e9a5, type: 2}
+    Amount: 2
+  - Item: {fileID: 11400000, guid: 9f24750b3aea3b04a88565aa6dc46a60, type: 2}
+    Amount: 4
+  itemCatalog:
+  - {fileID: 11400000, guid: b68a2a862317a4d498714faeda13e9a5, type: 2}
+  - {fileID: 11400000, guid: 9f24750b3aea3b04a88565aa6dc46a60, type: 2}
