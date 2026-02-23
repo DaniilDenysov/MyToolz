@@ -1,6 +1,6 @@
 using MyToolz.DesignPatterns.EventBus;
+using MyToolz.InventorySystem.Models;
 using MyToolz.IO;
-using MyToolz.Player.FPS.Inventory;
 using MyToolz.Player.FPS.LoadoutSystem.Events;
 using MyToolz.Player.FPS.LoadoutSystem.Model;
 using MyToolz.Player.FPS.LoadoutSystem.View;
@@ -45,7 +45,7 @@ namespace MyToolz.Player.FPS.LoadoutSystem.Presenter
             {
                 ItemSO selectedWeapon = null;
                 weaponsSaved?.TryGetValue(slot.GetCategory(), out selectedWeapon);
-                slot.LoadSlot(loadedWeapons, selectedWeapon);
+                //slot.LoadSlot(loadedWeapons, selectedWeapon);
             }
 
             if (weaponsSaved == null || weaponsSaved.Count == 0) cachedData.weapons = loadoutSlots.Select(obj=>obj.GetWeaponGUID()).ToList();

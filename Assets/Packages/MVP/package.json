@@ -1,9 +1,19 @@
 {
   "name": "com.mytoolz.mvp",
-  "displayName": "MVP",
-  "version": "1.0.0",
+  "displayName": "MVP Design Pattern",
+  "version": "2.0.0",
   "unity": "2022.3",
   "unityRelease": "46f1",
-  "description": "Simple MVP implementation, for internal usage",
-  "license": "MIT"
+  "description": "A robust Model-View-Presenter design pattern framework for Unity. Provides core interfaces, abstract base classes, and concrete examples for building testable, decoupled UI architectures.",
+  "license": "MIT",
+  "keywords": [
+    "mvp",
+    "design-pattern",
+    "architecture",
+    "ui",
+    "model-view-presenter"
+  ],
+  "author": {
+    "name": "MyToolz"
+  }
 }

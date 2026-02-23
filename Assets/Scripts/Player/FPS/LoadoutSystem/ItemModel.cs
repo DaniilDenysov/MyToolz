@@ -1,6 +1,6 @@
 using MyToolz.EditorToolz;
+using MyToolz.InventorySystem.Models;
 using MyToolz.Player.FPS.CombatSystem.Presenter;
-using MyToolz.Player.FPS.Inventory;
 using System.Collections.Generic;
 using UnityEngine;
 

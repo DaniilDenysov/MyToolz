@@ -29,7 +29,7 @@ namespace MyToolz.Player.FPS.CombatSystem
             }
             if (binding != null)
             {
-                binding.text = itemSO.HotKeyName;
+                //binding.text = itemSO.HotKeyName;
             }
         }
 

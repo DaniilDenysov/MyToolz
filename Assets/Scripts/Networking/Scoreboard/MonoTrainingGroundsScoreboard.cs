@@ -1,7 +1,7 @@
 using MyToolz.DesignPatterns.EventBus;
 using MyToolz.Events;
+using MyToolz.InventorySystem.Models;
 using MyToolz.Networking.Events;
-using MyToolz.Player.FPS.Inventory;
 using MyToolz.UI.Labels;
 using System.Collections.Generic;
 using TMPro;
@@ -191,7 +191,7 @@ namespace MyToolz.Networking.Scoreboards
                 (label) =>
                 {
                     label.transform.SetParent(labelContainer);
-                    ((TrainingGroundsLabel)label).Construct(weaponSO, weaponStats);
+                    //((TrainingGroundsLabel)label).Construct(weaponSO, weaponStats);
                     label.transform.localScale = Vector3.one;
                 }
             });

@@ -1,0 +1,14 @@
+{
+  "name": "com.mytoolz.inputcommandpipeline",
+  "displayName": "InputCommandPipeline",
+  "version": "1.0.0",
+  "unity": "2022.3",
+  "unityRelease": "46f1",
+  "description": "Bridges Input Commands with the Command Pipeline, providing an installer and runtime wiring for input-driven command execution",
+  "license": "MIT",
+  "dependencies": {
+    "com.mytoolz.debugutility": "1.0.0",
+    "com.mytoolz.commandpipeline": "1.0.0",
+    "com.mytoolz.inputcommands": "1.0.0"
+  }
+}

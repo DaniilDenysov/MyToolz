@@ -1,4 +1,4 @@
-using MyToolz.Player.FPS.Inventory;
+using MyToolz.InventorySystem.Models;
 using UnityEngine;
 
 namespace MyToolz.Player.FPS.CombatSystem.Model

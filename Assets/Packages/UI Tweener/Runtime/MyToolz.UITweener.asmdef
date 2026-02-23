@@ -1,0 +1,22 @@
+{
+    "name": "MyToolz.UITweener",
+    "rootNamespace": "MyToolz.Tweener.UI",
+    "references": [
+        "GUID:51b6a736bbf53cfa5c6070a7949eb0dd",
+        "GUID:5b8689adcdd33b09ffe4c352abaa54ae",
+        "GUID:0baf631148ac81a6e9ec9dbb2026eca9",
+        "GUID:2fdaf8ce94e860e60945a00743a987a4",
+        "GUID:1f9f94d0c044a774e83ef929a506141f"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "DOTween.dll"
+    ],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

@@ -1,0 +1,24 @@
+{
+    "name": "MyToolz.MVPLoadingScreen",
+    "rootNamespace": "MyToolz.UI.LoadingScreen",
+    "references": [
+        "GUID:51b6a736bbf53cfa5c6070a7949eb0dd",
+        "GUID:e97a9c0ec01c5cab75a8772fe713033b",
+        "GUID:3a739347bdd18f3caca317b0e8d438a4",
+        "GUID:5b8689adcdd33b09ffe4c352abaa54ae",
+        "GUID:0baf631148ac81a6e9ec9dbb2026eca9",
+        "GUID:0079280fb815ea7fd4edc0898d864da8",
+        "GUID:430355fca3505f7df6d27459113c6061",
+        "GUID:0d8beb7f090555447a6cf5ce9e54dbb4",
+        "GUID:f51ebe6a0ceec4240a699833d6309b23"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

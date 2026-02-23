@@ -4,6 +4,7 @@ using MyToolz.Networking.Events;
 using MyToolz.Player.FPS.CombatSystem.Model;
 using MyToolz.Player.FPS.CombatSystem.View;
 using MyToolz.UI.Events;
+using MyToolz.UI.Notifications.Model;
 using UnityEngine;
 
 namespace MyToolz.Player.FPS.CombatSystem.Presenter

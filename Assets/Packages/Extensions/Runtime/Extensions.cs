@@ -46,7 +46,6 @@ namespace MyToolz.Extensions
                 return string.Empty;
             }
 
-            DebugUtility.Log("Extracted scene name: " + fileName);
             return fileName;
         }
     }

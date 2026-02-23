@@ -1,0 +1,24 @@
+{
+    "name": "MyToolz.MVPHealthSystem",
+    "rootNamespace": "MyToolz.HealthSystem",
+    "references": [
+        "GUID:51b6a736bbf53cfa5c6070a7949eb0dd",
+        "GUID:5b8689adcdd33b09ffe4c352abaa54ae",
+        "GUID:e97a9c0ec01c5cab75a8772fe713033b",
+        "GUID:430355fca3505f7df6d27459113c6061",
+        "GUID:0d8beb7f090555447a6cf5ce9e54dbb4",
+        "GUID:1f9f94d0c044a774e83ef929a506141f"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "DOTween.dll",
+        "Zenject-usage.dll"
+    ],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

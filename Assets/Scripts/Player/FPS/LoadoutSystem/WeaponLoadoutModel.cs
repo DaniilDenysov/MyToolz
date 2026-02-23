@@ -3,7 +3,6 @@ using System.Linq;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Events;
-using System.Threading.Tasks;
 using System;
 using System.Threading;
 using Zenject;
@@ -17,18 +16,17 @@ using MyToolz.Player.FPS.CombatSystem;
 using MyToolz.Player.FPS.CombatSystem.View;
 using MyToolz.UI.Events;
 using MyToolz.Networking.Core;
-using MyToolz.Player.Input;
 using MyToolz.EditorToolz;
-using MyToolz.HealthSystem.Interfaces;
 using MyToolz.Player.FPS.CombatSystem.Events;
 using MyToolz.Player.FPS.CombatSystem.Presenter;
+using MyToolz.UI.Notifications.Model;
+using MyToolz.InputManagement.Commands;
 
 namespace MyToolz.Player.FPS.LoadoutSystem.Model
 {
     public class WeaponLoadoutModel : NetworkBehaviour, IEventListener
     {
         public static Action OnLocalWeaponLoadoutUpdated;
-        [SerializeField] private UI.Notifications.View.PlayerNotifications playerNotifications;
 
         [SerializeField] private WeaponView weaponView;
         [SerializeField, SyncVar(hook = nameof(OnCurrentWeaponChanged))] private string currentWeaponGuid;
@@ -98,7 +96,7 @@ namespace MyToolz.Player.FPS.LoadoutSystem.Model
                 if (!assetDatabaseMappingSO.TryGetPrefab(guid, out GameObject defaultWeapon)) return;
                 if (!defaultWeapon.TryGetComponent(out WeaponModel defaultWeaponModel)) return;
                 var newWeaponSO = defaultWeaponModel.GetItemSO();
-                var currentWeapon = currentLoadout.ElementAt((int)newWeaponSO.LoadoutCategory);
+                var currentWeapon = currentLoadout.ElementAt(0);//(int)newWeaponSO.LoadoutCategory);
                 currentWeapon.IsAccessible = false;
                 var currentWeaponSO = currentWeapon.GetItemSO();
                 currentLoadout.Remove(currentWeapon);
@@ -115,11 +113,11 @@ namespace MyToolz.Player.FPS.LoadoutSystem.Model
                     instance.gameObject.SetActive(false);
                     instance.IsAccessible = true;
                 }   
-                currentLoadout.Insert((int)newWeaponSO.LoadoutCategory, instance);
-                if (newWeaponSO.LoadoutCategory == currentWeaponSO.LoadoutCategory)
-                {
-                    EquipWeapon((int)newWeaponSO.LoadoutCategory, false);
-                }
+                //currentLoadout.Insert((int)newWeaponSO.LoadoutCategory, instance);
+                //if (newWeaponSO.LoadoutCategory == currentWeaponSO.LoadoutCategory)
+                //{
+                //    EquipWeapon((int)newWeaponSO.LoadoutCategory, false);
+                //}
                 onLoadoutChanged?.Invoke();
             }
         }
@@ -508,10 +506,10 @@ namespace MyToolz.Player.FPS.LoadoutSystem.Model
             onPlayerPickUpEventBinding = new EventBinding<OnWeaponPickedUp>(OnWeaponPickUp);
             EventBus<OnWeaponPickedUp>.Register(onPlayerPickUpEventBinding);
             if (gameModeSO.EnableInstantUpdate) OnLocalWeaponLoadoutUpdated += InitializeLoadout;
-            mainWeapon.Performed += OnMainWeaponSelected;
-            weaponCycle.Performed += OnWeaponCycle;
-            secondaryWeapon.Performed += OnSecondaryWeaponSelected;
-            thirdWeapon.Performed += OnThirdWeaponSelected;
+            mainWeapon.OnPerformed += OnMainWeaponSelected;
+            weaponCycle.OnPerformed += OnWeaponCycle;
+            secondaryWeapon.OnPerformed += OnSecondaryWeaponSelected;
+            thirdWeapon.OnPerformed += OnThirdWeaponSelected;
         }
 
         public void UnregisterEvents()

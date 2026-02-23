@@ -1,0 +1,21 @@
+{
+    "name": "MyToolz.MVPGameSettings",
+    "rootNamespace": "MyToolz.GameSettings",
+    "references": [
+        "GUID:51b6a736bbf53cfa5c6070a7949eb0dd",
+        "GUID:5b8689adcdd33b09ffe4c352abaa54ae",
+        "GUID:0baf631148ac81a6e9ec9dbb2026eca9",
+        "GUID:5df5cebc106f1b1b4decd11897e74bf8",
+        "GUID:6055be8ebefd69e48b49212b09b47b2f",
+        "GUID:0d8beb7f090555447a6cf5ce9e54dbb4"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

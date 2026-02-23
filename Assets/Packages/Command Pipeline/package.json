@@ -1,0 +1,9 @@
+{
+  "name": "com.mytoolz.commandpipeline",
+  "displayName": "CommandPipeline",
+  "version": "1.0.0",
+  "unity": "2022.3",
+  "unityRelease": "46f1",
+  "description": "Simple Command Pipeline implementation",
+  "license": "MIT"
+}

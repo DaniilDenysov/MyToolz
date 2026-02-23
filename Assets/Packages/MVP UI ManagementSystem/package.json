@@ -1,0 +1,15 @@
+{
+  "name": "com.mytoolz.mvpuimanagementsystem",
+  "displayName": "MVP UIManagementSystem",
+  "version": "1.0.0",
+  "unity": "2022.3",
+  "unityRelease": "46f1",
+  "description": "Provides functionality for plug and use system that manages full UI cycle",
+  "license": "MIT",
+  "dependencies": {
+    "com.mytoolz.debugutility": "1.0.0",
+    "com.mytoolz.editortoolz": "1.0.0",
+    "com.mytoolz.inputmanagement": "1.0.0",
+    "com.mytoolz.uitweener": "1.0.0"
+  }
+}

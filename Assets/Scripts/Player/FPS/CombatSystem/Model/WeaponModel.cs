@@ -18,6 +18,7 @@ using MyToolz.Player.FPS.CombatSystem.View;
 using MyToolz.ScriptableObjects.GameSettings;
 using MyToolz.EditorToolz;
 using MyToolz.Extensions;
+using MyToolz.UI.Notifications.Model;
 
 namespace MyToolz.Player.FPS.CombatSystem.Events
 {

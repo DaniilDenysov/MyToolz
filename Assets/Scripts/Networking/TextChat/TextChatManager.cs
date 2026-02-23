@@ -9,9 +9,9 @@ using TMPro;
 using MyToolz.UI.Management;
 using MyToolz.Utilities.Debug;
 using MyToolz.Tweener.UI;
-using MyToolz.Player.Input;
 using MyToolz.EditorToolz;
 using MyToolz.Events;
+using MyToolz.InputManagement.Commands;
 
 namespace MyToolz.Networking.TextChat
 {
@@ -195,18 +195,18 @@ namespace MyToolz.Networking.TextChat
             messageDTOs.OnAdd += OnNewMessageDto;
             //bindingReference.OnRebinded += RefreshRebind;
             RefreshRebind();//bindingReference.Model);
-            openChantInputCommandSO.Performed += OpenTextChat;
-            switchChantInputCommandSO.Started += OnSwitchChat;
-            closeChantInputCommandSO.Performed += CloseTextChat;
+            openChantInputCommandSO.OnPerformed += OpenTextChat;
+            switchChantInputCommandSO.OnStarted += OnSwitchChat;
+            closeChantInputCommandSO.OnPerformed += CloseTextChat;
         }
 
         public void UnregisterEvents()
         {
             messageDTOs.OnAdd -= OnNewMessageDto;
             //bindingReference.OnRebinded -= RefreshRebind;
-            openChantInputCommandSO.Performed -= OpenTextChat;
-            switchChantInputCommandSO.Started -= OnSwitchChat;
-            closeChantInputCommandSO.Performed -= CloseTextChat;
+            openChantInputCommandSO.OnPerformed -= OpenTextChat;
+            switchChantInputCommandSO.OnStarted -= OnSwitchChat;
+            closeChantInputCommandSO.OnPerformed -= CloseTextChat;
         }
     }
 }

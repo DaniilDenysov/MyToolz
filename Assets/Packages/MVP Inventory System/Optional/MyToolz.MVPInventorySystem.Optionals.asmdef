@@ -1,0 +1,21 @@
+{
+    "name": "MyToolz.MVPInventorySystem.Optionals",
+    "rootNamespace": "MyToolz.InventorySystem.Optionals",
+    "references": [
+        "GUID:4fa65dd0f87f24973ffeade205d5d3cc",
+        "GUID:51b6a736bbf53cfa5c6070a7949eb0dd",
+        "GUID:e97a9c0ec01c5cab75a8772fe713033b",
+        "GUID:3ae158c4245d1ff7ffb5d5f99f2149d2",
+        "GUID:5df5cebc106f1b1b4decd11897e74bf8",
+        "GUID:0d8beb7f090555447a6cf5ce9e54dbb4"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

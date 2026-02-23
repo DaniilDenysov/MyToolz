@@ -1,8 +1,8 @@
 using Mirror;
 using MyToolz.EditorToolz;
+using MyToolz.InventorySystem.Models;
 using MyToolz.Player.FPS.CombatSystem.Model;
 using MyToolz.Player.FPS.CombatSystem.Presenter;
-using MyToolz.Player.FPS.Inventory;
 using UnityEngine;
 
 namespace MyToolz.Player.FPS.CombatSystem.Model

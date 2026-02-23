@@ -1,4 +1,4 @@
-using MyToolz.Player.FPS.Inventory;
+using MyToolz.InventorySystem.Models;
 using MyToolz.UI.Labels;
 using TMPro;
 using UnityEngine;

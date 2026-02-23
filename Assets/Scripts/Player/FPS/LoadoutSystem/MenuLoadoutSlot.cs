@@ -1,6 +1,6 @@
 using MyToolz.DesignPatterns.EventBus;
 using MyToolz.Events;
-using MyToolz.Player.FPS.Inventory;
+using MyToolz.InventorySystem.Models;
 using MyToolz.Player.FPS.LoadoutSystem.Events;
 using MyToolz.UI.Labels;
 using System.Collections.Generic;
@@ -47,7 +47,7 @@ namespace MyToolz.Player.FPS.LoadoutSystem.View
         {
             foreach (var weapon in allItems)
             {
-                if (weapon.LoadoutCategory == category)
+                //if (weapon.LoadoutCategory == category)
                 {
                     if (weapon is not T) continue;
                     AddItemSO((T)weapon, weapon == selectedItem);
@@ -73,7 +73,7 @@ namespace MyToolz.Player.FPS.LoadoutSystem.View
 
         public void AddItemSO(T itemSO, bool isSelected)
         {
-            if (itemSO.LoadoutCategory != category) return;
+            //if (itemSO.LoadoutCategory != category) return;
             if (!availableWeapons.ContainsKey(itemSO))
             {
                 EventBus<PoolRequest<Label>>.Raise(new PoolRequest<Label>()

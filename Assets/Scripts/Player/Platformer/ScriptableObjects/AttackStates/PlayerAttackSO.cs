@@ -5,7 +5,7 @@ using MyToolz.DesignPatterns.StateMachine;
 using MyToolz.EditorToolz;
 using MyToolz.HealthSystem;
 using MyToolz.HealthSystem.Interfaces;
-using MyToolz.Player.Input;
+using MyToolz.InputManagement.Commands;
 using MyToolz.Player.Platformer.Combat;
 using MyToolz.Player.Platformer.Combat.Interfaces;
 using MyToolz.Player.Platformer.Interfaces;
@@ -194,12 +194,12 @@ namespace MyToolz.ScriptableObjects.Player.Platformer.Combat
 
         public void RegisterBinding()
         {
-            inputBinding.Performed += Attack;
+            inputBinding.OnPerformed += Attack;
         }
 
         public void UnregisterBinding()
         {
-            inputBinding.Performed -= Attack;
+            inputBinding.OnPerformed -= Attack;
         }
 
         public virtual bool IsAttacking()

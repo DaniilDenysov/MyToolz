@@ -2,7 +2,7 @@ using MyToolz.DesignPatterns.EventBus;
 using MyToolz.DesignPatterns.StateMachine.SimplePriorityBased;
 using MyToolz.EditorToolz;
 using MyToolz.HealthSystem.Interfaces;
-using MyToolz.Player.Input;
+using MyToolz.InputManagement.Commands;
 using MyToolz.Player.Platformer.Interfaces;
 using MyToolz.Player.Platformer.Movement.Interfaces;
 using MyToolz.ScriptableObjects.Inventory;

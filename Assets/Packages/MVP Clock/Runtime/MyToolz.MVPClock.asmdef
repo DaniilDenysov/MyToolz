@@ -1,0 +1,23 @@
+{
+    "name": "MyToolz.MVPClock",
+    "rootNamespace": "MyToolz.Clock",
+    "references": [
+        "GUID:51b6a736bbf53cfa5c6070a7949eb0dd",
+        "GUID:5b8689adcdd33b09ffe4c352abaa54ae",
+        "GUID:430355fca3505f7df6d27459113c6061",
+        "GUID:0079280fb815ea7fd4edc0898d864da8",
+        "GUID:f137357cd2a685fa9219f4d56820adbe",
+        "GUID:6055be8ebefd69e48b49212b09b47b2f",
+        "GUID:f51ebe6a0ceec4240a699833d6309b23",
+        "GUID:49b49c76ee64f6b41bf28ef951cb0e50"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

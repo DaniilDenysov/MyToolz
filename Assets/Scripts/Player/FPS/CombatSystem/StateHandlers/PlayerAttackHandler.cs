@@ -2,13 +2,14 @@
 using MyToolz.DesignPatterns.EventBus;
 using MyToolz.Player.FPS.CombatSystem.Model;
 using MyToolz.Networking.Events;
-using MyToolz.Player.Input;
 using MyToolz.UI.Events;
 using MyToolz.HealthSystem.Interfaces;
 using MyToolz.HealthSystem;
-using MyToolz.UI.Notifications;
 using MyToolz.Player.FPS.CombatSystem.View;
 using MyToolz.Player.FPS.CombatSystem.Presenter;
+using MyToolz.UI.Notifications.Model;
+using MyToolz.UI.Notifications.View;
+using MyToolz.InputManagement.Commands;
 
 namespace MyToolz.Player.FPS.CombatSystem
 {
@@ -101,7 +102,7 @@ namespace MyToolz.Player.FPS.CombatSystem.Presenter
                     weaponModel.CrosshairController.ChangeState(typeof(HitmarkerKillScope));
                     EventBus<NotificationRequest>.Raise(new NotificationRequest()
                     {
-                        MessageType = typeof(KillNotificationStrategy),
+                        MessageType = typeof(KillNotification),
                         Overflow = OverflowPolicy.DropOldest,
                         Priority = NotificationPriority.Normal,
                         Dedupe = DedupePolicy.None,

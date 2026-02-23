@@ -9,6 +9,8 @@
   "dependencies": {
     "com.mytoolz.debugutility": "1.0.0",
     "com.mytoolz.editortoolz": "1.0.0",
-    "com.mytoolz.mvpuimanagementsystem": "1.0.0"
+    "com.mytoolz.mvpuimanagementsystem": "1.0.0",
+    "com.mytoolz.mvp": "2.0.0",
+    "com.mytoolz.prototype": "1.0.0"
   }
 }

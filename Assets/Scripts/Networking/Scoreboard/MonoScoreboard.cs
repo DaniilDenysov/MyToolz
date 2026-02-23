@@ -1,10 +1,9 @@
 using Mirror;
 using MyToolz.Events;
+using MyToolz.InputManagement.Commands;
 using MyToolz.Networking.ScriptableObjects;
-using MyToolz.Player.Input;
 using MyToolz.UI.Management;
 using UnityEngine;
-using UnityEngine.InputSystem;
 using Zenject;
 
 namespace MyToolz.Networking.Scoreboards
@@ -40,13 +39,13 @@ namespace MyToolz.Networking.Scoreboards
 
         public virtual void RegisterEvents()
         {
-            openCloseInputCommandSO.Started += OnScoreboardOpened;
-            openCloseInputCommandSO.Canceled += OnScoreboardClosed;
+            openCloseInputCommandSO.OnStarted += OnScoreboardOpened;
+            openCloseInputCommandSO.OnCanceled += OnScoreboardClosed;
         }
         public virtual void UnregisterEvents()
         {
-            openCloseInputCommandSO.Started -= OnScoreboardOpened;
-            openCloseInputCommandSO.Canceled -= OnScoreboardClosed;
+            openCloseInputCommandSO.OnStarted -= OnScoreboardOpened;
+            openCloseInputCommandSO.OnCanceled -= OnScoreboardClosed;
         }
         public abstract void Refresh();
         public abstract void ClearContainer();

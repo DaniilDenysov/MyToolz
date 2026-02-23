@@ -4,7 +4,6 @@ using UnityEngine;
 using System.Collections.Generic;
 using Zenject;
 using MyToolz.DesignPatterns.EventBus;
-using MyToolz.Player.Input;
 using MyToolz.Player.FPS.CombatSystem.Presenter;
 using MyToolz.Utilities.Debug;
 using MyToolz.Events;
@@ -12,6 +11,7 @@ using MyToolz.Networking.Core;
 using MyToolz.Networking.Events;
 using MyToolz.Player.FPS.CombatSystem.Model;
 using MyToolz.Player.FPS.LoadoutSystem.Model;
+using MyToolz.InputManagement.Commands;
 
 namespace MyToolz.Networking.Events
 {
@@ -118,20 +118,20 @@ namespace MyToolz.Player.FPS.CombatSystem
 
         public void RegisterEvents()
         {
-            shootingInput.Performed += OnShootEnter;
-            aimingInput.Performed += OnShootEnter;
-            reloadingInput.Performed += OnReloaded;
-            bashInput.Performed += OnBash;
+            shootingInput.OnPerformed += OnShootEnter;
+            aimingInput.OnPerformed += OnShootEnter;
+            reloadingInput.OnPerformed += OnReloaded;
+            bashInput.OnPerformed += OnBash;
             LethalEquipmentThrowBinding = new EventBinding<LethalEquipmentThrowEvent>(OnLethalEquipmentThrow);
             EventBus<LethalEquipmentThrowEvent>.Register(LethalEquipmentThrowBinding);
         }
 
         public void UnregisterEvents()
         {
-            shootingInput.Performed -= OnShootEnter;
-            aimingInput.Performed -= OnShootEnter;
-            reloadingInput.Performed -= OnReloaded;
-            bashInput.Performed -= OnBash;
+            shootingInput.OnPerformed -= OnShootEnter;
+            aimingInput.OnPerformed -= OnShootEnter;
+            reloadingInput.OnPerformed -= OnReloaded;
+            bashInput.OnPerformed -= OnBash;
             EventBus<LethalEquipmentThrowEvent>.Deregister(LethalEquipmentThrowBinding);
         }
 

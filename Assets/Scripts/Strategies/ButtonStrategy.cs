@@ -3,7 +3,7 @@ using UnityEngine.InputSystem;
 using UnityEngine;
 using UnityEngine.UI;
 using System;
-using MyToolz.Player.Input;
+using MyToolz.InputManagement.Commands;
 
 namespace MyToolz.Strategies
 {
@@ -42,14 +42,14 @@ namespace MyToolz.Strategies
 
         public override void OnEnable()
         {
-            interactInputCommandSO.Started += OnInteractionStarted;
-            interactInputCommandSO.Canceled += OnInteractionCanceled;
+            interactInputCommandSO.OnStarted += OnInteractionStarted;
+            interactInputCommandSO.OnCanceled += OnInteractionCanceled;
         }
 
         public override void OnDisable()
         {
-            interactInputCommandSO.Started -= OnInteractionStarted;
-            interactInputCommandSO.Canceled -= OnInteractionCanceled;
+            interactInputCommandSO.OnStarted -= OnInteractionStarted;
+            interactInputCommandSO.OnCanceled -= OnInteractionCanceled;
             KillTween();
             image.fillAmount = 0f;
         }
@@ -96,7 +96,7 @@ namespace MyToolz.Strategies
 
         public override void OnEnable()
         {
-            interactInputCommandSO.Performed += OnPressed;
+            interactInputCommandSO.OnPerformed += OnPressed;
 
             if (!initialized && image != null)
             {
@@ -107,7 +107,7 @@ namespace MyToolz.Strategies
 
         public override void OnDisable()
         {
-            interactInputCommandSO.Performed -= OnPressed;
+            interactInputCommandSO.OnPerformed -= OnPressed;
             image.transform.localScale = originalScale;
         }
 

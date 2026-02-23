@@ -1,0 +1,14 @@
+{
+  "name": "MyToolz.DebugUtility",
+  "rootNamespace": "MyToolz.Utilities.Debug",
+  "references": [],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

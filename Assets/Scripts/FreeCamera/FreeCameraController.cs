@@ -1,6 +1,6 @@
 using MyToolz.EditorToolz;
 using MyToolz.Events;
-using MyToolz.Player.Input;
+using MyToolz.InputManagement.Commands;
 using MyToolz.UI.Management;
 using MyToolz.Utilities.Debug;
 using System;
@@ -21,7 +21,7 @@ namespace MyToolz.FreeCamera
         [SerializeField, Range(0, 100f)] private float boostMultiplier = 1f;
         [SerializeField, Range(0, 1f)] private float moveSmoothTime = 0.15f;
         [SerializeField, Range(0, 1f)] private float lookSmoothTime = 0.05f;
-        [Header("Input")]
+        [Header("InputManagement")]
         [SerializeField, Required] private InputCommandSO toggleInputCommandSO;
         [SerializeField, Required] private InputCommandSO moveActionInputCommandSO;
         [SerializeField, Required] private InputCommandSO verticalInputCommandSO;
@@ -124,7 +124,7 @@ namespace MyToolz.FreeCamera
         {
             if (toggleInputCommandSO)
             {
-                toggleInputCommandSO.Performed += OnCameraTggled;
+                toggleInputCommandSO.OnPerformed += OnCameraTggled;
             }
             else
             {
@@ -133,7 +133,7 @@ namespace MyToolz.FreeCamera
 
             if (scrollInputCommandSO)
             {
-                scrollInputCommandSO.Performed += OnScroll;
+                scrollInputCommandSO.OnPerformed += OnScroll;
             }
             else
             {
@@ -145,7 +145,7 @@ namespace MyToolz.FreeCamera
         {
             if (toggleInputCommandSO)
             {
-                toggleInputCommandSO.Performed -= OnCameraTggled;
+                toggleInputCommandSO.OnPerformed -= OnCameraTggled;
             }
             else
             {
@@ -154,7 +154,7 @@ namespace MyToolz.FreeCamera
 
             if (scrollInputCommandSO)
             {
-                scrollInputCommandSO.Performed -= OnScroll;
+                scrollInputCommandSO.OnPerformed -= OnScroll;
             }
             else
             {

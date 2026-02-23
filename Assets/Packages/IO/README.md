@@ -18,6 +18,13 @@ Or add it manually to `Packages/manifest.json`:
 
 Without this package the project will not compile, as `NewtonsoftJsonStrategy` references `Newtonsoft.Json` directly.
 
+## Internal Dependencies
+
+| Package | ID |
+|---|---|
+| Debug Utility | `com.mytoolz.debugutility` |
+| Editor Toolz | `com.mytoolz.editortoolz` |
+
 ---
 
 ## Serialization Strategies

@@ -1,9 +1,0 @@
-{
-  "name": "com.mytoolz.editortoolz",
-  "displayName": "EditorToolz",
-  "version": "1.0.0",
-  "unity": "2022.3",
-  "unityRelease": "46f1",
-  "description": "Placeholder editor framework. It morphes functionality of some of the Odin Inspectors attributes, for the sake of the package being plug in and use with minimal dependencies",
-  "license": "MIT"
-}

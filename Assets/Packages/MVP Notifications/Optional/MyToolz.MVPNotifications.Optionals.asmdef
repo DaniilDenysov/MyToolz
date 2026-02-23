@@ -1,0 +1,17 @@
+{
+  "name": "MyToolz.MVPNotifications.Optionals",
+  "rootNamespace": "MyToolz.UI.Notifications.Optionals",
+  "references": [
+    "GUID:b045b3f81684974e8aa968be697f23d1",
+    "GUID:e97a9c0ec01c5cab75a8772fe713033b"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

@@ -1,4 +1,4 @@
-using MyToolz.Player.FPS.Inventory;
+using MyToolz.InventorySystem.Models;
 using MyToolz.UI.Labels;
 using System;
 using TMPro;
@@ -33,7 +33,7 @@ namespace MyToolz.Player.FPS.LoadoutSystem.View
             this.itemSO = itemSO;
             iconDisplay.sprite = itemSO.ItemIcon;
             nameDisplay.text = itemSO.ItemName;
-            categoryDisplay.text = itemSO.LoadoutCategory.ToString().ToUpper();
+            //categoryDisplay.text = itemSO.LoadoutCategory.ToString().ToUpper();
         }
 
         void IPointerEnterHandler.OnPointerEnter(PointerEventData eventData)

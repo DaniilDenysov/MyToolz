@@ -5,13 +5,13 @@ using MyToolz.Clock.Presenter;
 using MyToolz.DesignPatterns.EventBus;
 using MyToolz.EditorToolz;
 using MyToolz.Events;
+using MyToolz.InputManagement.Commands;
 using MyToolz.Networking.DesignPatterns.Singleton;
 using MyToolz.Networking.Events;
 using MyToolz.Networking.Killfeed;
 using MyToolz.Networking.Ownership;
 using MyToolz.Networking.ScriptableObjects;
 using MyToolz.Networking.Strategies;
-using MyToolz.Player.Input;
 using MyToolz.Tweener.UI;
 using MyToolz.UI.Management;
 using MyToolz.Utilities.Debug;
@@ -315,7 +315,7 @@ namespace MyToolz.Networking.RespawnSystem
             if (blockRespawn) return;
             autoRespawnClock.Stop();
             clock.Stop();
-            respawnInputCommandSO.Performed -= OnRespawn;
+            respawnInputCommandSO.OnPerformed -= OnRespawn;
             //TODO: [DD] decouple DeathCameraController here
             //if (deathCamera != null) deathCamera.HideCamera();
             respawnNotification.text = "";
@@ -388,7 +388,7 @@ namespace MyToolz.Networking.RespawnSystem
         {
             base.OnDestroy();
             UnregisterEvents();
-            respawnInputCommandSO.Performed -= OnRespawn;
+            respawnInputCommandSO.OnPerformed -= OnRespawn;
         }
 
 

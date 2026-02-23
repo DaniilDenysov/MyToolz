@@ -36,7 +36,7 @@ namespace MyToolz.Player.FPS.CombatSystem.View
                 var instance = Instantiate(weaponDisplayPrefab, root);
                 view = instance.GetComponent<IReadOnlyView<WeaponModel>>();
                 view?.Initialize(model);
-                instance.transform.SetSiblingIndex((int)model.GetItemSO().LoadoutCategory);
+                instance.transform.SetSiblingIndex(0);//(int)model.GetItemSO().LoadoutCategory);
                 assignedViews.Add(model, view);
                 DebugUtility.Log(this, "Initialized view!");
             }

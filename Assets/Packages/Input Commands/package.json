@@ -1,0 +1,13 @@
+{
+  "name": "com.mytoolz.inputcommands",
+  "displayName": "InputCommands",
+  "version": "1.0.0",
+  "unity": "2022.3",
+  "unityRelease": "46f1",
+  "description": "ScriptableObject-based input command definitions built on the Command Pipeline pattern",
+  "license": "MIT",
+  "dependencies": {
+    "com.mytoolz.debugutility": "1.0.0",
+    "com.mytoolz.commandpipeline": "1.0.0"
+  }
+}

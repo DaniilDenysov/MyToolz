@@ -1,0 +1,19 @@
+{
+  "name": "MyToolz.EditorToolz.Editor",
+  "rootNamespace": "MyToolz.Editor",
+  "references": [
+    "GUID:5b8689adcdd33b09ffe4c352abaa54ae",
+    "GUID:51b6a736bbf53cfa5c6070a7949eb0dd"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

@@ -1,10 +1,9 @@
 using Mirror;
 using MyToolz.DesignPatterns.EventBus;
 using MyToolz.Events;
+using MyToolz.InventorySystem.Models;
 using MyToolz.Networking.Events;
-using MyToolz.Player.FPS.Inventory;
 using MyToolz.UI.Labels;
-using NoSaints.UI.Labels;
 using System.Collections.Generic;
 using UnityEngine;
 

@@ -1,5 +1,5 @@
 using MyToolz.EditorToolz;
-using MyToolz.Player.FPS.Inventory;
+using MyToolz.InventorySystem.Models;
 using MyToolz.UI.Labels;
 using System;
 using TMPro;

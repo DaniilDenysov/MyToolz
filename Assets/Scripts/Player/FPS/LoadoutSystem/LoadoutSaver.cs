@@ -1,11 +1,11 @@
 using UnityEngine;
 using System.Collections.Generic;
 using System.Linq;
-using MyToolz.Player.FPS.Inventory;
 using MyToolz.Player.FPS.LoadoutSystem.View;
 using MyToolz.IO;
 using MyToolz.Player.FPS.LoadoutSystem.Model;
 using MyToolz.DesignPatterns.Adapter;
+using MyToolz.InventorySystem.Models;
 
 namespace MyToolz.Player.FPS.LoadoutSystem.View
 {
@@ -50,7 +50,7 @@ namespace MyToolz.Player.FPS.LoadoutSystem.Model
                 foreach (var weaponGuid in weapons)
                 {
                     var weaponSO = allWeapons.FirstOrDefault((so) => so.ItemGuid.Equals(weaponGuid) && so is T);
-                    if (weaponSO) convertedLoadout.TryAdd(weaponSO.LoadoutCategory, weaponSO as T);
+                    //if (weaponSO) convertedLoadout.TryAdd(weaponSO.LoadoutCategory, weaponSO as T);
                 }
             }
             return convertedLoadout;
