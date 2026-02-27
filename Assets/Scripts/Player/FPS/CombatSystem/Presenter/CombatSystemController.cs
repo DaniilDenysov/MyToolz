@@ -183,17 +183,17 @@ namespace MyToolz.Player.FPS.CombatSystem
         #endregion
 
         #region Input handling
-        private void OnBash(InputCommandSO obj)
+        private void OnBash()
         {
            EnterState(typeof(WeaponBashingStateHandler));
         }
 
-        private void OnReloaded(InputCommandSO obj)
+        private void OnReloaded()
         {
             DebugUtility.Log(this, "Trying to reload!");
             if (WeaponModel.CanReload()) EnterState(typeof(WeaponReloadingStateHandler));
         }
-        private void OnShootEnter(InputCommandSO context)
+        private void OnShootEnter()
         {
             DebugUtility.Log(this, "Shooting");
             EnterState(defaultState.GetType());

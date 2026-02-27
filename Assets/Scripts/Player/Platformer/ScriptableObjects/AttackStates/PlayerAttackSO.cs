@@ -10,10 +10,11 @@ using MyToolz.Player.Platformer.Combat;
 using MyToolz.Player.Platformer.Combat.Interfaces;
 using MyToolz.Player.Platformer.Interfaces;
 using MyToolz.Player.Platformer.Movement.Interfaces;
-using MyToolz.ScriptableObjects.Audio;
+using MyToolz.Audio;
 using MyToolz.ScriptableObjects.Inventory;
 using UnityEngine;
 using Zenject;
+using UnityEngine.InputSystem;
 
 namespace MyToolz.Player.Platformer.Combat
 {
@@ -207,7 +208,7 @@ namespace MyToolz.ScriptableObjects.Player.Platformer.Combat
             return lastAttacked > 0 && lastAttacked + attackDuration > Time.time;
         }
 
-        protected virtual void Attack(InputCommandSO inputBinding)
+        protected virtual void Attack()
         {
             if (!IsAttackValid()) return;
             if (!CanAttack() && !IsAttacking()) return;

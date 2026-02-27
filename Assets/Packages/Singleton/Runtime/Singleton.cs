@@ -2,7 +2,7 @@ using UnityEngine;
 
 namespace MyToolz.DesignPatterns.Singleton
 {
-    public abstract class Singleton<T> : MonoBehaviour where T : MonoBehaviour
+    public abstract class Singleton<T> : MonoBehaviour where T : Singleton<T>
     {
         [SerializeField] protected bool dontDestroyOnLoad = false;
         [SerializeField] protected bool destroyGameObjectOnDuplicate;

@@ -79,7 +79,7 @@ MonoBehaviour:
   root: 0
   filePath: Saves
   fileName: save
-  useCache: 0
+  useCache: 1
 --- !u!114 &3799352075307401327
 MonoBehaviour:
   m_ObjectHideFlags: 0

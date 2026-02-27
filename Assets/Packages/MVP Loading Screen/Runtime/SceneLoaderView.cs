@@ -1,11 +1,13 @@
 using MyToolz.DesignPatterns.MVP.View;
 using MyToolz.EditorToolz;
 using MyToolz.UI.Management;
+using System;
 using UnityEngine;
 using UnityEngine.UI;
 
 namespace MyToolz.UI.LoadingScreen
 {
+    [Serializable]
     public class SceneLoaderView : IReadOnlyView<ISceneLoaderModel>
     {
         [SerializeField, Required] private UIScreen loadingScreen;

@@ -8,6 +8,7 @@
   "license": "MIT",
   "dependencies": {
     "com.mytoolz.debugutility": "1.0.0",
+    "com.mytoolz.eventbus": "1.0.0",
     "com.mytoolz.commandpipeline": "1.0.0"
   }
 }

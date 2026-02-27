@@ -8,6 +8,7 @@ using MyToolz.Utilities.Debug;
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.InputSystem;
 using Zenject;
 
 namespace MyToolz.Player.Platformer.Combat.Interfaces

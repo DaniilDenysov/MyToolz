@@ -1,7 +1,7 @@
 using MyToolz.EditorToolz;
 using MyToolz.InputManagement;
 using UnityEngine;
-using UnityEngine.Events;
+using UnityEngine.InputSystem;
 using Zenject;
 
 namespace MyToolz.UI.Management
@@ -18,12 +18,10 @@ namespace MyToolz.UI.Management
 
         protected UILayerStateManager layerStateManager;
 
-
         public UILayerSO Layer => layer;
         [Header("InputManagement Config")]
-        [SerializeReference, SubclassSelector] private InputMode input;
+        [SerializeField] private InputModeSO input;
         protected InputStateManager inputStateManager;
-
 
         private void Start()
         {
@@ -32,41 +30,37 @@ namespace MyToolz.UI.Management
         }
 
         [Inject]
-        private void Construct(UILayerStateManager layerStateManager, InputStateManager inputStateManager)
+        private void Construct(
+            UILayerStateManager layerStateManager,
+            InputStateManager inputStateManager,
+            InputActionAsset inputActions)
         {
             this.inputStateManager = inputStateManager;
             this.layerStateManager = layerStateManager;
 
-            if (isRoot && layerStateManager != null)
-            {
-                layerStateManager.AddLayer(this);
-            }
-        }
+            if (input != null)
+                input.Initialize(inputActions);
 
+            if (isRoot && layerStateManager != null)
+                layerStateManager.AddLayer(this);
+        }
 
         public override void Open()
         {
             if (isRoot && layerStateManager != null)
-            {
                 layerStateManager.ChangeState(this);
-            }
             else
-            {
                 parent.ChangeState(this);
-            }
         }
 
         public override void OnEnter()
         {
             base.OnEnter();
-            if (isRoot || input != null)
-            {
+            if (input != null)
                 inputStateManager.ChangeState(input);
-            }
+
             if (defaultScreen != null)
-            {
                 defaultScreen.Open();
-            }
         }
 
         public override void Close()
@@ -75,18 +69,14 @@ namespace MyToolz.UI.Management
             if (isRoot && layerStateManager != null)
                 layerStateManager.ExitState();
             else
-            {
                 parent.ExitState(this);
-            }
         }
 
         public void ChangeState(UIScreenBase screen)
         {
             localUIStateManager.ChangeState(screen);
-            if (isRoot || input != null)
-            {
+            if (input != null)
                 inputStateManager.ChangeState(input);
-            }
         }
 
         public void ExitState(UIScreenBase screen)

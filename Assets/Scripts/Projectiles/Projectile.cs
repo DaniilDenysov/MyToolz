@@ -1,4 +1,4 @@
-using MyToolz.DesignPatterns.ObjectPool.Interfaces;
+using MyToolz.DesignPatterns.ObjectPool;
 using MyToolz.EditorToolz;
 using MyToolz.HealthSystem;
 using UnityEngine;

@@ -1,0 +1,20 @@
+{
+    "name": "MyToolz.FreeCamera",
+    "rootNamespace": "MyToolz.FreeCamera",
+    "references": [
+        "Unity.InputSystem",
+        "MyToolz.InputCommands",
+        "MyToolz.InputCommandPipeline",
+        "MyToolz.DebugUtility",
+        "MyToolz.EventBus"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

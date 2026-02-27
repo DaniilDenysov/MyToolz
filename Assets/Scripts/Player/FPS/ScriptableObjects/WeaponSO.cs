@@ -1,10 +1,10 @@
 using System;
 using UnityEngine;
 using UnityEngine.Serialization;
-using MyToolz.ScriptableObjects.Audio;
 using MyToolz.Player.FPS.LoadoutSystem.View;
 using MyToolz.EditorToolz;
 using MyToolz.InventorySystem.Models;
+using MyToolz.Audio;
 
 namespace MyToolz.Player.FPS.CombatSystem.Model
 {

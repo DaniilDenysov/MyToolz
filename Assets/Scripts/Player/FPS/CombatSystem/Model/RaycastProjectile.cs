@@ -2,7 +2,7 @@ using DG.Tweening;
 using MyToolz.DesignPatterns.EventBus;
 using MyToolz.Events;
 using MyToolz.Extensions;
-using MyToolz.ScriptableObjects.Audio;
+using MyToolz.Audio;
 using System;
 using UnityEngine;
 

@@ -6,15 +6,6 @@ using Zenject;
 using MyToolz.DesignPatterns.EventBus;
 using MyToolz.Events;
 
-namespace MyToolz.DesignPatterns.ObjectPool.Interfaces
-{
-    public interface IPoolable
-    {
-        public void OnSpawned();
-        public void OnDespawned();
-    }
-}
-
 namespace MyToolz.DesignPatterns.ObjectPool
 {
     public class Pool<T> : MemoryPool<T>
@@ -92,7 +83,7 @@ namespace MyToolz.DesignPatterns.ObjectPool
             OnDisable();
         }
 
-        private void RegisterEventHandlers()
+        protected virtual void RegisterEventHandlers()
         {
             requestBinding = new EventBinding<PoolRequest<T>>(OnPoolRequestReceived);
             EventBus<PoolRequest<T>>.Register(requestBinding);
@@ -101,7 +92,7 @@ namespace MyToolz.DesignPatterns.ObjectPool
             EventBus<ReleaseRequest<T>>.Register(releaseBinding);
         }
 
-        private void DeregisterEventHandlers()
+        protected virtual void DeregisterEventHandlers()
         {
             EventBus<PoolRequest<T>>.Deregister(requestBinding);
             EventBus<ReleaseRequest<T>>.Deregister(releaseBinding);
@@ -128,8 +119,9 @@ namespace MyToolz.DesignPatterns.ObjectPool
         {
             try
             {
-                Release(request.PoolObject);
-                request.Callback?.Invoke(request.PoolObject);
+                var obj = request.PoolObject;
+                Release(obj);
+                request.Callback?.Invoke(obj);
             }
             catch (Exception e)
             {
@@ -148,11 +140,19 @@ namespace MyToolz.DesignPatterns.ObjectPool
         public virtual void OnSpawned(T obj)
         {
             obj.gameObject.SetActive(true);
+            if (obj.TryGetComponent(out IPoolable poolable))
+            {
+                poolable.OnSpawned();
+            }
         }
 
         public virtual void OnDespawned(T obj)
         {
             obj.gameObject.SetActive(false);
+            if (obj.TryGetComponent(out IPoolable poolable))
+            {
+                poolable.OnDespawned();
+            }
         }
 
         public virtual T Get(T prefab)

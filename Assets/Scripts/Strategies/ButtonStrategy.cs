@@ -42,14 +42,14 @@ namespace MyToolz.Strategies
 
         public override void OnEnable()
         {
-            interactInputCommandSO.OnStarted += OnInteractionStarted;
-            interactInputCommandSO.OnCanceled += OnInteractionCanceled;
+            interactInputCommandSO.OnInputStarted += OnInteractionStarted;
+            interactInputCommandSO.OnInputCanceled += OnInteractionCanceled;
         }
 
         public override void OnDisable()
         {
-            interactInputCommandSO.OnStarted -= OnInteractionStarted;
-            interactInputCommandSO.OnCanceled -= OnInteractionCanceled;
+            interactInputCommandSO.OnInputStarted -= OnInteractionStarted;
+            interactInputCommandSO.OnInputCanceled -= OnInteractionCanceled;
             KillTween();
             image.fillAmount = 0f;
         }
@@ -96,7 +96,7 @@ namespace MyToolz.Strategies
 
         public override void OnEnable()
         {
-            interactInputCommandSO.OnPerformed += OnPressed;
+            interactInputCommandSO.OnInputPerformed += OnPressed;
 
             if (!initialized && image != null)
             {
@@ -107,7 +107,7 @@ namespace MyToolz.Strategies
 
         public override void OnDisable()
         {
-            interactInputCommandSO.OnPerformed -= OnPressed;
+            interactInputCommandSO.OnInputPerformed -= OnPressed;
             image.transform.localScale = originalScale;
         }
 

@@ -5,6 +5,7 @@ using UnityEngine;
 
 namespace MyToolz.UI.LoadingScreen
 {
+    [Serializable]
     public class SceneLoaderModel : ISceneLoaderModel
     {
         private const int LOADING_DELAY = 100;

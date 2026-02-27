@@ -4,7 +4,6 @@ using MyToolz.DesignPatterns.Command;
 using MyToolz.Utilities.Debug;
 using UnityEngine;
 using UnityEngine.InputSystem;
-using Zenject;
 
 namespace MyToolz.InputManagement.Commands.Pipeline
 {
@@ -15,11 +14,12 @@ namespace MyToolz.InputManagement.Commands.Pipeline
 
         private InputDeviceTracker deviceTracker;
         private bool initialized;
+        private InputActionAsset inputActions;
 
         public InputDeviceTracker DeviceTracker => deviceTracker;
         public IReadOnlyList<InputCommandSO> RegisteredCommands => register;
 
-        public void Initialize(InputActionAsset inputActions, DiContainer container)
+        public void Initialize(InputActionAsset inputActions)
         {
             if (initialized) return;
 
@@ -28,23 +28,12 @@ namespace MyToolz.InputManagement.Commands.Pipeline
                 DebugUtility.LogError(this, $"{nameof(inputActions)} is null!");
                 return;
             }
-            if (container == null)
-            {
-                DebugUtility.LogError(this, $"{nameof(container)} is null!");
-                return;
-            }
+            inputActions.Enable();
+            this.inputActions = inputActions;
             deviceTracker = new InputDeviceTracker();
             deviceTracker.SubscribeToActionMap(inputActions);
 
-            foreach (var cmd in register)
-            {
-                if (cmd == null)
-                {
-                    DebugUtility.LogWarning(this, "Null entry found in register list. Skipping.");
-                    continue;
-                }
-                container.Inject(cmd);
-            }
+            RegisterBindings();
 
             initialized = true;
         }
@@ -54,6 +43,7 @@ namespace MyToolz.InputManagement.Commands.Pipeline
             foreach (var cmd in register)
             {
                 if (cmd == null) continue;
+                cmd.Initialize(inputActions);
                 cmd.Register();
             }
         }

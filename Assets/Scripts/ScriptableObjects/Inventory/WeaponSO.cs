@@ -1,6 +1,6 @@
 using MyToolz.EditorToolz;
 using MyToolz.HealthSystem;
-using MyToolz.ScriptableObjects.Audio;
+using MyToolz.Audio;
 using UnityEngine;
 
 namespace MyToolz.ScriptableObjects.Inventory

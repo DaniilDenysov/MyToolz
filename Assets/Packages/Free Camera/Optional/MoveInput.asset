@@ -1,0 +1,18 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9c638aa1dd56a5c488b4e7f11cbe7a55, type: 3}
+  m_Name: MoveInput
+  m_EditorClassIdentifier: 
+  inputName: Move Free Camera
+  inputActionPhase: 3
+  inputActionReference: {fileID: 5947456809259658770, guid: d3db49a9036a62c4c84c42e1bc2f7920, type: 3}
+  inputActionAsset: {fileID: -944628639613478452, guid: d3db49a9036a62c4c84c42e1bc2f7920, type: 3}

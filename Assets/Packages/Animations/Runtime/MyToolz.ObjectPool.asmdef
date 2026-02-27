@@ -1,0 +1,19 @@
+{
+    "name": "MyToolz.Animations",
+    "rootNamespace": "MyToolz.Animations",
+    "references": [
+        "GUID:51b6a736bbf53cfa5c6070a7949eb0dd",
+        "GUID:0d8beb7f090555447a6cf5ce9e54dbb4",
+        "GUID:2e067b695f871b0542bdfea8c0e97055",
+        "GUID:5b8689adcdd33b09ffe4c352abaa54ae"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

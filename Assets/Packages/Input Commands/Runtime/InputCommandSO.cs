@@ -1,7 +1,8 @@
+using MyToolz.EditorToolz;
+using MyToolz.Utilities.Debug;
 using System;
 using UnityEngine;
 using UnityEngine.InputSystem;
-using Zenject;
 
 namespace MyToolz.InputManagement.Commands
 {
@@ -10,86 +11,92 @@ namespace MyToolz.InputManagement.Commands
     {
         [SerializeField] private string inputName = "InputManagement Name";
         [SerializeField] private InputPhase inputActionPhase = InputPhase.Performed;
-        [SerializeField] private InputActionReference inputActionReference;
+        [SerializeField, Required] private InputActionReference inputActionReference;
 
-        private DefaultInputActions inputActions;
-        private InputAction cachedAction;
-        private bool isCacheDirty = true;
+        private InputActionAsset runtimeAsset;
+        private InputAction resolvedAction;
+        private bool registered;
 
         public InputPhase InputActionPhase => inputActionPhase;
         public string InputName => inputName;
         public InputActionReference InputActionReference => inputActionReference;
 
-        public event Action<InputCommandSO> OnPressed;
-        public event Action<InputCommandSO> OnReleased;
-        public event Action<InputCommandSO> OnCanceled;
-        public event Action<InputCommandSO> OnPerformed;
-        public event Action<InputCommandSO> OnStarted;
+        public event Action<InputCommandSO> OnInputPressed;
+        public event Action OnPressed;
+        public event Action<InputCommandSO> OnInputReleased;
+        public event Action OnReleased;
+        public event Action<InputCommandSO> OnInputCanceled;
+        public event Action OnCanceled;
+        public event Action<InputCommandSO> OnInputPerformed;
+        public event Action OnPerformed;
+        public event Action<InputCommandSO> OnInputStarted;
+        public event Action OnStarted;
 
-        [Inject]
-        private void Construct(DefaultInputActions inputActions)
+        public void Initialize(InputActionAsset sharedAsset)
         {
-            this.inputActions = inputActions;
-            isCacheDirty = true;
+            runtimeAsset = sharedAsset;
+            resolvedAction = null;
+            registered = false;
+        }
+
+        public bool IsActionEnabled()
+        {
+            var action = ResolveAction();
+            return action != null && action.enabled;
+        }
+
+        public InputActionMap GetActionMap()
+        {
+            var action = ResolveAction();
+            return action?.actionMap;
         }
 
         public void Register()
         {
-            var action = ResolveAction();
-            if (action == null) return;
+            if (registered) return;
 
-            switch (inputActionPhase)
+            var action = ResolveAction();
+            if (action == null)
             {
-                case InputPhase.Started:
-                    action.started += HandleCallback;
-                    break;
-                case InputPhase.Performed:
-                    action.performed += HandleCallback;
-                    break;
-                case InputPhase.Canceled:
-                    action.canceled += HandleCallback;
-                    break;
-                case InputPhase.Pressed:
-                    action.started += HandleCallback;
-                    break;
-                case InputPhase.Released:
-                    action.canceled += HandleCallback;
-                    break;
+                DebugUtility.LogError(this, $"Cannot register {inputName}: action could not be resolved.");
+                return;
             }
+
+            action.started += HandleCallback;
+            action.performed += HandleCallback;
+            action.canceled += HandleCallback;
+            registered = true;
         }
 
         public void Unregister()
         {
+            if (!registered) return;
+
             var action = ResolveAction();
             if (action == null) return;
 
             action.started -= HandleCallback;
             action.performed -= HandleCallback;
             action.canceled -= HandleCallback;
+            registered = false;
         }
 
         private InputAction ResolveAction()
         {
-            if (!isCacheDirty && cachedAction != null) return cachedAction;
-
+            if (resolvedAction != null) return resolvedAction;
             if (inputActionReference == null) return null;
+
             var refAction = inputActionReference.action;
             if (refAction == null) return null;
 
-            if (inputActions?.asset != null)
+            if (runtimeAsset != null)
             {
-                var found = inputActions.asset.FindAction(refAction.name, true);
-                if (found != null)
-                {
-                    cachedAction = found;
-                    isCacheDirty = false;
-                    return cachedAction;
-                }
+                resolvedAction = runtimeAsset.FindAction(refAction.id);
+                if (resolvedAction != null) return resolvedAction;
             }
 
-            cachedAction = refAction;
-            isCacheDirty = false;
-            return cachedAction;
+            resolvedAction = refAction;
+            return resolvedAction;
         }
 
         private void HandleCallback(InputAction.CallbackContext context)
@@ -98,28 +105,33 @@ namespace MyToolz.InputManagement.Commands
             {
                 case InputPhase.Started:
                     if (context.phase != UnityEngine.InputSystem.InputActionPhase.Started) return;
-                    OnStarted?.Invoke(this);
+                    OnStarted?.Invoke();
+                    OnInputStarted?.Invoke(this);
                     break;
 
                 case InputPhase.Performed:
                     if (context.phase != UnityEngine.InputSystem.InputActionPhase.Performed) return;
-                    OnPerformed?.Invoke(this);
+                    OnPerformed?.Invoke();
+                    OnInputPerformed?.Invoke(this);
                     break;
 
                 case InputPhase.Canceled:
                     if (context.phase != UnityEngine.InputSystem.InputActionPhase.Canceled) return;
-                    OnCanceled?.Invoke(this);
+                    OnCanceled?.Invoke();
+                    OnInputCanceled?.Invoke(this);
                     break;
 
                 case InputPhase.Pressed:
                     if (context.phase != UnityEngine.InputSystem.InputActionPhase.Started) return;
                     if (!IsPressed()) return;
-                    OnPressed?.Invoke(this);
+                    OnPressed?.Invoke();
+                    OnInputPressed?.Invoke(this);
                     break;
 
                 case InputPhase.Released:
                     if (context.phase != UnityEngine.InputSystem.InputActionPhase.Canceled) return;
-                    OnReleased?.Invoke(this);
+                    OnReleased?.Invoke();
+                    OnInputReleased?.Invoke(this);
                     break;
             }
         }

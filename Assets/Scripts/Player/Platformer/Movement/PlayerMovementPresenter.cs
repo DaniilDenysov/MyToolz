@@ -9,6 +9,7 @@ using MyToolz.ScriptableObjects.Inventory;
 using MyToolz.ScriptableObjects.Player.Platformer.Movement;
 using System;
 using UnityEngine;
+using UnityEngine.InputSystem;
 using Zenject;
 
 namespace MyToolz.Player.Platformer.Interfaces

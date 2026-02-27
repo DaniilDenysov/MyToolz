@@ -236,9 +236,9 @@ namespace MyToolz.Player.FPS.LoadoutSystem.Model
             }
         }
 
-        private void OnMainWeaponSelected(InputCommandSO inputCommandSO) => EquipWeapon(0, false);
-        private void OnSecondaryWeaponSelected(InputCommandSO inputCommandSO) => EquipWeapon(1, false);
-        private void OnThirdWeaponSelected(InputCommandSO inputCommandSO) => EquipWeapon(2, false);
+        private void OnMainWeaponSelected() => EquipWeapon(0, false);
+        private void OnSecondaryWeaponSelected() => EquipWeapon(1, false);
+        private void OnThirdWeaponSelected() => EquipWeapon(2, false);
 
         private void OnWeaponCycle(InputCommandSO inputCommandSO)
         {
@@ -507,7 +507,7 @@ namespace MyToolz.Player.FPS.LoadoutSystem.Model
             EventBus<OnWeaponPickedUp>.Register(onPlayerPickUpEventBinding);
             if (gameModeSO.EnableInstantUpdate) OnLocalWeaponLoadoutUpdated += InitializeLoadout;
             mainWeapon.OnPerformed += OnMainWeaponSelected;
-            weaponCycle.OnPerformed += OnWeaponCycle;
+            weaponCycle.OnInputPerformed += OnWeaponCycle;
             secondaryWeapon.OnPerformed += OnSecondaryWeaponSelected;
             thirdWeapon.OnPerformed += OnThirdWeaponSelected;
         }

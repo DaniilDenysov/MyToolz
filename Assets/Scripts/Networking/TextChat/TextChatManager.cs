@@ -98,19 +98,19 @@ namespace MyToolz.Networking.TextChat
 
         private bool IsPublicChat() => sessionChatBody.IsActive || sessionChatBody.gameObject.activeInHierarchy;
 
-        private void OnSwitchChat(InputCommandSO inputCommandSO)
+        private void OnSwitchChat()
         {
             if (!sessionChatBody.IsActive || !sessionChatBody.gameObject.activeInHierarchy) sessionChatBody.Open();
             else teamChatBody.Open();
         }
 
-        private void OpenTextChat(InputCommandSO inputCommandSO)
+        private void OpenTextChat()
         {
             isDirty = false;
             screen.Open();
         }
 
-        public void CloseTextChat(InputCommandSO inputCommandSO)
+        public void CloseTextChat()
         {
             DebugUtility.Log(this, "Closing text chat!");
             screen.Close();

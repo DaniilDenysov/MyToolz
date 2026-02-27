@@ -231,7 +231,7 @@ namespace MyToolz.Networking.RespawnSystem
             StopAllCoroutines();
             autoRespawnClock.Stop();
             clock.Stop();
-            OnRespawn(default);
+            OnRespawn();
         }
 
         private void OnPLayerStateChanged(PlayersAddedToTeam @event)
@@ -307,10 +307,10 @@ namespace MyToolz.Networking.RespawnSystem
 
         private void Respawn()
         {
-            OnRespawn(null);
+            OnRespawn();
         }
 
-        private void OnRespawn(InputCommandSO inputCommandSO)
+        private void OnRespawn()
         {
             if (blockRespawn) return;
             autoRespawnClock.Stop();

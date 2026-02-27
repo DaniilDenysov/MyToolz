@@ -8,16 +8,7 @@ namespace MyToolz.InputManagement.Commands.Pipeline
     public class InputCommandPipelineInstaller : MonoInstaller
     {
         [SerializeField] private InputCommandPipeline commandPipeline = new();
-
-        private InputActionAsset inputActions;
-        private DiContainer injectedContainer;
-
-        [Inject]
-        private void Construct(InputActionAsset inputActions, DiContainer container)
-        {
-            this.inputActions = inputActions;
-            this.injectedContainer = container;
-        }
+        [SerializeField] private InputActionAsset inputActions;
 
         public override void InstallBindings()
         {
@@ -28,23 +19,13 @@ namespace MyToolz.InputManagement.Commands.Pipeline
             Container.Bind<InputCommandPipeline>()
                 .FromInstance(commandPipeline)
                 .AsSingle();
-        }
 
-        private new void Start()
-        {
-            base.Start();
-            commandPipeline.Initialize(inputActions, injectedContainer);
-            commandPipeline.RegisterBindings();
-        }
+            commandPipeline.Initialize(inputActions);
 
-        private void Update()
-        {
-            commandPipeline.Update();
-        }
-
-        private void OnDestroy()
-        {
-            commandPipeline.Dispose();
+            Container.Bind<InputActionAsset>()
+                .FromInstance(inputActions)
+                .AsSingle()
+                .IfNotBound();
         }
     }
 }

@@ -1,7 +1,7 @@
 using Mirror;
 using MyToolz.Extensions;
 using MyToolz.Player.FPS.CombatSystem.Model;
-using MyToolz.ScriptableObjects.Audio;
+using MyToolz.Audio;
 using UnityEngine;
 using Zenject;
 
@@ -69,7 +69,7 @@ namespace MyToolz.Player.FPS.CombatSystem.Presenter
 
         public void PlayReload(AudioClipSO audioClip)
         {
-            lastPlayedReload = weaponAudioSource.Play(audioClip, lastPlayedReload, 0f);
+            weaponAudioSource.Play(audioClip, 0f);
         }
 
         public void CancelReload()
@@ -79,22 +79,22 @@ namespace MyToolz.Player.FPS.CombatSystem.Presenter
 
         public void PlayEquip(AudioClipSO audioClip, float delay = 0f)
         {
-            lastPlayedEquip = equipingAudioSource.Play(audioClip, lastPlayedEquip, delay);
+            equipingAudioSource.Play(audioClip, delay);
         }
 
         public void PlayHitmarkerSFX(AudioClipSO audioClipSO)
         {
-            lastPlayerdHitmarker = uiAudioSource.Play(audioClipSO, lastPlayerdHitmarker, 0);
+            uiAudioSource.Play(audioClipSO, 0f);
         }
 
         public void PlayEmptyMagSFX()
         {
-            lastPlayedEmptyMag = weaponAudioSource.Play(weaponSO.EemptyMagAudioClip, lastPlayedEmptyMag, 0f);
+            weaponAudioSource.Play(weaponSO.EemptyMagAudioClip, 0f);
         }
 
         public void PlayLocalSFX()
         {
-            lastPlayedBulletCase = bulletCasingAudioSource.Play(weaponSO.ShellCasingAudioClip, lastPlayedBulletCase, 0.75f);
+            bulletCasingAudioSource.Play(weaponSO.ShellCasingAudioClip, 0.75f);
         }
 
         [Command(requiresAuthority = false)]
@@ -109,7 +109,7 @@ namespace MyToolz.Player.FPS.CombatSystem.Presenter
             if (weaponModel == null) return;
             var weaponSO = weaponModel.GetItemSO();
             if (weaponSO == null) return;
-            lastPlayedWeaponShot = weaponAudioSource.Play(weaponSO.ShotAudioClip, lastPlayedWeaponShot, 0f);
+            weaponAudioSource.Play(weaponSO.ShotAudioClip, 0f);
         }
     }
 }

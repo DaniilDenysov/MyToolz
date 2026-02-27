@@ -1,21 +1,13 @@
-using MyToolz.InputManagement;
 using MyToolz.Tweener.UI;
+using System;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.EventSystems;
 
 namespace MyToolz.UI.Management
 {
-   [System.Serializable]
-    public abstract class InputMode : IPlayerInputState
-    {
-        public abstract void OnEnter();
-        public abstract void OnExit();
-    }
-
     public abstract class UIScreenBase : MonoBehaviour, IUIState
     {
-
         [Header("Base UI Config")]
         [SerializeField] protected UIScreen parent;
         [SerializeField] protected UITweener screenTweener;

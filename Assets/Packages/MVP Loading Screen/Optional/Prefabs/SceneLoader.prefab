@@ -114,19 +114,16 @@ MonoBehaviour:
   model:
     rid: 7331165814127329302
   view:
-    rid: 7331165814127329303
+    loadingScreen: {fileID: 1902114341372371230}
+    loadingBar: {fileID: 1761827318967940130}
   sceneLoader: {fileID: 8550613411829381579}
   references:
     version: 2
     RefIds:
+    - rid: -2
+      type: {class: , ns: , asm: }
     - rid: 7331165814127329302
       type: {class: SceneLoaderModel, ns: MyToolz.UI.LoadingScreen, asm: Assembly-CSharp}
-      data: 
-    - rid: 7331165814127329303
-      type: {class: SceneLoaderView, ns: MyToolz.UI.LoadingScreen, asm: Assembly-CSharp}
-      data:
-        loadingScreen: {fileID: 1902114341372371230}
-        loadingBar: {fileID: 1761827318967940130}
 --- !u!114 &8550613411829381579
 MonoBehaviour:
   m_ObjectHideFlags: 0

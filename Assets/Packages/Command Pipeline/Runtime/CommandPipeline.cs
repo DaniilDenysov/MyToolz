@@ -28,6 +28,7 @@ namespace MyToolz.DesignPatterns.Command
                 pendingCommands.Dequeue();
 
             pendingCommands.Enqueue(command);
+            Update();
         }
 
         public virtual void Update()

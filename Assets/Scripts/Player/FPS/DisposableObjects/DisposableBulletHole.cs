@@ -1,7 +1,7 @@
 using MyToolz.DesignPatterns.EventBus;
 using MyToolz.Events;
 using MyToolz.Extensions;
-using MyToolz.ScriptableObjects.Audio;
+using MyToolz.Audio;
 using UnityEngine;
 
 namespace MyToolz.Player.FPS.DisposableObjects

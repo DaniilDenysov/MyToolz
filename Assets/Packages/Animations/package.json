@@ -1,0 +1,12 @@
+{
+  "name": "com.mytoolz.animations",
+  "displayName": "Animations",
+  "version": "1.0.0",
+  "unity": "2022.3",
+  "unityRelease": "46f1",
+  "description": "Solution using zenject, presenting state machine to control animations based on the robust internal logic",
+  "license": "MIT",
+  "dependencies": {
+    "com.mytoolz.debugutility": "1.0.0"
+  }
+}

@@ -49,8 +49,8 @@ namespace MyToolz.Networking.Scoreboards
         }
         public abstract void Refresh();
         public abstract void ClearContainer();
-        public void OpenScoreboard() => OnScoreboardOpened(default);
-        public void CloseScoreboard() => OnScoreboardClosed(default);
+        public void OpenScoreboard() => OnScoreboardOpened();
+        public void CloseScoreboard() => OnScoreboardClosed();
 
 
         public void SetIsDirty()
@@ -59,13 +59,13 @@ namespace MyToolz.Networking.Scoreboards
             else Refresh();
         }
 
-        public virtual void OnScoreboardOpened(InputCommandSO obj)
+        public virtual void OnScoreboardOpened()
         {
             if (isDirty) Refresh();
             scoreboardBody.Open();
         }
 
-        public virtual void OnScoreboardClosed(InputCommandSO obj)
+        public virtual void OnScoreboardClosed()
         {
             scoreboardBody.Close();
         }

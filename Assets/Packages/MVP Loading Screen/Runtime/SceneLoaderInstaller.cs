@@ -1,5 +1,6 @@
 using MyToolz.DesignPatterns.MVP.View;
 using MyToolz.SceneManagement;
+using System;
 using UnityEngine;
 using Zenject;
 
@@ -9,7 +10,7 @@ namespace MyToolz.UI.LoadingScreen
     {
         [SerializeField] private SceneLoaderPresenter presenter;
         [SerializeReference] private SceneLoaderModel model = new();
-        [SerializeReference] private SceneLoaderView view = new();
+        [SerializeField] private SceneLoaderView view = new();
         [SerializeField] private SceneLoader sceneLoader;
 
         public override void InstallBindings()

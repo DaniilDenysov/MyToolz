@@ -8,7 +8,7 @@ using MyToolz.Networking.GameModes.Events;
 using MyToolz.Networking.PickUpSystem;
 using MyToolz.Player.FPS.DisposableObjects;
 using MyToolz.Player.FPS.InteractionSystem.Model;
-using MyToolz.ScriptableObjects.Audio;
+using MyToolz.Audio;
 using MyToolz.Strategies;
 using MyToolz.Utilities.Debug;
 using System;
