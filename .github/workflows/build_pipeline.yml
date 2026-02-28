@@ -10,7 +10,6 @@ jobs:
       fail-fast: false
       matrix:
         projectPath:
-          - test-project
         unityVersion:
           - 2022.43.46f1
         targetPlatform:
@@ -39,6 +38,7 @@ jobs:
           projectPath: ${{ matrix.projectPath }}
           unityVersion: ${{ matrix.unityVersion }}
           targetPlatform: ${{ matrix.targetPlatform }}
+          customParameters: '-myParameter myValue -myBoolean -ThirdParameter andItsValue'
       - uses: actions/upload-artifact@v4
         with:
           name: Build
@@ -51,7 +51,6 @@ jobs:
       fail-fast: false
       matrix:
         projectPath:
-          - test-project
         unityVersion:
           - 2022.43.46f1
         targetPlatform:
@@ -95,7 +94,6 @@ jobs:
       fail-fast: false
       matrix:
         projectPath:
-          - test-project
         unityVersion:
           - 2022.43.46f1
         targetPlatform:
