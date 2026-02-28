@@ -4,9 +4,10 @@
   "version": "1.0.0",
   "unity": "2022.3",
   "unityRelease": "46f1",
-  "description": "Base tweening abstraction layer built on DOTween. Provides the foundation that UI Tweener and other tweening packages extend",
+  "description": "Base tweening abstraction layer built on DOTween. Provides the foundation that UI Tweener and other tweening packages extend. Requires DOTween (https://dotween.demigiant.com/), SerializeReferenceExtensions (https://github.com/mackysoft/Unity-SerializeReferenceExtensions)",
   "license": "MIT",
   "dependencies": {
-    "com.mytoolz.debugutility": "1.0.0"
+    "com.mytoolz.debugutility": "1.0.0",
+    "com.mackysoft.serializereference-extensions": "https://github.com/mackysoft/Unity-SerializeReferenceExtensions.git"
   }
 }

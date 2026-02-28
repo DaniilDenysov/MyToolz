@@ -4,11 +4,12 @@
   "version": "1.0.0",
   "unity": "2022.3",
   "unityRelease": "46f1",
-  "description": "Save/load system with pluggable serialization strategies. Includes Newtonsoft JSON and Unity JSON backends with ScriptableObject-driven configuration",
+  "description": "Save/load system with pluggable serialization strategies. Includes Newtonsoft JSON and Unity JSON backends with ScriptableObject-driven configuration. Requires Zenject (https://github.com/modesttree/Zenject), SerializeReferenceExtensions (https://github.com/mackysoft/Unity-SerializeReferenceExtensions)",
   "license": "MIT",
   "dependencies": {
     "com.unity.nuget.newtonsoft-json": "3.2.1",
     "com.mytoolz.debugutility": "1.0.0",
-    "com.mytoolz.editortoolz": "1.0.0"
+    "com.mytoolz.editortoolz": "1.0.0",
+    "com.mackysoft.serializereference-extensions": "https://github.com/mackysoft/Unity-SerializeReferenceExtensions.git"
   }
 }

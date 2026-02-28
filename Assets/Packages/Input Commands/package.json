@@ -4,11 +4,12 @@
   "version": "1.0.0",
   "unity": "2022.3",
   "unityRelease": "46f1",
-  "description": "ScriptableObject-based input command definitions built on the Command Pipeline pattern",
+  "description": "ScriptableObject-based input command definitions built on the Command Pipeline pattern with InputActionReference bindings",
   "license": "MIT",
   "dependencies": {
+    "com.unity.inputsystem": "1.7.0",
     "com.mytoolz.debugutility": "1.0.0",
-    "com.mytoolz.eventbus": "1.0.0",
+    "com.mytoolz.editortoolz": "1.0.0",
     "com.mytoolz.commandpipeline": "1.0.0"
   }
 }

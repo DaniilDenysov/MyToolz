@@ -1,6 +1,6 @@
 # Extensions
 
-Shared extension methods used internally by the MyToolz framework.
+Shared extension methods used internally by the MyToolz framework. Includes general-purpose C# and Unity type extensions plus scene management utilities.
 
 ## Dependencies
 
@@ -12,5 +12,6 @@ Shared extension methods used internally by the MyToolz framework.
 
 ```
 Runtime/
-└── Extensions.cs   Collection of extension methods for common Unity and C# types
+├── Extensions.cs        Collection of extension methods for common Unity and C# types
+└── SceneExtensions.cs   Scene utility methods: build settings validation, scene name lookup by index
 ```

@@ -4,9 +4,11 @@
   "version": "1.0.0",
   "unity": "2022.3",
   "unityRelease": "46f1",
-  "description": "Solution using zenject, presenting state machine to control animations based on the robust internal logic",
+  "description": "Priority-based animator state machine for controlling animations with robust internal logic. Requires Zenject (https://github.com/modesttree/Zenject)",
   "license": "MIT",
   "dependencies": {
-    "com.mytoolz.debugutility": "1.0.0"
+    "com.mytoolz.debugutility": "1.0.0",
+    "com.mytoolz.editortoolz": "1.0.0",
+    "com.mytoolz.statemachine": "1.0.0"
   }
 }

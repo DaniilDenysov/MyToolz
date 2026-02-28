@@ -4,9 +4,10 @@
   "version": "1.0.0",
   "unity": "2022.3",
   "unityRelease": "46f1",
-  "description": "ScriptableObject-driven game settings system with save/load persistence and MVP views for sliders, toggles, dropdowns, and input fields",
+  "description": "ScriptableObject-driven game settings system with save/load persistence and MVP views for sliders, toggles, dropdowns, and input fields. Requires Zenject (https://github.com/modesttree/Zenject)",
   "license": "MIT",
   "dependencies": {
+    "com.unity.textmeshpro": "3.0.6",
     "com.mytoolz.debugutility": "1.0.0",
     "com.mytoolz.editortoolz": "1.0.0",
     "com.mytoolz.extensions": "1.0.0",

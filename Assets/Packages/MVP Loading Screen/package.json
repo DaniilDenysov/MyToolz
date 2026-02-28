@@ -4,15 +4,17 @@
   "version": "1.0.0",
   "unity": "2022.3",
   "unityRelease": "46f1",
-  "description": "Provides easy to use API and plug in solution for easy set up of the loading screen functionality",
+  "description": "Plug-and-use loading screen solution with async scene management and MVP architecture. Requires Zenject (https://github.com/modesttree/Zenject), UniTask (https://github.com/Cysharp/UniTask), SerializeReferenceExtensions (https://github.com/mackysoft/Unity-SerializeReferenceExtensions)",
   "license": "MIT",
   "dependencies": {
     "com.mytoolz.debugutility": "1.0.0",
+    "com.mytoolz.editortoolz": "1.0.0",
     "com.mytoolz.eventbus": "1.0.0",
     "com.mytoolz.singleton": "1.0.0",
-    "com.mytoolz.editortoolz": "1.0.0",
     "com.mytoolz.extensions": "1.0.0",
-    "com.mytoolz.mvp": "2.0.0",
-    "com.mytoolz.mvpuimanagementsystem": "1.0.0"
+    "com.mytoolz.mvp": "1.0.0",
+    "com.mytoolz.mvpuimanagementsystem": "1.0.0",
+    "com.cysharp.unitask": "https://github.com/Cysharp/UniTask.git?path=src/UniTask/Assets/Plugins/UniTask",
+    "com.mackysoft.serializereference-extensions": "https://github.com/mackysoft/Unity-SerializeReferenceExtensions.git"
   }
 }

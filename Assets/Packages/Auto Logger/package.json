@@ -4,6 +4,9 @@
   "version": "1.0.0",
   "unity": "2022.3",
   "unityRelease": "46f1",
-  "description": "Automatically writes all the logs to the file",
-  "license": "MIT"
+  "description": "Automatically writes all the logs to the file. Requires UniTask (https://github.com/Cysharp/UniTask)",
+  "license": "MIT",
+  "dependencies": {
+    "com.cysharp.unitask": "https://github.com/Cysharp/UniTask.git?path=src/UniTask/Assets/Plugins/UniTask"
+  }
 }

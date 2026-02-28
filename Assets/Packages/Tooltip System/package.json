@@ -7,9 +7,11 @@
   "description": "Event-driven tooltip system using EventBus and Singleton. Supports configurable tooltip areas with pointer-based trigger and positioning",
   "license": "MIT",
   "dependencies": {
+    "com.unity.inputsystem": "1.7.0",
+    "com.unity.textmeshpro": "3.0.6",
     "com.mytoolz.debugutility": "1.0.0",
+    "com.mytoolz.editortoolz": "1.0.0",
     "com.mytoolz.eventbus": "1.0.0",
-    "com.mytoolz.singleton": "1.0.0",
-    "com.mytoolz.editortoolz": "1.0.0"
+    "com.mytoolz.singleton": "1.0.0"
   }
 }

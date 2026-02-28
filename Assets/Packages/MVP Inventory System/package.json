@@ -1,16 +1,19 @@
 {
   "name": "com.mytoolz.mvpinventorysystem",
   "displayName": "MVP InventorySystem",
-  "version": "1.2.0",
+  "version": "1.0.0",
   "unity": "2022.3",
   "unityRelease": "46f1",
-  "description": "Provides easy to use API for quick set up of the InventorySystem",
+  "description": "MVP-based inventory system with drag-and-drop slots, item stacking, persistence, and pooled UI. Requires Zenject (https://github.com/modesttree/Zenject), SerializeReferenceExtensions (https://github.com/mackysoft/Unity-SerializeReferenceExtensions)",
   "license": "MIT",
   "dependencies": {
+    "com.unity.textmeshpro": "3.0.6",
     "com.mytoolz.debugutility": "1.0.0",
+    "com.mytoolz.editortoolz": "1.0.0",
     "com.mytoolz.eventbus": "1.0.0",
     "com.mytoolz.objectpool": "1.0.0",
     "com.mytoolz.mvpuimanagementsystem": "1.0.0",
-    "com.mytoolz.io": "1.0.0"
+    "com.mytoolz.io": "1.0.0",
+    "com.mackysoft.serializereference-extensions": "https://github.com/mackysoft/Unity-SerializeReferenceExtensions.git"
   }
 }
