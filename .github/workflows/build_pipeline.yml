@@ -9,7 +9,6 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        projectPath:
         unityVersion:
           - 2022.43.46f1
         targetPlatform:
@@ -50,7 +49,6 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        projectPath:
         unityVersion:
           - 2022.43.46f1
         targetPlatform:
@@ -93,7 +91,6 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        projectPath:
         unityVersion:
           - 2022.43.46f1
         targetPlatform:
