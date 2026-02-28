@@ -9,8 +9,6 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        unityVersion:
-          - 2022.43.46f1
         targetPlatform:
           - StandaloneLinux64 # Build a Linux 64-bit standalone.
     steps:
@@ -48,8 +46,6 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        unityVersion:
-          - 2022.43.46f1
         targetPlatform:
           - StandaloneWindows # Build a Windows 32-bit standalone.
           - StandaloneWindows64 # Build a Windows 64-bit standalone.
@@ -89,8 +85,6 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        unityVersion:
-          - 2022.43.46f1
         targetPlatform:
           - StandaloneOSX # Build a macOS standalone.
 
