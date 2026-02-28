@@ -1,28 +1,53 @@
+using System;
+using System.Linq;
 using UnityEditor;
+using UnityEditor.Build.Reporting;
 using UnityEditor.AddressableAssets;
 using UnityEditor.AddressableAssets.Settings;
 using UnityEditor.AddressableAssets.Build;
-using System.Linq;
 
 public class BuildScript
 {
     public static void BuildAddressablesAndPlayer()
     {
-        AddressableAssetSettings.BuildPlayerContent(out AddressablesPlayerBuildResult result);
+        AddressableAssetSettings.CleanPlayerContent(
+            AddressableAssetSettingsDefaultObject.Settings.ActivePlayerDataBuilder
+        );
 
-        if (!string.IsNullOrEmpty(result.Error))
-            throw new System.Exception("Addressables build failed: " + result.Error);
+        AddressableAssetSettings.BuildPlayerContent(out AddressablesPlayerBuildResult addressablesResult);
 
-        BuildPlayerOptions options = new BuildPlayerOptions();
-        options.scenes = EditorBuildSettings.scenes
+        if (!string.IsNullOrEmpty(addressablesResult.Error))
+            throw new Exception("Addressables build failed: " + addressablesResult.Error);
+
+        string[] scenes = EditorBuildSettings.scenes
             .Where(s => s.enabled)
             .Select(s => s.path)
             .ToArray();
-        options.target = EditorUserBuildSettings.activeBuildTarget;
-        options.locationPathName = "build";
 
-        var buildResult = BuildPipeline.BuildPlayer(options);
-        if (buildResult.summary.result != UnityEditor.Build.Reporting.BuildResult.Succeeded)
-            throw new System.Exception("Build failed");
+        if (scenes.Length == 0)
+            throw new Exception("No scenes enabled in Build Settings.");
+
+        BuildTarget target = EditorUserBuildSettings.activeBuildTarget;
+        string extension = target switch
+        {
+            BuildTarget.StandaloneWindows => ".exe",
+            BuildTarget.StandaloneWindows64 => ".exe",
+            BuildTarget.StandaloneOSX => ".app",
+            BuildTarget.StandaloneLinux64 => "",
+            _ => ""
+        };
+
+        BuildPlayerOptions options = new BuildPlayerOptions
+        {
+            scenes = scenes,
+            target = target,
+            locationPathName = "build/Game" + extension,
+            options = BuildOptions.None
+        };
+
+        BuildReport report = BuildPipeline.BuildPlayer(options);
+
+        if (report.summary.result != BuildResult.Succeeded)
+            throw new Exception("Player build failed: " + report.summary.result);
     }
 }
