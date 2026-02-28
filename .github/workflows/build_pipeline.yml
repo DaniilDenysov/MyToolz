@@ -14,7 +14,7 @@ jobs:
       fail-fast: false
       matrix:
         targetPlatform:
-          - StandaloneOSX
+          # - StandaloneOSX
           - StandaloneWindows
           - StandaloneWindows64
 
@@ -24,11 +24,11 @@ jobs:
           fetch-depth: 0
           lfs: true
 
-      - uses: actions/cache@v3
-        with:
-          path: Library
-          key: Library-${{ matrix.targetPlatform }}
-          restore-keys: Library-
+      # - uses: actions/cache@v3
+      #   with:
+      #     path: Library
+      #     key: Library-${{ matrix.targetPlatform }}
+      #     restore-keys: Library-
 
       - uses: game-ci/unity-builder@v4
         env:
@@ -38,6 +38,7 @@ jobs:
         with:
           targetPlatform: ${{ matrix.targetPlatform }}
           unityVersion: 2022.3.46f1
+          clean: true
 
       - uses: actions/upload-artifact@v4
         with:
