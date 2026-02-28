@@ -227,13 +227,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5721cb28581a45c45a0bdea3c85ae43e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  freeCameraSO: {fileID: 11400000, guid: 4e4f294de85246f4ba4dd80aaec89af4, type: 2}
-  toggleInputCommandSO: {fileID: 11400000, guid: 21a9662d8c1b9a14a8477940833efa8e, type: 2}
-  moveActionInputCommandSO: {fileID: 11400000, guid: d62bfbec5f3d07844b9bf4437a0f4483, type: 2}
-  verticalInputCommandSO: {fileID: 11400000, guid: 9a69650f3edec6846b732a0eb5bdd2a8, type: 2}
-  scrollInputCommandSO: {fileID: 11400000, guid: 34cfeb514814f1e43bad1c8317743aee, type: 2}
-  lookInputCommandSO: {fileID: 11400000, guid: c436b12324052af428487725464857be, type: 2}
-  inputMode: {fileID: 11400000, guid: 5fc41e58d718f69418b7b32643ef1830, type: 2}
+  settings: {fileID: 11400000, guid: 4e4f294de85246f4ba4dd80aaec89af4, type: 2}
+  toggleAction: {fileID: 11400000, guid: 21a9662d8c1b9a14a8477940833efa8e, type: 2}
+  moveAction: {fileID: 11400000, guid: d62bfbec5f3d07844b9bf4437a0f4483, type: 2}
+  lookAction: {fileID: 11400000, guid: c436b12324052af428487725464857be, type: 2}
+  verticalAction: {fileID: 11400000, guid: 9a69650f3edec6846b732a0eb5bdd2a8, type: 2}
+  scrollAction: {fileID: 11400000, guid: 34cfeb514814f1e43bad1c8317743aee, type: 2}
+  boostAction: {fileID: 0}
 --- !u!1 &432924739
 GameObject:
   m_ObjectHideFlags: 0

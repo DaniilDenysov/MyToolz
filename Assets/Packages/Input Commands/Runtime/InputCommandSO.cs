@@ -21,6 +21,8 @@ namespace MyToolz.InputManagement.Commands
         public string InputName => inputName;
         public InputActionReference InputActionReference => inputActionReference;
 
+        public event Action OnInput;
+        public event Action<InputAction.CallbackContext, InputCommandSO> OnInputAction;
         public event Action<InputCommandSO> OnInputPressed;
         public event Action OnPressed;
         public event Action<InputCommandSO> OnInputReleased;
@@ -101,6 +103,8 @@ namespace MyToolz.InputManagement.Commands
 
         private void HandleCallback(InputAction.CallbackContext context)
         {
+            OnInput?.Invoke();
+            OnInputAction?.Invoke(context, this);
             switch (inputActionPhase)
             {
                 case InputPhase.Started:

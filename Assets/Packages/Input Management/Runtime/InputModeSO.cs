@@ -7,6 +7,8 @@ namespace MyToolz.InputManagement
     [CreateAssetMenu(fileName = "InputModeSO", menuName = "MyToolz/InputManagement/InputModeSO")]
     public class InputModeSO : ScriptableObject, IPlayerInputState
     {
+        [SerializeField] private bool cursorVisible = true;
+        [SerializeField] private CursorLockMode cursorLockMode = CursorLockMode.None;
         [SerializeField] private List<InputActionReference> enabledActions = new();
 
         private InputAction[] resolvedActions;
@@ -30,6 +32,9 @@ namespace MyToolz.InputManagement
 
         public void OnEnter()
         {
+            Cursor.lockState = cursorLockMode;
+            Cursor.visible = cursorVisible;
+
             if (resolvedActions == null) return;
 
             var actions = resolvedActions;
