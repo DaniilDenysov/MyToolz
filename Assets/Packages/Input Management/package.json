@@ -9,6 +9,7 @@
   "dependencies": {
     "com.unity.inputsystem": "1.7.0",
     "com.mytoolz.debugutility": "1.0.0",
+    "com.mytoolz.statemachine": "1.0.0",
     "com.mytoolz.inputcommands": "1.0.0"
   }
 }

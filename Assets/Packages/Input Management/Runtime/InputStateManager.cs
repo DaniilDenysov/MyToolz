@@ -1,15 +1,21 @@
+using MyToolz.DesignPatterns.StateMachine;
+using MyToolz.EditorToolz;
 using MyToolz.Utilities.Debug;
 using System;
+using UnityEngine;
+using UnityEngine.InputSystem;
 
 namespace MyToolz.InputManagement
 {
-    public class InputStateManager
+    [Serializable]
+    public class InputStateManager : IStateMachine<IPlayerInputState>
     {
-        private IPlayerInputState currentState;
-
         public IPlayerInputState CurrentState => currentState;
 
         public event Action<IPlayerInputState, IPlayerInputState> OnStateChanged;
+
+        private IPlayerInputState currentState;
+        [SerializeField, Required] private InputActionAsset asset;
 
         public void ChangeState(IPlayerInputState newState)
         {
@@ -22,6 +28,7 @@ namespace MyToolz.InputManagement
             if (ReferenceEquals(currentState, newState)) return;
 
             var previousState = currentState;
+            currentState?.Initialize(asset);
             currentState?.OnExit();
             currentState = newState;
             currentState.OnEnter();
