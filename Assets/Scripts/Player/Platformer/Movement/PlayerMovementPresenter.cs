@@ -231,7 +231,7 @@ namespace MyToolz.Player.Platformer.Movement.Presenter
             //}
 
             externalVelocity = Vector2.Lerp(externalVelocity, Vector2.zero, lerp);
-            rigidbody2D.velocity = moveVelocity + externalVelocity;
+            rigidbody2D.linearVelocity = moveVelocity + externalVelocity;
 
         }
 

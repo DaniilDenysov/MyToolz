@@ -41,7 +41,7 @@ namespace MyToolz.Projectiles
         {
             if (moveTween != null && moveTween.IsActive()) moveTween.Kill();
             rb.position = init.Origin;
-            rb.velocity = Vector2.zero;
+            rb.linearVelocity = Vector2.zero;
             rb.angularVelocity = 0f;
             transform.SetParent(null);
 
@@ -108,7 +108,7 @@ namespace MyToolz.Projectiles
         {
             CancelInvoke(nameof(Dispose));
             if (moveTween != null && moveTween.IsActive()) moveTween.Kill();
-            rb.velocity = Vector2.zero;
+            rb.linearVelocity = Vector2.zero;
             rb.angularVelocity = 0f;
         }
     }

@@ -7,7 +7,7 @@ namespace MyToolz.Networking.Utilities
 {
     public static class MappingUtility
     {
-        public static string PhysicsMaterialToName(PhysicMaterial physicMaterial)
+        public static string PhysicsMaterialToName(PhysicsMaterial physicMaterial)
         {
             return (physicMaterial == null || string.IsNullOrEmpty(physicMaterial.name) ||
             string.IsNullOrWhiteSpace(physicMaterial.name)) ?
@@ -25,7 +25,7 @@ namespace MyToolz.Player.FPS.CombatSystem.Model
         [System.Serializable]
         public struct BulletHoleMapping
         {
-            public PhysicMaterial physicMaterial;
+            public PhysicsMaterial physicMaterial;
             public DisposableBulletHole bulletHolePrefab;
         }
 

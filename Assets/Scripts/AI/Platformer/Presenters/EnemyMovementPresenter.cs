@@ -462,7 +462,7 @@ namespace MyToolz.AI.Platformer.Presenters
         private EnemyMovementSO enemyMovementSO => enemyModel?.EnemyMovementSO;
         private bool enableGroundCheck => enemyModel?.EnemyMovementSO.UseGravity ?? true;
         public bool IsGrounded => isGrounded;
-        public Vector2 Velocity => rb != null ? rb.velocity : targetVelocity;
+        public Vector2 Velocity => rb != null ? rb.linearVelocity : targetVelocity;
         public Vector2 ExternalVelocity => externalVelocity;
         public Vector2 Direction => isFlipped ? Vector2.left : Vector2.right;
         private bool isFlipped => transform.rotation.y != 0;
@@ -501,7 +501,7 @@ namespace MyToolz.AI.Platformer.Presenters
 
             var useGravity = enemyMovementSO.UseGravity;
             var dt = Time.fixedDeltaTime;
-            var current = rb.velocity;
+            var current = rb.linearVelocity;
             var isDead = false; // healthModel.IsDead;
             isGrounded = Physics2D.OverlapCircle(groundCheck.position, enemyMovementSO.GroundProbeRadius, enemyMovementSO.GroundLayer);
 
@@ -534,12 +534,12 @@ namespace MyToolz.AI.Platformer.Presenters
             externalVelocity = Vector2.Lerp(externalVelocity, Vector2.zero, CurrentFriction * dt);
             current += externalVelocity;
 
-            rb.velocity = current;
+            rb.linearVelocity = current;
         }
 
         public void ApplyFlip(Vector2 direction)
         {
-            var x = direction != Vector2.zero ? direction.x : rb.velocity.x;
+            var x = direction != Vector2.zero ? direction.x : rb.linearVelocity.x;
             if (Mathf.Abs(x) < 0.0001f) return;
 
             var faceLeft = x < 0f;

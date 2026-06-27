@@ -59,7 +59,7 @@ namespace MyToolz.Player.FPS.CombatSystem.Presenter
             {
                 StartCoroutine(DelayedDisposure(lethalEquipmentSO.TimeToLive));
             }
-            if (_rigidbody.velocity.magnitude > sfx_force_trashold)
+            if (_rigidbody.linearVelocity.magnitude > sfx_force_trashold)
             {
                 if (collision_sfx != null)
                 {
@@ -81,7 +81,7 @@ namespace MyToolz.Player.FPS.CombatSystem.Presenter
             if (!lethalEquipmentSO.IsDamageOnHitEnabled()) return;
             if (collision.gameObject.TryGetComponent(out IDamagable damageable))
             {
-                if (_rigidbody.velocity.magnitude > lethalEquipmentSO.DamageOnHitThreshold)
+                if (_rigidbody.linearVelocity.magnitude > lethalEquipmentSO.DamageOnHitThreshold)
                 {
                     damageable.DoDamage(new PhysicalDamageType (lethalEquipmentSO.DamageOnHit));
                 }
@@ -112,7 +112,7 @@ namespace MyToolz.Player.FPS.CombatSystem.Presenter
         {
             if (lethalEquipmentSO.TouchDownMode == TouchDownMode.NonInertial)
             {
-                _rigidbody.velocity = Vector3.zero;
+                _rigidbody.linearVelocity = Vector3.zero;
                 return;
             }
             if (lethalEquipmentSO.TouchDownMode == TouchDownMode.Sticky)
