@@ -11,7 +11,7 @@ permissions:
   contents: write
 
 env:
-  UNITY_VERSION: 2022.3.46f1
+  UNITY_VERSION: 6000.3.16f1
   OUT_DIR: build_output
 
 jobs:
