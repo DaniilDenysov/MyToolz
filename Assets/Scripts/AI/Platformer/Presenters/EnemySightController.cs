@@ -224,7 +224,7 @@ namespace MyToolz.AI.Platformer.Presenters
 
         private bool IsTargetCollider(Collider2D c)
         {
-            return c.gameObject.TryGetComponent(out IDamagable damagable);
+            return false;// c.gameObject.TryGetComponent(out IDamagable damagable);
         }
 
 #if UNITY_EDITOR

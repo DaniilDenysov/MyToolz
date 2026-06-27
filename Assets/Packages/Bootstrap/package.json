@@ -1,0 +1,9 @@
+{
+  "name": "com.mytoolz.bootstrap",
+  "displayName": "Bootstrap",
+  "version": "1.0.0",
+  "unity": "2022.3",
+  "unityRelease": "46f1",
+  "description": "Application bootstrap entry point and editor boot launcher.",
+  "license": "MIT"
+}

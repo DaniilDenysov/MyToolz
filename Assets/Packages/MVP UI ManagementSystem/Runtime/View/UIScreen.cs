@@ -32,14 +32,10 @@ namespace MyToolz.UI.Management
         [Inject]
         private void Construct(
             UILayerStateManager layerStateManager,
-            InputStateManager inputStateManager,
-            InputActionAsset inputActions)
+            InputStateManager inputStateManager)
         {
             this.inputStateManager = inputStateManager;
             this.layerStateManager = layerStateManager;
-
-            if (input != null)
-                input.Initialize(inputActions);
 
             if (isRoot && layerStateManager != null)
                 layerStateManager.AddLayer(this);

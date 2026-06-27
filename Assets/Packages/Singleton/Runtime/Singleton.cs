@@ -2,32 +2,46 @@ using UnityEngine;
 
 namespace MyToolz.DesignPatterns.Singleton
 {
-    public abstract class Singleton<T> : MonoBehaviour where T : Singleton<T>
+    public abstract class Singleton : MonoBehaviour
     {
+        [Header("Singleton")]
         [SerializeField] protected bool dontDestroyOnLoad = false;
         [SerializeField] protected bool destroyGameObjectOnDuplicate;
 
-        public static T Instance { get; private set; }
-
-        public virtual void Awake()
+        private void Awake()
         {
-            if (Instance == null)
+            if (IsValid())
             {
-                Instance = this as T;
+                SetSelf();
                 if (dontDestroyOnLoad)
+                {
                     DontDestroyOnLoad(gameObject);
+                }
             }
             else
             {
-                if (!destroyGameObjectOnDuplicate) Destroy(this);
-                else Destroy(gameObject);
+                if (!destroyGameObjectOnDuplicate)
+                {
+                    Destroy(this);
+                }
+                else
+                {
+                    Destroy(gameObject);
+                }
             }
         }
 
-        public virtual void OnDestroy()
+        /// <summary>
+        /// Validation for singleton initialization
+        /// </summary>
+        /// <returns>true if the instance is elegible for the singleton and false otherwise</returns>
+        protected abstract bool IsValid();
+        protected abstract void SetSelf();
+        protected abstract void RemoveSelf();
+
+        private void OnDestroy()
         {
-            if (Instance == this as T)
-                Instance = null;
+            RemoveSelf();
         }
     }
 }

@@ -44,8 +44,21 @@ namespace MyToolz.InputManagement
 
         private void OnActionPerformed(InputAction.CallbackContext ctx)
         {
-            var device = ctx.control?.device;
-            if (device == null || device == lastDevice) return;
+            InputDevice device;
+            try
+            {
+                device = ctx.control?.device;
+            }
+            catch (IndexOutOfRangeException)
+            {
+                return;
+            }
+
+            if (device == null || device == lastDevice)
+            {
+                return;
+            }
+
             lastDevice = device;
             OnInputDeviceChanged?.Invoke(device);
         }

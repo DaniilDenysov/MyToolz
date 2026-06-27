@@ -1,3 +1,4 @@
+using MyToolz.GameSettings.Data;
 using MyToolz.Utilities.Debug;
 using System;
 using UnityEngine;
@@ -8,8 +9,30 @@ namespace MyToolz.ScriptableObjects.GameSettings
     {
         [SerializeField] protected T defaultValue = default;
         protected T currentValue;
+        private bool hasBeenSet;
+
         public T DefaultValue => defaultValue;
-        public T CurrentValue => currentValue ?? defaultValue;
+        public T CurrentValue => hasBeenSet ? currentValue : defaultValue;
+
+#if UNITY_EDITOR
+        protected override void OnEnable()
+        {
+            base.OnEnable();
+            UnityEditor.EditorApplication.playModeStateChanged -= ResetRuntimeStateOnExit;
+            UnityEditor.EditorApplication.playModeStateChanged += ResetRuntimeStateOnExit;
+        }
+
+        private void ResetRuntimeStateOnExit(UnityEditor.PlayModeStateChange change)
+        {
+            if (change != UnityEditor.PlayModeStateChange.EnteredEditMode)
+            {
+                return;
+            }
+
+            currentValue = defaultValue;
+            hasBeenSet = false;
+        }
+#endif
 
         public virtual void SetCurrentValue(T newValue)
         {
@@ -19,7 +42,9 @@ namespace MyToolz.ScriptableObjects.GameSettings
                 return;
             }
             currentValue = newValue;
+            hasBeenSet = true;
             NotifyValueUpdated();
+            OnSetted();
         }
 
         protected virtual bool IsValueValid(T value)
@@ -32,35 +57,61 @@ namespace MyToolz.ScriptableObjects.GameSettings
             return IsValueValid(currentValue);
         }
 
-        public override void Load((string id, object value) data)
+        protected virtual void OnSetted()
         {
-            if (string.IsNullOrEmpty(data.id) || string.IsNullOrWhiteSpace(data.id))
+
+        }
+
+        protected virtual void OnLoaded()
+        {
+
+        }
+
+        public override void Load(SettingEntry entry)
+        {
+            if (entry == null || string.IsNullOrWhiteSpace(entry.Id))
             {
-                DebugUtility.LogError(this, $"Loaded ID on {settingName} is null or empty!");
+                DebugUtility.LogError(this, $"Loaded entry on {settingName} is null or has empty ID!");
                 return;
             }
-            if (!string.Equals(id,data.id))
+            if (!string.Equals(id, entry.Id))
             {
-                DebugUtility.LogError(this,     $"ID missmatch on {settingName}, loaded {data.id} doesn't match {id}");
+                DebugUtility.LogError(this, $"ID mismatch on {settingName}, loaded {entry.Id} doesn't match {id}");
                 return;
             }
             try
             {
-                currentValue = (T)data.value;
+                T loadedValue = entry.GetValue<T>();
+                if (IsValueValid(loadedValue))
+                {
+                    currentValue = loadedValue;
+                    hasBeenSet = true;
+                }
+                else
+                {
+                    DebugUtility.LogWarning(this, $"Loaded value on {settingName} is invalid, keeping default.");
+                }
             }
             catch (Exception e)
             {
-                DebugUtility.LogError(this, $"Unexpected cast error for {settingName} with ID {data.id} with error: {e}");
+                DebugUtility.LogError(this, $"Deserialization error for {settingName} with ID {entry.Id}: {e}");
             }
             NotifyValueUpdated();
+            OnLoaded();
         }
-        public override (string id, object value) Save()
+
+        public override SettingEntry Save()
         {
+            if (!hasBeenSet)
+            {
+                return null;
+            }
             if (!IsCurrentValueValid())
             {
-                DebugUtility.LogError(this, $"Invalid value on {settingName}, it will fallback to default value");
+                DebugUtility.LogWarning(this, $"Invalid value on {settingName}, it will not be saved");
+                return null;
             }
-            return new (id, currentValue);
+            return new SettingEntry(id, currentValue);
         }
     }
 }

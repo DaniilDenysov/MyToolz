@@ -5,7 +5,12 @@ using UnityEngine;
 
 namespace MyToolz.GameSettings
 {
-    public abstract class SettingView<T> : MonoBehaviour where T : SettingSOAbstract
+    public interface ISettingView
+    {
+        public void PreLoad();
+    }
+
+    public abstract class SettingView<T> : MonoBehaviour, ISettingView where T : SettingSOAbstract
     {
         [SerializeField, Required] protected T setting;
 
@@ -27,6 +32,11 @@ namespace MyToolz.GameSettings
         private void OnDestroy()
         {
             Deregister();
+        }
+
+        public virtual void PreLoad()
+        {
+            OnExternalValueUpdated();
         }
 
         protected virtual void Register()

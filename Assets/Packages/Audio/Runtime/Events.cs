@@ -7,5 +7,6 @@ namespace MyToolz.Audio.Events
     {
         public AudioClipSO AudioClipSO;
         public Vector3 Position;
+        public float IntervalOverload;
     }
 }

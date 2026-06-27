@@ -3,6 +3,7 @@ using UnityEngine.Audio;
 using MyToolz.EditorToolz;
 using MyToolz.Extensions;
 using MyToolz.Utilities.Debug;
+using MyToolz.GameSettings.Data;
 
 namespace MyToolz.ScriptableObjects.GameSettings
 {
@@ -14,6 +15,10 @@ namespace MyToolz.ScriptableObjects.GameSettings
         [SerializeField, Required] private string exposedParameter = "Music";
         [SerializeField] private float minDecibels = -80f;
 
+        protected override void OnLoaded()
+        {
+            ApplyCurrent();
+        }
 
         public override void SetCurrentValue(double newValue)
         {
@@ -30,7 +35,13 @@ namespace MyToolz.ScriptableObjects.GameSettings
                 return;
             }
 
-            float linear = Mathf.Max(currentValue.ToFloat(), 0.0001f);
+            if (maxValue == 0)
+            {
+                DebugUtility.LogError(this, "Max value cannot be 0");
+                return;
+            }
+
+            float linear = Mathf.Max(currentValue.ToFloat() / maxValue.ToFloat(), 0.0001f);
 
             float db = Mathf.Log10(linear) * 20f;
             db = Mathf.Max(db, minDecibels);

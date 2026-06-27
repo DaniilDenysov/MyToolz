@@ -10,6 +10,7 @@ namespace MyToolz.UI.LoadingScreen
     [Serializable]
     public class SceneLoaderView : IReadOnlyView<ISceneLoaderModel>
     {
+        [SerializeField, Required] private Camera loadingCamera;
         [SerializeField, Required] private UIScreen loadingScreen;
         [SerializeField, Required] private Slider loadingBar;
 
@@ -21,11 +22,13 @@ namespace MyToolz.UI.LoadingScreen
         public void Show()
         {
             loadingScreen?.Open();
+            loadingCamera.gameObject.SetActive(true);
         }
 
         public void Hide()
         {
-            loadingScreen?.Close();
+            if (loadingScreen.IsActive) loadingScreen?.Close();
+            loadingCamera.gameObject.SetActive(false);
         }
 
         public void UpdateView(ISceneLoaderModel model)

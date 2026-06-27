@@ -4,7 +4,7 @@ using Zenject;
 
 namespace MyToolz.HealthSystem
 {
-    public class HitBoxPresenter : MonoBehaviour, IDamagable
+    public class HitBoxPresenter : MonoBehaviour, IDamagable<DefaultDamageArgs>
     {
         [SerializeField, Range(0, 100)] protected float multiplier = 2f;
 
@@ -16,16 +16,11 @@ namespace MyToolz.HealthSystem
             this.healthModel = healthModel;
         }
 
-        public void DoDamage(DamageType damageType)
+        public void DoDamage(DefaultDamageArgs args)
         {
+            DamageType damageType = args.DamageType;
             damageType.SetDamage(damageType.Damage * multiplier);
-            healthModel.DoDamage(damageType);
-        }
-
-        public void DoDamage(float damage)
-        {
-            damage *= multiplier;
-            healthModel.DoDamage(damage);
+            healthModel.DoDamage(args);
         }
     }
 }

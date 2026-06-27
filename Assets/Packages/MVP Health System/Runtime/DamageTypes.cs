@@ -4,6 +4,17 @@ using UnityEngine;
 
 namespace MyToolz.HealthSystem
 {
+    public struct DefaultDamageArgs : IDamageArgs
+    {
+        public float Damage { get; set; }
+        public DamageType DamageType;
+    }
+
+    public interface IDamageArgs
+    {
+        public float Damage { get; set; }
+    }
+
     [Serializable]
     public abstract class DamageType
     {
@@ -17,7 +28,7 @@ namespace MyToolz.HealthSystem
         public DamageType() { }
         public DamageType(float damage) { this.damage = damage; }
         public abstract DamageType Clone();
-        public abstract bool DoDamage(IDamagable damagable);
+        public abstract bool DoDamage(IDamagable<IDamageArgs> damagable);
     }
 
     [Serializable]
@@ -32,9 +43,9 @@ namespace MyToolz.HealthSystem
             return n;
         }
 
-        public override bool DoDamage(IDamagable damagable)
+        public override bool DoDamage(IDamagable<IDamageArgs> damagable)
         {
-            damagable.DoDamage(damage);
+            damagable.DoDamage(new DefaultDamageArgs() { Damage = damage });
             return false;
         }
     }
@@ -49,7 +60,7 @@ namespace MyToolz.HealthSystem
         public TickBasedDamageType() : base() { }
         public TickBasedDamageType(float damage) : base(damage) { }
 
-        public override bool DoDamage(IDamagable damagable)
+        public override bool DoDamage(IDamagable<IDamageArgs> damagable)
         {
             elapsed += Time.deltaTime;
             tickTimer += Time.deltaTime;
@@ -57,7 +68,7 @@ namespace MyToolz.HealthSystem
             if (tickTimer >= tickInterval)
             {
                 tickTimer = 0f;
-                damagable.DoDamage(damage * Time.deltaTime / tickInterval * tickInterval);
+                damagable.DoDamage(new DefaultDamageArgs() { Damage = damage * Time.deltaTime / tickInterval * tickInterval });
             }
             return true;
         }
@@ -92,7 +103,7 @@ namespace MyToolz.HealthSystem
             return c;
         }
 
-        public override bool DoDamage(IDamagable damagable)
+        public override bool DoDamage(IDamagable<IDamageArgs> damagable)
         {
             elapsed += Time.deltaTime;
             tickTimer += Time.deltaTime;
@@ -100,7 +111,7 @@ namespace MyToolz.HealthSystem
             if (tickTimer >= tickInterval)
             {
                 tickTimer = 0f;
-                damagable.DoDamage(damage);
+                damagable.DoDamage(new DefaultDamageArgs() { Damage = damage });
             }
             return true;
         }

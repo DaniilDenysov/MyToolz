@@ -105,7 +105,7 @@ MonoBehaviour:
   m_BlockingObjects: 0
   m_BlockingMask:
     serializedVersion: 2
-    m_Bits: 4294967295
+    m_Bits: 247
 --- !u!114 &5154735749294814523
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -130,13 +130,7 @@ MonoBehaviour:
   enterOnStart: 0
   defaultScreen: {fileID: 0}
   layer: {fileID: 11400000, guid: fe0a97d2c4948c54b9558ecede6d2b20, type: 2}
-  input:
-    rid: -2
-  references:
-    version: 2
-    RefIds:
-    - rid: -2
-      type: {class: , ns: , asm: }
+  input: {fileID: 0}
 --- !u!114 &5994205828623025957
 MonoBehaviour:
   m_ObjectHideFlags: 0

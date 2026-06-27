@@ -100,8 +100,6 @@ namespace MyToolz.Utilities.AutoLogger
                 await DrainQueue();
                 await UniTask.Delay(32, cancellationToken: token).SuppressCancellationThrow();
             }
-
-            await DrainQueue();
         }
 
         private static async UniTask DrainQueue()
@@ -219,13 +217,21 @@ namespace MyToolz.Utilities.AutoLogger
 
             writerCts.Cancel();
 
-            UniTask.RunOnThreadPool(async () =>
+            try
             {
-                await DrainQueue();
-                logWriter?.Close();
-                logWriter?.Dispose();
-                logWriter = null;
-            }).AsTask().GetAwaiter().GetResult();
+                while (writeQueue.TryDequeue(out string line))
+                    logWriter?.WriteLine(line);
+
+                logWriter?.Flush();
+            }
+            catch (Exception e)
+            {
+                UnityEngine.Debug.LogError("[LogFileWriter] Final drain error: " + e.Message);
+            }
+
+            logWriter?.Close();
+            logWriter?.Dispose();
+            logWriter = null;
 
             writerCts.Dispose();
             writerCts = null;
@@ -302,7 +308,11 @@ namespace MyToolz.Utilities.AutoLogger
         private void Update()
         {
             timer += Time.unscaledDeltaTime;
-            if (timer < interval) return;
+            if (timer < interval)
+            {
+                return;
+            }
+
             timer -= interval;
             onSample?.Invoke(1f / Time.unscaledDeltaTime);
         }

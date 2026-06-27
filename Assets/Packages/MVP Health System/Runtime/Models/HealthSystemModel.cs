@@ -37,11 +37,11 @@ namespace MyToolz.HealthSystem.Model
             HealthChanged?.Invoke((currentHealth, minHealth, maxHealth), old);
         }
 
-        public virtual void DoDamage(float damage)
+        public virtual void DoDamage(IDamageArgs damageArgs)
         {
             if (IsDead || IsInvincible) return;
             float old = currentHealth;
-            currentHealth = Mathf.Max(currentHealth - damage, minHealth);
+            currentHealth = Mathf.Max(currentHealth - damageArgs.Damage, minHealth);
             HealthChangedDiff?.Invoke(new(old, currentHealth));
             UpdateHealth(old);
             if (IsDead) Died?.Invoke();
@@ -61,7 +61,7 @@ namespace MyToolz.HealthSystem.Model
                 if (!keep)
                 {
                     active.Remove(k);
-                    DebugUtility.LogError(this, "DamageType removed: " + k.Name);
+                    DebugUtility.Log(this, "DamageType removed: " + k.Name);
                 }
             }
         }
@@ -78,7 +78,7 @@ namespace MyToolz.HealthSystem.Model
             if (active.TryGetValue(key, out var entry))
             {
                 active[key] = damageType.Clone();
-                DebugUtility.LogError(this, "DamageType updated: " + key.Name);
+                DebugUtility.Log(this, "DamageType updated: " + key.Name);
                 return;
             }
 
@@ -86,7 +86,7 @@ namespace MyToolz.HealthSystem.Model
             {
                 if (ignoreIfExceeded)
                 {
-                    DebugUtility.LogError(this, "Stack exceeded, ignoring: " + key.Name);
+                    DebugUtility.Log(this, "Stack exceeded, ignoring: " + key.Name);
                     return;
                 }
                 var idx = UnityEngine.Random.Range(0, active.Count);
@@ -100,13 +100,13 @@ namespace MyToolz.HealthSystem.Model
                 if (toRemove != null)
                 {
                     active.Remove(toRemove);
-                    DebugUtility.LogError(this, "Stack exceeded, replaced: " + toRemove.Name + " with " + key.Name);
+                    DebugUtility.Log(this, "Stack exceeded, replaced: " + toRemove.Name + " with " + key.Name);
                 }
             }
 
             var clone = damageType.Clone();
             active[key] = clone;
-            DebugUtility.LogError(this, "DamageType added: " + key.Name);
+            DebugUtility.Log(this, "DamageType added: " + key.Name);
         }
 
         public void Kill()

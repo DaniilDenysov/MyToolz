@@ -7,10 +7,9 @@ namespace MyToolz.HealthSystem.Interfaces
         public void Kill();
     }
 
-    public interface IDamagable
+    public interface IDamagable<T> where T : IDamageArgs
     {
-        public void DoDamage(DamageType damageType);
-        public void DoDamage(float damage);
+        public void DoDamage(T damageArgs);
     }
 
     public interface IHealable
@@ -26,7 +25,7 @@ namespace MyToolz.HealthSystem.Interfaces
         public void Hide();
     }
 
-    public interface IHealthModel : IDamagable, IHealable
+    public interface IHealthModel : IDamagable<IDamageArgs>, IHealable
     {
         public (float currentHealth, float min, float max) CurrentHealth { get; }
         public event Action<(float currentHealth, float min, float max), float> HealthChanged;

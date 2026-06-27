@@ -17,7 +17,7 @@ namespace MyToolz.UI.LoadingScreen
             this.view = view;
         }
 
-        private void Start()
+        private void Awake()
         {
             view.Initialize(model);
 

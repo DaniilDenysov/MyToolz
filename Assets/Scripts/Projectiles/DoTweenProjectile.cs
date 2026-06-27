@@ -77,11 +77,11 @@ namespace MyToolz.Projectiles
 
         private void OnCollisionEnter2D(Collision2D collision)
         {
-            if (collision.gameObject.TryGetComponent(out IDamagable damagable))
-            {
-                if ((hitMask.value & (1 << collision.gameObject.layer)) == 0) return;
-                damagable.DoDamage(damageType);
-            }
+            //if (collision.gameObject.TryGetComponent(out IDamagable damagable))
+            //{
+            //    if ((hitMask.value & (1 << collision.gameObject.layer)) == 0) return;
+            //    damagable.DoDamage(damageType);
+            //}
             var contact = collision.GetContact(0);
             Dispose();
         }
@@ -90,7 +90,7 @@ namespace MyToolz.Projectiles
         {
             var layerMaskMatch = (hitMask.value & (1 << other.gameObject.layer)) != 0;
             if (!layerMaskMatch) return;
-            if (other.gameObject.TryGetComponent(out IDamagable damagable)) damagable.DoDamage(damageType);
+            //if (other.gameObject.TryGetComponent(out IDamagable damagable)) damagable.DoDamage(damageType);
             Dispose();
         }
 

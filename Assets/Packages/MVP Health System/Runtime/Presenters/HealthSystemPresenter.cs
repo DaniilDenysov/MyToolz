@@ -6,7 +6,7 @@ using Zenject;
 
 namespace MyToolz.HealthSystem.Presenters
 {
-    public class HealthSystemPresenter : MonoBehaviour, IDamagable, IEventListener, IKillable, IHealable
+    public class HealthSystemPresenter : MonoBehaviour, IDamagable<IDamageArgs>, IEventListener, IKillable, IHealable
     {
         protected IHealthView view;
         protected IHealthModel model;
@@ -29,32 +29,29 @@ namespace MyToolz.HealthSystem.Presenters
         protected virtual void OnUnitDamaged((float currentHealth, float min, float max) model, float oldHealth)
         {
             view.Show();
-            DebugUtility.LogError(this, $"Damaged [{model.currentHealth}]");
+            DebugUtility.Log(this, $"Damaged [{model.currentHealth}]");
         }
 
         public virtual void OnUnitDied()
         {
             view.Hide();
-            DebugUtility.LogError(this, $"Died!");
+            DebugUtility.Log(this, $"Died!");
         }
 
-        public virtual void DoDamage(float damage)
-        {
-            model.DoDamage(damage);
-        }
 
-        public void DoDamage(DamageType damageType)
+        public void DoDamage(IDamageArgs damageArgs)
         {
-            model.DoDamage(damageType);
+            model.DoDamage(damageArgs);
         }
 
         public virtual void RegisterEvents()
         {
+            UnregisterEvents();
             if (model != null)
             {
                 model.HealthChanged += OnUnitDamaged;
                 model.Died += OnUnitDied;
-                ((IEventListener)model)?.RegisterEvents();
+                if (model is IEventListener) ((IEventListener)model)?.RegisterEvents();
             }
             if (view != null)
             {
@@ -68,7 +65,7 @@ namespace MyToolz.HealthSystem.Presenters
             {
                 model.HealthChanged -= OnUnitDamaged;
                 model.Died -= OnUnitDied;
-                ((IEventListener)model)?.UnregisterEvents();
+                if (model is IEventListener) ((IEventListener)model)?.UnregisterEvents();
             }
             if (view != null)
             {
@@ -77,8 +74,19 @@ namespace MyToolz.HealthSystem.Presenters
         }
 
         private void Start()
-        {     
+        {    
+            RegisterEvents();
             model.RefreshModel();
+        }
+
+        private void OnEnable()
+        {
+            RegisterEvents();
+        }
+
+        private void OnDisable()
+        {
+            UnregisterEvents();
         }
 
         private void OnDestroy()

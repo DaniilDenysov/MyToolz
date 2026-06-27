@@ -22,7 +22,7 @@ namespace MyToolz.UI.Events
 
 namespace MyToolz.UI.ToolTip
 {
-    public class TooltipSystem : Singleton<TooltipSystem>, IEventListener
+    public class TooltipSystem : PrivateSingleton<TooltipSystem>, IEventListener
     {
         [SerializeField, Required] private RectTransform tooltipRoot;
         [SerializeField, Required] private TMP_Text descriptionText;
@@ -50,9 +50,8 @@ namespace MyToolz.UI.ToolTip
             UnregisterEvents();
         }
 
-        public override void OnDestroy()
+        public void OnDestroy()
         {
-            base.OnDestroy();
             UnregisterEvents();
         }
 

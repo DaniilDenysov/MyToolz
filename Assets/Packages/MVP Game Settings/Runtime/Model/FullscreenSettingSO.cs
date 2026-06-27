@@ -18,18 +18,15 @@ namespace MyToolz.ScriptableObjects.GameSettings
             NotifyValueUpdated();
         }
 
-        public void SetValue(bool value, bool applyImmediately = true)
+        public override void SetCurrentValue(bool newValue)
         {
-            currentValue = value;
-            NotifyValueUpdated();
-
-            if (applyImmediately)
-                ApplyCurrent();
+            base.SetCurrentValue(newValue);
+            ApplyCurrent();
         }
 
         public void ApplyCurrent()
         {
-            var mode = currentValue ? fullscreenMode : windowedMode;
+            FullScreenMode mode = currentValue ? fullscreenMode : windowedMode;
             Screen.fullScreenMode = mode;
         }
 

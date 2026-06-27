@@ -10,7 +10,7 @@ using UnityEngine.SceneManagement;
 
 namespace MyToolz.SceneManagement
 {
-    public class SceneLoader : Singleton<SceneLoader>, IEventListener
+    public class SceneLoader : PrivateSingleton<SceneLoader>, IEventListener
     {
         private EventBinding<LoadScene> onLoadSceneBinding;
 
@@ -19,12 +19,11 @@ namespace MyToolz.SceneManagement
             RegisterEvents();
         }
 
-        public override void OnDestroy()
+        public void OnDestroy()
         {
-            base.OnDestroy();
             UnregisterEvents();
         }
-
+            
         public void RegisterEvents()
         {
             onLoadSceneBinding = new EventBinding<LoadScene>(OnLoadSceneRequested);
@@ -67,6 +66,15 @@ namespace MyToolz.SceneManagement
 
             operation.allowSceneActivation = false;
 
+            var progress = new LoadingProgress();
+
+            // Raise unified loading screen event
+            EventBus<LoadingScreenShow>.Raise(new LoadingScreenShow
+            {
+                Progress = progress
+            });
+
+            // Raise legacy event for backward compatibility
             EventBus<SceneLoading>.Raise(new SceneLoading
             {
                 SceneName = sceneName,
@@ -75,13 +83,19 @@ namespace MyToolz.SceneManagement
 
             while (operation.progress < 0.9f)
             {
+                progress.Report(operation.progress / 0.9f);
                 await UniTask.Yield(PlayerLoopTiming.Update, token);
             }
 
+            progress.Report(1f);
             operation.allowSceneActivation = true;
 
             await operation.ToUniTask(cancellationToken: token);
 
+            // Raise unified loading screen event
+            EventBus<LoadingScreenHide>.Raise(new LoadingScreenHide());
+
+            // Raise legacy event for backward compatibility
             EventBus<SceneLoaded>.Raise(new SceneLoaded
             {
                 SceneName = sceneName

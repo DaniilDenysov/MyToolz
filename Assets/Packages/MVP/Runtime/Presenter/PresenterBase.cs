@@ -1,3 +1,5 @@
+using Zenject;
+
 namespace MyToolz.DesignPatterns.MVP.Presenter
 {
     public abstract class PresenterBase<TModel, TView> : IPresenter<TModel, TView>

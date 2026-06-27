@@ -55,10 +55,10 @@ namespace ProjectClyde.Projectiles
             {
                 var c = colliders[i];
                 if (c == null) continue;
-                if (c.TryGetComponent(out IDamagable damagable))
-                {
-                    damagable.DoDamage(damageType);
-                }
+                //if (c.TryGetComponent(out IDamagable damagable))
+                //{
+                //    damagable.DoDamage(damageType);
+                //}
                 DebugUtility.Log(this, "Slash hit " + c.ToString());
             }
 

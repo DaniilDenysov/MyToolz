@@ -2,9 +2,10 @@
 using UnityEditor;
 #endif
 using System;
-using UnityEngine;
 using MyToolz.EditorToolz;
+using MyToolz.GameSettings.Data;
 using MyToolz.Utilities.Debug;
+using UnityEngine;
 
 namespace MyToolz.ScriptableObjects.GameSettings
 {
@@ -35,7 +36,9 @@ namespace MyToolz.ScriptableObjects.GameSettings
         private void CheckID()
         {
             if (!string.IsNullOrEmpty(id))
+            {
                 return;
+            }
 
             id = Guid.NewGuid().ToString();
             DebugUtility.Log(this, $"Auto-generated GUID: {id}");
@@ -62,7 +65,7 @@ namespace MyToolz.ScriptableObjects.GameSettings
 
         protected abstract bool IsCurrentValueValid();
 
-        public abstract void Load((string id, object value) data);
-        public abstract (string id, object value) Save();
+        public abstract void Load(SettingEntry entry);
+        public abstract SettingEntry Save();
     }
 }

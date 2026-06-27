@@ -1,6 +1,5 @@
 using MyToolz.Player.FPS.CombatSystem.Model;
 using MyToolz.Player.FPS.CombatSystem.View;
-using MyToolz.ScriptableObjects.Player.Platformer.Movement;
 using MyToolz.Utilities.Debug;
 using UnityEngine;
 using Zenject;

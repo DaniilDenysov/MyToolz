@@ -19,12 +19,16 @@ namespace MyToolz.ScriptableObjects.GameSettings
         public void RefreshQualityLevels()
         {
             if (options == null)
+            {
                 options = new List<string>();
+            }
 
             options.Clear();
 
             for (int i = 0; i < QualitySettings.names.Length; i++)
+            {
                 options.Add(QualitySettings.names[i]);
+            }
 
             defaultValue = QualitySettings.names[QualitySettings.GetQualityLevel()];
 
@@ -39,7 +43,17 @@ namespace MyToolz.ScriptableObjects.GameSettings
                 return;
             }
             base.SetCurrentValue(newValue);
-            QualitySettings.SetQualityLevel(QualitySettings.names.IndexOf(newValue));
+            ApplyCurrent();
+        }
+
+        protected override void OnLoaded()
+        {
+            ApplyCurrent();
+        }
+
+        private void ApplyCurrent()
+        {
+            QualitySettings.SetQualityLevel(QualitySettings.names.IndexOf(currentValue));
         }
     }
 }

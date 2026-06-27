@@ -43,21 +43,24 @@ namespace MyToolz.InputManagement.Commands
 
         public bool IsActionEnabled()
         {
-            var action = ResolveAction();
+            InputAction action = ResolveAction();
             return action != null && action.enabled;
         }
 
         public InputActionMap GetActionMap()
         {
-            var action = ResolveAction();
+            InputAction action = ResolveAction();
             return action?.actionMap;
         }
 
         public void Register()
         {
-            if (registered) return;
+            if (registered)
+            {
+                return;
+            }
 
-            var action = ResolveAction();
+            InputAction action = ResolveAction();
             if (action == null)
             {
                 DebugUtility.LogError(this, $"Cannot register {inputName}: action could not be resolved.");
@@ -68,14 +71,21 @@ namespace MyToolz.InputManagement.Commands
             action.performed += HandleCallback;
             action.canceled += HandleCallback;
             registered = true;
+            DebugUtility.Log(this, $"Registered {inputName}");
         }
 
         public void Unregister()
         {
-            if (!registered) return;
+            if (!registered)
+            {
+                return;
+            }
 
-            var action = ResolveAction();
-            if (action == null) return;
+            InputAction action = ResolveAction();
+            if (action == null)
+            {
+                return;
+            }
 
             action.started -= HandleCallback;
             action.performed -= HandleCallback;
@@ -85,16 +95,29 @@ namespace MyToolz.InputManagement.Commands
 
         private InputAction ResolveAction()
         {
-            if (resolvedAction != null) return resolvedAction;
-            if (inputActionReference == null) return null;
+            if (resolvedAction != null)
+            {
+                return resolvedAction;
+            }
 
-            var refAction = inputActionReference.action;
-            if (refAction == null) return null;
+            if (inputActionReference == null)
+            {
+                return null;
+            }
+
+            InputAction refAction = inputActionReference.action;
+            if (refAction == null)
+            {
+                return null;
+            }
 
             if (runtimeAsset != null)
             {
                 resolvedAction = runtimeAsset.FindAction(refAction.id);
-                if (resolvedAction != null) return resolvedAction;
+                if (resolvedAction != null)
+                {
+                    return resolvedAction;
+                }
             }
 
             resolvedAction = refAction;
@@ -105,55 +128,115 @@ namespace MyToolz.InputManagement.Commands
         {
             OnInput?.Invoke();
             OnInputAction?.Invoke(context, this);
-            switch (inputActionPhase)
+
+            switch (context.phase)
             {
-                case InputPhase.Started:
-                    if (context.phase != UnityEngine.InputSystem.InputActionPhase.Started) return;
+                case UnityEngine.InputSystem.InputActionPhase.Started:
                     OnStarted?.Invoke();
                     OnInputStarted?.Invoke(this);
+                    if (IsPressed())
+                    {
+                        OnPressed?.Invoke();
+                        OnInputPressed?.Invoke(this);
+                    }
                     break;
-
-                case InputPhase.Performed:
-                    if (context.phase != UnityEngine.InputSystem.InputActionPhase.Performed) return;
+                case UnityEngine.InputSystem.InputActionPhase.Performed:
                     OnPerformed?.Invoke();
                     OnInputPerformed?.Invoke(this);
                     break;
-
-                case InputPhase.Canceled:
-                    if (context.phase != UnityEngine.InputSystem.InputActionPhase.Canceled) return;
+                case UnityEngine.InputSystem.InputActionPhase.Canceled:
                     OnCanceled?.Invoke();
                     OnInputCanceled?.Invoke(this);
-                    break;
-
-                case InputPhase.Pressed:
-                    if (context.phase != UnityEngine.InputSystem.InputActionPhase.Started) return;
-                    if (!IsPressed()) return;
-                    OnPressed?.Invoke();
-                    OnInputPressed?.Invoke(this);
-                    break;
-
-                case InputPhase.Released:
-                    if (context.phase != UnityEngine.InputSystem.InputActionPhase.Canceled) return;
                     OnReleased?.Invoke();
                     OnInputReleased?.Invoke(this);
                     break;
             }
         }
 
-        public bool WasPressedThisFrame() => ResolveAction()?.WasPressedThisFrame() ?? false;
-        public bool IsPressed() => ResolveAction()?.IsPressed() ?? false;
-        public bool WasPerformedThisFrame() => ResolveAction()?.WasPerformedThisFrame() ?? false;
-        public bool WasReleasedThisFrame() => ResolveAction()?.WasReleasedThisFrame() ?? false;
+        public bool WasPressedThisFrame()
+        {
+            InputAction action = ResolveAction();
+            if (action == null)
+            {
+                return false;
+            }
+
+            if (!action.enabled)
+            {
+                return false;
+            }
+
+            return action.WasPressedThisFrame();
+        }
+
+        public bool IsPressed()
+        {
+            InputAction action = ResolveAction();
+            if (action == null)
+            {
+                return false;
+            }
+
+            if (!action.enabled)
+            {
+                return false;
+            }
+
+            return action.IsPressed();
+        }
+        public bool WasPerformedThisFrame()
+        {
+            InputAction action = ResolveAction();
+            if (action == null)
+            {
+                return false;
+            }
+
+            if (!action.enabled)
+            {
+                return false;
+            }
+
+            return action.WasPerformedThisFrame();
+        }
+        public bool WasReleasedThisFrame()
+        {
+            InputAction action = ResolveAction();
+            if (action == null)
+            {
+                return false;
+            }
+
+            if (!action.enabled)
+            {
+                return false;
+            }
+
+            return action.WasReleasedThisFrame();
+        }
 
         public T ReadValue<T>() where T : struct
         {
-            return ResolveAction()?.ReadValue<T>() ?? default;
+            InputAction action = ResolveAction();
+            if (action == null)
+            {
+                return default(T);
+            }
+
+            //if (!action.enabled)
+            //{
+            //    return default(T);
+            //}
+
+            return action.ReadValue<T>();
         }
 
         private void OnValidate()
         {
             if (string.IsNullOrWhiteSpace(inputName))
+            {
                 inputName = "InputManagement Name";
+            }
         }
     }
 }

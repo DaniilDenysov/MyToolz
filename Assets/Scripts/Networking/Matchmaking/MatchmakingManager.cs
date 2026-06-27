@@ -18,7 +18,7 @@ using MyToolz.Utilities.Debug;
 
 namespace MyToolz.Networking.Matchmaking
 {
-    public class MatchmakingManager : Singleton<MatchmakingManager>
+    public class MatchmakingManager : PrivateSingleton<MatchmakingManager>
     {
         [SerializeField, Required] private string gameId = "Game";
         [SerializeField, Range(1f, 60f)] private float listRefreshDelay = 3f;
@@ -61,11 +61,11 @@ namespace MyToolz.Networking.Matchmaking
             StartCoroutine(LobbyListUpdateRequestLoop());
         }
 
-        public override void OnDestroy()
-        {
-            base.OnDestroy();
-            StopAllCoroutines();
-        }
+        //public override void OnDestroy()
+        //{
+        //    base.OnDestroy();
+        //    StopAllCoroutines();
+        //}
 
         public void CreateLabel(GameModeSO gameModeSO)
         {

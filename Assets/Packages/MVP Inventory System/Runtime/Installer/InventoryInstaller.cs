@@ -9,7 +9,7 @@ namespace MyToolz.InventorySystem.Installers
     public abstract class InventoryInstaller<T, Model> : MonoInstaller where T : ScriptableObject where Model : InventoryModel<T>
     {
         [SerializeField] private InventorySettingsSO<T> settings;
-        [SerializeReference, SubclassSelector] protected Model model;
+        [SerializeReference] protected Model model;
         [SerializeField] protected InventoryPresenter<T> presenter;
 
         public override void InstallBindings()

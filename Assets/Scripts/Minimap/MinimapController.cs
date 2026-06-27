@@ -33,7 +33,7 @@ namespace MyToolz.MiniMap
         public void Hide();
     }
 
-    public class MinimapController : Singleton<MinimapController>
+    public class MinimapController : PrivateSingleton<MinimapController>
     {
         private List<Minimap> maps = new();
         private Vector2 worldSize => miniMapSO.WorldSize;

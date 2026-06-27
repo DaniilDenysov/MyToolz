@@ -16,7 +16,11 @@ namespace MyToolz.GameSettings
 
         private void Awake()
         {
-            if (dropdown != null) return;
+            if (dropdown != null)
+            {
+                return;
+            }
+
             dropdown = GetComponent<TMP_Dropdown>();
         }
 
@@ -36,8 +40,12 @@ namespace MyToolz.GameSettings
 
         private void OnInternalValueUpdated(int arg0)
         {
-            var opts = setting.AvailableOptions;
-            if (arg0 < 0 || arg0 >= opts.Count) return;
+            IReadOnlyList<T> opts = setting.AvailableOptions;
+            if (arg0 < 0 || arg0 >= opts.Count)
+            {
+                return;
+            }
+
             setting.SetCurrentValue(opts[arg0]);
         }
 
@@ -49,9 +57,16 @@ namespace MyToolz.GameSettings
                 return;
             }
             dropdown.options = setting.AvailableOptions.Select(o => new TMP_Dropdown.OptionData(setting.ValueToString(o))).ToList();
-            var idx = setting.CurrentValueIndex;
-            if (idx < 0) idx = 0;
-            if (idx >= dropdown.options.Count) idx = dropdown.options.Count - 1;
+            int idx = setting.CurrentValueIndex;
+            if (idx < 0)
+            {
+                idx = 0;
+            }
+
+            if (idx >= dropdown.options.Count)
+            {
+                idx = dropdown.options.Count - 1;
+            }
 
             dropdown.SetValueWithoutNotify(idx);
 

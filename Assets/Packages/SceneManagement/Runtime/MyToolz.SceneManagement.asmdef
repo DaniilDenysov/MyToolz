@@ -1,0 +1,20 @@
+{
+  "name": "MyToolz.SceneManagement",
+  "rootNamespace": "MyToolz.SceneManagement",
+  "references": [
+    "GUID:e97a9c0ec01c5cab75a8772fe713033b",
+    "GUID:fef88cac60b8eb9fa76f84c134161dc9",
+    "GUID:0baf631148ac81a6e9ec9dbb2026eca9",
+    "GUID:51b6a736bbf53cfa5c6070a7949eb0dd",
+    "GUID:f51ebe6a0ceec4240a699833d6309b23"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

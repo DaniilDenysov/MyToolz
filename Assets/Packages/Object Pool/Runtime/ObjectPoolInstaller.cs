@@ -46,6 +46,7 @@ namespace MyToolz.DesignPatterns.ObjectPool
         where T : MonoBehaviour where P : Pool<T>
     {
         [SerializeField] protected PoolObject[] poolObjects;
+        [SerializeField] protected bool destroyIfNotInPool = true;
 
         protected Dictionary<int, P> mappings = new();
         protected Dictionary<T, int> buffer = new();
@@ -196,8 +197,9 @@ namespace MyToolz.DesignPatterns.ObjectPool
             }
             else
             {
+                if (destroyIfNotInPool) Destroy(obj.gameObject);
                 DebugUtility.LogWarning(this, "Failed to get prefabId for object: " + obj.name);
             }
         }
     }
-}
+}

@@ -1,6 +1,9 @@
 using MyToolz.Audio;
 using UnityEngine;
 using DG.Tweening;
+using MyToolz.DesignPatterns.EventBus;
+using MyToolz.Events;
+using MyToolz.Audio.Events;
 
 namespace MyToolz.Extensions
 {
@@ -18,6 +21,16 @@ namespace MyToolz.Extensions
             audioSource.spatialBlend = configSO.SpatialBlend;
             audioSource.loop = configSO.Loop;
             audioSource.playOnAwake = configSO.PlayOnAwake;
+        }
+
+        public static void Play(Vector3 position,AudioClipSO audioClipSO,float delay = 0f, Transform parent = null)
+        {
+            if (audioClipSO == null) return;
+            EventBus<PlayAudioClipSO>.Raise(new PlayAudioClipSO()
+            {
+                AudioClipSO = audioClipSO,
+                Position = position
+            });
         }
 
         public static void Play(this AudioSource audioSource, AudioClipSO audioClipSO, float delay = 0f)
@@ -150,4 +163,4 @@ namespace MyToolz.Extensions
                 });
         }
     }
-}
+}

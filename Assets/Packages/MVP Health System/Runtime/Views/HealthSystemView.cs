@@ -12,7 +12,7 @@ namespace MyToolz.HealthSystem.View
         //[SerializeField, Required] protected MMProgressBar progressBar;
         [SerializeField] protected bool showHideHP = true;
 
-        public void Hide()
+        public virtual void Hide()
         {
             //if (showHideHP) progressBar.HideBar(0f);
         }
@@ -22,7 +22,7 @@ namespace MyToolz.HealthSystem.View
             // progressBar.SetBar(model.currentHealth, model.min, model.max);
         }
 
-        public void Show()
+        public virtual void Show()
         {
             //if (showHideHP) progressBar.ShowBar();
         }
@@ -56,4 +56,4 @@ namespace MyToolz.HealthSystem.View
     {
 
     }
-}
+}

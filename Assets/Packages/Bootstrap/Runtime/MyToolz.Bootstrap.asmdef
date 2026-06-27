@@ -1,0 +1,16 @@
+{
+  "name": "MyToolz.Bootstrap",
+  "rootNamespace": "MyToolz.Bootstrap",
+  "references": [
+    "GUID:3a739347bdd18f3caca317b0e8d438a4"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

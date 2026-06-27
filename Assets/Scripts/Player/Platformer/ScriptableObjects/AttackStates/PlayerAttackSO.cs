@@ -289,10 +289,10 @@ namespace MyToolz.ScriptableObjects.Player.Platformer.Combat
         public virtual bool ProcessHit(RaycastHit2D hit)
         {
             if (!hit.collider) return false;
-            if (hit.collider.gameObject.TryGetComponent(out IDamagable damagable))
-            {
-                damagable.DoDamage(damageType);
-            }
+            //if (hit.collider.gameObject.TryGetComponent(out IDamagable damagable))
+            //{
+            //    damagable.DoDamage(damageType);
+            //}
             if (hit.collider.gameObject.TryGetComponent(out IKnockOffable knockOffable))
             {
                 knockOffable.KnockOff(playerMovementPresenter.CharacterDirection * knockBackForce);

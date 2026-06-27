@@ -96,8 +96,8 @@ namespace MyToolz.AI.Platformer.Presenters
 
         private void OnTriggerEnter2D(Collider2D collision)
         {
-            if (collision.TryGetComponent(out IDamagable damagable))
-                damagable.DoDamage(enemyCombatSO.DamageType);
+            //if (collision.TryGetComponent(out IDamagable damagable))
+            //    damagable.DoDamage(enemyCombatSO.DamageType);
 
             if (!enemyCombatSO.EnableKnockOff)
                 return;
@@ -180,7 +180,7 @@ namespace MyToolz.AI.Platformer.Presenters
         {
             if (!hit.collider) return;
 
-            if (hit.collider.TryGetComponent(out IDamagable damagable)) damagable.DoDamage(enemyCombatSO.DamageType);
+            //if (hit.collider.TryGetComponent(out IDamagable damagable)) damagable.DoDamage(enemyCombatSO.DamageType);
 
             if (!enemyCombatSO.EnableKnockOff) return;
             if (hit.collider.TryGetComponent(out IKnockOffable knockOffable))

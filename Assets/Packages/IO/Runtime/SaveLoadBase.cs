@@ -2,8 +2,8 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using MyToolz.EditorToolz;
 using MyToolz.Utilities.Debug;
+using MyToolz.EditorToolz;
 using UnityEngine;
 using Zenject;
 
@@ -44,6 +44,9 @@ namespace MyToolz.IO
         [FoldoutGroup("Persistance Settings"), SerializeField, SubclassSelector]
         private SerializationStrategy<T> serializationStrategy = new NewtonsoftJsonStrategy<T>();
 
+        [FoldoutGroup("Persistance Settings"), SerializeField, SubclassSelector]
+        private EncryptionStrategy encryptionStrategy = new NoEncryptionStrategy();
+
         private string resolvedFolder => resolvedFolderCache;
         private string fullPathPreview => fullPath;
         private bool fileExistsInspector => FileExists();
@@ -74,7 +77,10 @@ namespace MyToolz.IO
 #if UNITY_EDITOR
             EnsureFolderExists();
             if (!File.Exists(fullPath))
+            {
                 File.WriteAllText(fullPath, "{}");
+            }
+
             UnityEditor.EditorUtility.RevealInFinder(fullPath);
 #else
             DebugUtility.LogWarning(this, "RevealFile is only available in the Editor.");
@@ -114,9 +120,10 @@ namespace MyToolz.IO
         protected virtual void Awake()
         {
             EnsureStrategyAssigned();
+            EnsureEncryptionStrategyAssigned();
             RebuildPaths();
             EnsureFolderExists();
-            DebugUtility.Log(this, $"[SaveLoadBase] Awake {GetType().Name} instanceId={GetInstanceID()} scene={gameObject.scene.name} useCache={useCache} strategy={serializationStrategy.GetType().Name}");
+            DebugUtility.Log(this, $"[SaveLoadBase] Awake {GetType().Name} instanceId={GetInstanceID()} scene={gameObject.scene.name} useCache={useCache} strategy={serializationStrategy.GetType().Name} encryption={encryptionStrategy.GetType().Name}");
         }
 
 #if UNITY_EDITOR
@@ -128,10 +135,24 @@ namespace MyToolz.IO
 
         private void EnsureStrategyAssigned()
         {
-            if (serializationStrategy != null) return;
+            if (serializationStrategy != null)
+            {
+                return;
+            }
 
             serializationStrategy = new NewtonsoftJsonStrategy<T>();
             DebugUtility.LogWarning(this, "No serialization strategy assigned in the inspector. Defaulting to NewtonsoftJsonStrategy.");
+        }
+
+        private void EnsureEncryptionStrategyAssigned()
+        {
+            if (encryptionStrategy != null)
+            {
+                return;
+            }
+
+            encryptionStrategy = new NoEncryptionStrategy();
+            DebugUtility.LogWarning(this, "No encryption strategy assigned in the inspector. Defaulting to NoEncryptionStrategy.");
         }
 
         private void RebuildPaths()
@@ -160,17 +181,21 @@ namespace MyToolz.IO
         private static string SanitizeFileName(string name)
         {
             if (string.IsNullOrWhiteSpace(name))
+            {
                 return "save";
+            }
 
-            var invalid = Path.GetInvalidFileNameChars();
-            var cleaned = new string(name.Where(c => !invalid.Contains(c)).ToArray());
+            char[] invalid = Path.GetInvalidFileNameChars();
+            string cleaned = new string(name.Where(c => !invalid.Contains(c)).ToArray());
             return string.IsNullOrWhiteSpace(cleaned) ? "save" : cleaned;
         }
 
         private void EnsureFolderExists()
         {
             if (!Directory.Exists(resolvedFolderCache))
+            {
                 Directory.CreateDirectory(resolvedFolderCache);
+            }
         }
 
         private Color FileExistsColor() => FileExists() ? new Color(0.5f, 0.9f, 0.5f) : new Color(0.9f, 0.6f, 0.4f);
@@ -180,8 +205,9 @@ namespace MyToolz.IO
             EnsureFolderExists();
 
             string raw = serializationStrategy.Serialize(data);
+            string processed = encryptionStrategy.Encrypt(raw);
 
-            File.WriteAllText(tempPath, raw);
+            File.WriteAllText(tempPath, processed);
 
             if (File.Exists(fullPath))
                 File.Copy(fullPath, backupPath, overwrite: true);
@@ -201,7 +227,8 @@ namespace MyToolz.IO
                 try
                 {
                     string raw = File.ReadAllText(fullPath);
-                    T result = serializationStrategy.Deserialize(raw);
+                    string decrypted = encryptionStrategy.Decrypt(raw);
+                    T result = serializationStrategy.Deserialize(decrypted);
 
                     if (result != null)
                     {
@@ -221,7 +248,8 @@ namespace MyToolz.IO
                 {
                     DebugUtility.LogWarning(this, "Loading from backup file.");
                     string raw = File.ReadAllText(backupPath);
-                    T result = serializationStrategy.Deserialize(raw);
+                    string decrypted = encryptionStrategy.Decrypt(raw);
+                    T result = serializationStrategy.Deserialize(decrypted);
 
                     if (result != null)
                     {
@@ -244,14 +272,19 @@ namespace MyToolz.IO
             EnsureFolderExists();
 
             string raw = serializationStrategy.Serialize(data);
+            string processed = encryptionStrategy.Encrypt(raw);
 
-            await File.WriteAllTextAsync(tempPath, raw);
+            await File.WriteAllTextAsync(tempPath, processed);
 
             if (File.Exists(fullPath))
+            {
                 File.Copy(fullPath, backupPath, overwrite: true);
+            }
 
             if (File.Exists(fullPath))
+            {
                 File.Delete(fullPath);
+            }
 
             File.Move(tempPath, fullPath);
 
@@ -277,7 +310,9 @@ namespace MyToolz.IO
             if (useCache)
             {
                 if (cache == null)
+                {
                     cache = LoadFromFile() ?? new T();
+                }
 
                 return cache;
             }
@@ -287,15 +322,13 @@ namespace MyToolz.IO
 
         public virtual void Save()
         {
-            if (useCache)
+            if (useCache && cache != null)
             {
-                if (cache == null) cache = new();
                 Save(cache);
+                return;
             }
-            else
-            {
-                Save(new());
-            }
+
+            DebugUtility.LogWarning(this, "Parameterless Save was called with no cached data; skipping to avoid overwriting the existing file with empty data.");
         }
 
         protected virtual void OnEnable()
@@ -308,7 +341,7 @@ namespace MyToolz.IO
             Application.quitting -= Save;
         }
 
-        private void OnApplicationPause(bool pause)
+        protected virtual void OnApplicationPause(bool pause)
         {
             if (pause)
             {
@@ -317,10 +350,12 @@ namespace MyToolz.IO
             }
         }
 
-        private void OnDestroy()
+        protected virtual void OnDestroy()
         {
             if (!_hasSavedThisSession)
+            {
                 Save();
+            }
         }
     }
 }

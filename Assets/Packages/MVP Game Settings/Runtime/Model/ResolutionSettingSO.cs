@@ -1,4 +1,5 @@
 using MyToolz.EditorToolz;
+using MyToolz.GameSettings.Data;
 using MyToolz.Utilities.Debug;
 using System;
 using System.Collections.Generic;
@@ -28,8 +29,11 @@ namespace MyToolz.ScriptableObjects.GameSettings
         {
             get
             {
-                if (currentValue == null) return 0;
-                var idx = options.IndexOf(currentValue);
+                if (currentValue == null)
+                {
+                    return 0;
+                }
+                int idx = options.IndexOf(currentValue);
                 return idx < 0 ? 0 : idx;
             }
         }
@@ -38,30 +42,36 @@ namespace MyToolz.ScriptableObjects.GameSettings
         {
             return value.Name;
         }
+
 #if UNITY_EDITOR
         [Button("Refresh Default Resolutions")]
         public void RefreshDefaultResolutions()
         {
-            if (options == null) options = new List<CurrentResolution>();
+            if (options == null)
+            {
+                options = new List<CurrentResolution>();
+            }
             options.Clear();
 
-            var unique = new Dictionary<string, Resolution>();
+            Dictionary<string, Resolution> unique = new();
 
-            foreach (var r in Screen.resolutions.Reverse())
+            foreach (Resolution r in Screen.resolutions.Reverse())
             {
                 string key = $"{r.width}x{r.height}";
                 if (!unique.ContainsKey(key))
+                {
                     unique.Add(key, r);
+                }
             }
 
             int i = 0;
             int bestIndex = 0;
 
-            foreach (var kv in unique)
+            foreach (KeyValuePair<string, Resolution> kv in unique)
             {
-                var r = kv.Value;
+                Resolution r = kv.Value;
 
-                var entry = new CurrentResolution
+                CurrentResolution entry = new CurrentResolution
                 {
                     Index = i,
                     Width = r.width,
@@ -73,7 +83,9 @@ namespace MyToolz.ScriptableObjects.GameSettings
                 options.Add(entry);
 
                 if (r.width == Screen.width && r.height == Screen.height)
+                {
                     bestIndex = i;
+                }
 
                 i++;
             }
@@ -84,6 +96,7 @@ namespace MyToolz.ScriptableObjects.GameSettings
             }
         }
 #endif
+
         public override void SetCurrentValue(CurrentResolution newValue)
         {
             if (!IsValueValid(newValue))
@@ -92,53 +105,53 @@ namespace MyToolz.ScriptableObjects.GameSettings
                 return;
             }
             base.SetCurrentValue(newValue);
+            ApplyCurrent();
+        }
+
+        private void ApplyCurrent()
+        {
             Screen.SetResolution(currentValue.Width, currentValue.Height, Screen.fullScreenMode);
         }
 
-        public override (string id, object value) Save()
+        protected override void OnLoaded()
+        {
+            ApplyCurrent();
+        }
+
+        public override SettingEntry Save()
         {
             if (!IsCurrentValueValid())
             {
-                DebugUtility.LogError(this, $"Invalid value on {settingName}, it will fallback to default value");
+                DebugUtility.LogWarning(this, $"Invalid value on {settingName}, it will fallback to default value");
             }
-            return (ID, CurrentIndex);
+            return new SettingEntry(ID, CurrentIndex);
         }
 
-        public override void Load((string id, object value) data)
+        public override void Load(SettingEntry entry)
         {
-            if (string.IsNullOrEmpty(data.id) || string.IsNullOrWhiteSpace(data.id))
+            if (entry == null || string.IsNullOrWhiteSpace(entry.Id))
             {
-                DebugUtility.LogError(this, $"Loaded ID on {settingName} is null or empty!");
+                DebugUtility.LogError(this, $"Loaded entry on {settingName} is null or has empty ID!");
                 return;
             }
-            if (!string.Equals(id, data.id))
+            if (!string.Equals(id, entry.Id))
             {
-                DebugUtility.LogError(this, $"ID missmatch on {settingName}, loaded {data.id} doesn't match {id}");
+                DebugUtility.LogError(this, $"ID mismatch on {settingName}, loaded {entry.Id} doesn't match {id}");
                 return;
             }
             try
             {
-                int idx = 0;
-                if (data.value is int i) idx = i;
-                else if (data.value is long l) idx = (int)l;
-                else if (data.value is float f) idx = (int)f;
-                else if (data.value is double d) idx = (int)d;
-                else
-                {
-                    DebugUtility.LogWarning(this, $"Resolution load: unsupported type {data.value?.GetType()} - falling back to default.");
-                    idx = DefaultValueIndex;
-                }
-
+                int idx = entry.GetValue<int>();
                 idx = Mathf.Clamp(idx, 0, AvailableOptions.Count - 1);
                 SetCurrentValue(AvailableOptions[idx]);
             }
             catch (Exception e)
             {
-                DebugUtility.LogError(this, $"Unexpected cast error for {settingName} with ID {data.id} with error: {e}");
+                DebugUtility.LogError(this, $"Deserialization error for {settingName} with ID {entry.Id}: {e}");
             }
             NotifyValueUpdated();
+            OnLoaded();
         }
-
 
         protected override bool IsValueValid(CurrentResolution value)
         {

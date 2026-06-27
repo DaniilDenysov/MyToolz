@@ -79,13 +79,13 @@ namespace MyToolz.Player.FPS.CombatSystem.Presenter
         protected virtual void ProcessDamageOnCollision (Collision collision)
         {
             if (!lethalEquipmentSO.IsDamageOnHitEnabled()) return;
-            if (collision.gameObject.TryGetComponent(out IDamagable damageable))
-            {
-                if (_rigidbody.linearVelocity.magnitude > lethalEquipmentSO.DamageOnHitThreshold)
-                {
-                    damageable.DoDamage(new PhysicalDamageType (lethalEquipmentSO.DamageOnHit));
-                }
-            }
+            //if (collision.gameObject.TryGetComponent(out IDamagable damageable))
+            //{
+            //    if (_rigidbody.linearVelocity.magnitude > lethalEquipmentSO.DamageOnHitThreshold)
+            //    {
+            //        damageable.DoDamage(new PhysicalDamageType (lethalEquipmentSO.DamageOnHit));
+            //    }
+            //}
         }
 
         protected virtual void CallDispoose()

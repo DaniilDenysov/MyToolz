@@ -133,8 +133,11 @@ namespace MyToolz.UI.Healthbar
                 return;
             }
 
-            tweenField = img
-                .DOFillAmount(target, duration)
+            tweenField = DOTween.To(
+                    () => img.fillAmount,
+                    x => img.fillAmount = x,
+                    target,
+                    duration)
                 .SetEase(ease)
                 .SetUpdate(ignoreTimeScale)
                 .SetTarget(img)

@@ -1,10 +1,8 @@
-using MyToolz.DesignPatterns.StateMachine;
-using UnityEngine.InputSystem;
-
 namespace MyToolz.InputManagement
 {
-    public interface IPlayerInputState : IState
+    public interface IPlayerInputState
     {
-        public void Initialize(InputActionAsset asset);
+        void OnEnter();
+        void OnExit();
     }
 }

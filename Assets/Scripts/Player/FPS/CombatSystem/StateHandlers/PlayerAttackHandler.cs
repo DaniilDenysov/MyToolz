@@ -134,12 +134,12 @@ namespace MyToolz.Player.FPS.CombatSystem.Presenter
 
         public HitStatus ProcessHit(RaycastHit hit, float damage, float damageReduction)
         {
-            if (hit.collider.TryGetComponent(out IDamagable damagable))
-            {
-                var itemSO = weaponModel.GetItemSO();
-                float finalDamage = damage * damageReduction;
-                damagable.DoDamage(new PhysicalDamageType (finalDamage));
-            }
+            //if (hit.collider.TryGetComponent(out IDamagable damagable))
+            //{
+            //    var itemSO = weaponModel.GetItemSO();
+            //    float finalDamage = damage * damageReduction;
+            //    damagable.DoDamage(new PhysicalDamageType (finalDamage));
+            //}
             if (hit.collider.TryGetComponent(out IHitbox hitbox))
             {
                 return hitbox.GetHitStatus();

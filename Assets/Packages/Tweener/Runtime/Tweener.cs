@@ -17,7 +17,7 @@ namespace MyToolz.Tweener
         [SerializeField]
         protected bool paralelExecution;
 
-        [SerializeReference, SubclassSelector] protected T[] tweenStrategies;
+        [SerializeReference] protected T[] tweenStrategies;
 
         protected List<Tween> runningTweens = new List<Tween>();
 
@@ -89,4 +89,4 @@ namespace MyToolz.Tweener
             DebugUtility.Log(this, "UITweener tweens cancelled.");
         }
     }
-}
+}

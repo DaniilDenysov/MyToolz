@@ -75,11 +75,11 @@ namespace MyToolz.Player.Platformer.Combo
 
         protected bool ProcessHit(Collider2D collider)
         {
-            if (collider != null && collider.TryGetComponent(out IDamagable damagable))
-            {
-                damagable.DoDamage(damageType);
-                return true;
-            }
+            //if (collider != null && collider.TryGetComponent(out IDamagable damagable))
+            //{
+            //    damagable.DoDamage(damageType);
+            //    return true;
+            //}
             return false;
         }
 

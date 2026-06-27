@@ -1,31 +1,41 @@
+using MyToolz.EditorToolz;
 using MyToolz.GameSettings.Data;
 using MyToolz.IO;
 using MyToolz.ScriptableObjects.GameSettings;
 using MyToolz.Utilities.Debug;
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using Zenject;
 
-namespace MyToolz.GameSettings.Data
-{
-    [Serializable]
-    public class SavableData
-    {
-        public List<(string id, object value)> data = new();
-    }
-}
-
 namespace MyToolz.GameSettings
 {
     public class SettingsPresenter : MonoBehaviour
     {
-        [SerializeField] private SettingSOAbstract [] settings;
-
-        private Dictionary<string, SettingSOAbstract> savableComponents = new Dictionary<string, SettingSOAbstract>();
-        private SavableData cached;
+        [SerializeField] private SettingSOAbstract[] settings;
+        private readonly Dictionary<string, SettingSOAbstract> savableComponents = new();
         private ISaver<SavableData> saver;
+        private bool hasSavedThisSession;
+        private bool hasLoaded;
+
+#if UNITY_EDITOR
+        [Button("Refresh")]
+        public void Rebuild()
+        {
+            settings = FindAllAssets<SettingSOAbstract>().ToArray();
+            UnityEditor.EditorUtility.SetDirty(this);
+        }
+
+        private static List<T> FindAllAssets<T>() where T : ScriptableObject
+        {
+            return UnityEditor.AssetDatabase.FindAssets($"t:{typeof(T).Name}")
+                .Select(UnityEditor.AssetDatabase.GUIDToAssetPath)
+                .Select(UnityEditor.AssetDatabase.LoadAssetAtPath<T>)
+                .Where(a => a != null)
+                .ToList();
+        }
+#endif
+
 
         [Inject]
         private void Construct(ISaver<SavableData> saver)
@@ -35,16 +45,16 @@ namespace MyToolz.GameSettings
 
         private void Awake()
         {
-            foreach (var setting in settings)
+            foreach (SettingSOAbstract setting in settings)
             {
                 if (setting == null)
                 {
-                    DebugUtility.LogError(this, $"Unable to initialize setting, null exception!");
+                    DebugUtility.LogError(this, "Unable to initialize setting, null exception!");
                     continue;
                 }
                 if (!savableComponents.TryAdd(setting.ID, setting))
                 {
-                    DebugUtility.LogError(this, $"Unable to initialize setting, value is not unique!");
+                    DebugUtility.LogError(this, $"Unable to initialize setting '{setting.SettingName}', ID is not unique!");
                     continue;
                 }
             }
@@ -52,46 +62,70 @@ namespace MyToolz.GameSettings
 
         private void Start()
         {
-            cached = saver.Load();
+            SavableData loaded = saver.Load();
+            hasLoaded = true;
 
-            if (cached == null)
+            if (loaded?.Data == null || loaded.Data.Count == 0)
             {
-                DebugUtility.LogError(this, "Cache is missing, creating fallback!");
-                cached = new SavableData();
+                return;
             }
 
-            if (cached.data == null)
-                cached.data = new();
-
-            if (cached.data.Count == 0) return;
-
-            foreach (var data in cached.data)
+            foreach (SettingEntry entry in loaded.Data)
             {
-                if (!savableComponents.TryGetValue(data.Item1, out var saverComp)) continue;
-                if (saverComp == null)
+                if (!savableComponents.TryGetValue(entry.Id, out SettingSOAbstract settingComponent))
                 {
-                    DebugUtility.LogError(this, "Saver is null!");
                     continue;
                 }
-                saverComp.Load(data);
+                if (settingComponent == null)
+                {
+                    DebugUtility.LogError(this, "Setting component is null!");
+                    continue;
+                }
+                settingComponent.Load(entry);
             }
+        }
+
+        private void OnEnable()
+        {
+            Application.quitting += Save;
+        }
+
+        private void OnDisable()
+        {
+            Application.quitting -= Save;
         }
 
         public void Save()
         {
-            RefreshCache();
-            saver.Save();
+            if (!hasLoaded)
+            {
+                DebugUtility.LogWarning(this, "Save skipped: settings were not loaded yet, refusing to overwrite the save file with defaults.");
+                return;
+            }
+
+            SavableData data = new SavableData
+            {
+                Data = savableComponents.Values.Select(c => c.Save()).Where(entry => entry != null).ToList()
+            };
+            saver.Save(data);
+            hasSavedThisSession = true;
         }
 
-        private void RefreshCache()
+        private void OnApplicationPause(bool pause)
         {
-            if (cached == null)
-                cached = saver.Load() ?? new SavableData();
+            if (pause)
+            {
+                hasSavedThisSession = false;
+                Save();
+            }
+        }
 
-            if (cached.data == null)
-                cached.data = new();
-
-            cached.data = savableComponents.Values.Select(c => c.Save()).ToList();
+        private void OnDestroy()
+        {
+            if (!hasSavedThisSession)
+            {
+                Save();
+            }
         }
     }
 }

@@ -12,6 +12,7 @@ namespace MyToolz.InputManagement.Commands.Pipeline
 
         public override void InstallBindings()
         {
+            if (inputActions == null) return;
             Container.Bind<ICommandPipeline<IInputCommand>>()
                 .FromInstance(commandPipeline)
                 .AsSingle();

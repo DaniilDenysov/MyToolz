@@ -27,7 +27,7 @@ namespace MyToolz.Audio
         public float GetRandomVolume() => Random.Range(volumeRange.x, volumeRange.y);
 
         [SerializeField, Range(0f, 1f)] private float spatialBlend = 0f;
-        public float SpatialBlend => spatialBlend;
+        public float SpatialBlend => isGlobal ? 0f : spatialBlend;
 
         [Header("Playback Settings")]
         [SerializeField] private bool playOnAwake;
