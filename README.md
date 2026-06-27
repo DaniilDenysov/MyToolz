@@ -4,8 +4,6 @@
 
 Every tool is distributed as a standalone UPM package under the `com.mytoolz.*` namespace. Each one can be used independently, though some depend on other tools within the set or on external libraries.
 
-> **📖 Full Documentation:** [teamo1.gitbook.io/mytoolz](https://teamo1.gitbook.io/mytoolz/)
-
 ---
 
 ## Philosophy
