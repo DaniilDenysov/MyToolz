@@ -111,11 +111,3 @@ Each package can also be referenced individually by downloading a .zip file with
 ## License
 
 MIT — free to use in personal, commercial, and open-source projects with no royalties or licensing fees.
-
----
-
-## Documentation
-
-For full and up-to-date documentation, including API references, usage examples, and architectural guides, visit:
-
-**[teamo1.gitbook.io/mytoolz](https://teamo1.gitbook.io/mytoolz/)**
