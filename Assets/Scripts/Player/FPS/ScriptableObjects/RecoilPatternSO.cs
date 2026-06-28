@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace MyToolz.Player.FPS.CombatSystem.Model
 {
-    [CreateAssetMenu(fileName = "New Recoil Pattern", menuName = "NoSaints/CombatSystem/Recoil Pattern")]
+    [CreateAssetMenu(fileName = "New Recoil Pattern", menuName = "MyToolz/CombatSystem/Recoil Pattern")]
     public class RecoilPatternSO : ScriptableObject
     {
 

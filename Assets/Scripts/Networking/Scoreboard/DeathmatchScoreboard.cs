@@ -3,7 +3,7 @@ using MyToolz.Events;
 using MyToolz.Networking.Events;
 using MyToolz.Networking.UI.Labels;
 using MyToolz.UI.Labels;
-using NoSaints.UI.Labels;
+using MyToolz.UI.Labels;
 using UnityEngine;
 
 namespace MyToolz.Networking.Scoreboards

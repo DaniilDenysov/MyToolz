@@ -5,6 +5,7 @@ using UnityEngine;
 using Zenject;
 using MyToolz.DesignPatterns.EventBus;
 using MyToolz.Events;
+using MyToolz.DesignPatterns.Singleton;
 
 namespace MyToolz.DesignPatterns.ObjectPool
 {
@@ -42,7 +43,7 @@ namespace MyToolz.DesignPatterns.ObjectPool
         }
     }
 
-    public abstract class ObjectPoolInstaller<T, P> : MonoInstaller
+    public abstract class ObjectPoolInstaller<T, P> : PrivateSingleton<ObjectPoolInstaller<T, P>>
         where T : MonoBehaviour where P : Pool<T>
     {
         [SerializeField] protected PoolObject[] poolObjects;
@@ -54,6 +55,8 @@ namespace MyToolz.DesignPatterns.ObjectPool
         private EventBinding<PoolRequest<T>> requestBinding;
         private EventBinding<ReleaseRequest<T>> releaseBinding;
 
+        protected DiContainer container;
+
         [Serializable]
         public class PoolObject
         {
@@ -62,11 +65,15 @@ namespace MyToolz.DesignPatterns.ObjectPool
             [Range(0, 100000)] public int MaxCapacity = 200;
         }
 
-        public override void InstallBindings()
+        [Inject]
+        private void Construct(DiContainer container)
+        {
+            this.container = container;
+        }
+
+        private void Awake()
         {
             InitializePools();
-
-            Container.BindInstance(this).AsSingle().NonLazy();
         }
 
         private void OnEnable()
@@ -202,4 +209,4 @@ namespace MyToolz.DesignPatterns.ObjectPool
             }
         }
     }
-}
+}

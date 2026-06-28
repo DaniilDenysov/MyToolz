@@ -1,6 +1,7 @@
 #if UNITY_EDITOR
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using MyToolz.EditorToolz;
 using UnityEditor;
@@ -8,105 +9,594 @@ using UnityEngine;
 
 namespace MyToolz.Editor
 {
+    /// <summary>
+    /// Single inspector that replaces Odin for the MyToolz attribute set. Unity only
+    /// ever instantiates ONE editor per type, so foldout groups, title groups, buttons,
+    /// inspector-only members and custom GUI callbacks all have to be served from the
+    /// same editor — previously a separate button editor and a fallback foldout editor
+    /// fought over the same types and the foldouts lost.
+    /// </summary>
     [CanEditMultipleObjects]
-    [CustomEditor(typeof(MonoBehaviour), true, isFallback = true)]
-    internal class FoldoutGroupMonoBehaviourEditor : UnityEditor.Editor
+    [CustomEditor(typeof(UnityEngine.Object), editorForChildClasses: true)]
+    public class MyToolzInspector : UnityEditor.Editor
     {
-        private FoldoutGroupDrawer _drawer;
+        private InspectorLayout _layout;
+        private List<ButtonGUI.ButtonMethod> _buttons;
 
-        private void OnEnable() => _drawer = new FoldoutGroupDrawer(serializedObject, targets);
-        public override void OnInspectorGUI() => _drawer.Draw(this);
+        private void OnEnable()
+        {
+            if (target == null)
+                return;
+
+            var type = target.GetType();
+            _buttons = ButtonGUI.Resolve(type);
+            _layout = InspectorLayout.Build(serializedObject, type);
+        }
+
+        public override void OnInspectorGUI()
+        {
+            if (target == null)
+            {
+                DrawDefaultInspector();
+                return;
+            }
+
+            _layout ??= InspectorLayout.Build(serializedObject, target.GetType());
+
+            if (!_layout.HasCustomContent)
+            {
+                DrawDefaultInspector();
+            }
+            else
+            {
+                serializedObject.Update();
+                _layout.Draw(serializedObject, targets);
+                serializedObject.ApplyModifiedProperties();
+            }
+
+            ButtonGUI.DrawButtons(_buttons, targets);
+        }
     }
 
-    [CanEditMultipleObjects]
-    [CustomEditor(typeof(ScriptableObject), true, isFallback = true)]
-    internal class FoldoutGroupScriptableObjectEditor : UnityEditor.Editor
+    /// <summary>
+    /// Pre-computed, reflection-derived description of how a type should be laid out:
+    /// the ordered tree of groups and members. Built once per editor instance; the
+    /// live <see cref="SerializedProperty"/> objects are resolved fresh every repaint.
+    /// </summary>
+    internal sealed class InspectorLayout
     {
-        private FoldoutGroupDrawer _drawer;
+        private enum GroupKind { Foldout, Title }
 
-        private void OnEnable() => _drawer = new FoldoutGroupDrawer(serializedObject, targets);
-        public override void OnInspectorGUI() => _drawer.Draw(this);
-    }
+        private interface ILayoutItem
+        {
+            float Order { get; }
+            int DeclIndex { get; }
+        }
 
-    internal class FoldoutGroupDrawer
-    {
-        private readonly SerializedObject _so;
-        private readonly UnityEngine.Object[] _targets;
+        private abstract class MemberEntry : ILayoutItem
+        {
+            public float Order { get; set; }
+            public int DeclIndex { get; set; }
 
-        private Dictionary<string, GroupMeta> _metaByPath;
-        private bool _hasAnyGroups;
+            public string GroupPath;
+            public GroupKind GroupKind;
+            public string GroupSubtitle;
+            public bool GroupDefaultExpanded = true;
+
+            public bool HasGroup => !string.IsNullOrEmpty(GroupPath);
+        }
+
+        private sealed class FieldEntry : MemberEntry
+        {
+            public string PropertyPath;
+            public FieldInfo Field;
+            public string LabelOverride;
+            public string Suffix;
+            public bool SuffixOverlay;
+            public bool HasMin;
+            public double Min;
+            public bool HasMax;
+            public double Max;
+            public bool HasListSettings;
+
+            public bool HasDecorator =>
+                LabelOverride != null || Suffix != null || HasMin || HasMax || HasListSettings;
+        }
+
+        private sealed class InspectorValueEntry : MemberEntry
+        {
+            public MemberInfo Member;
+            public bool ReadOnly;
+            public string LabelOverride;
+        }
+
+        private sealed class GuiCallbackEntry : MemberEntry
+        {
+            public MethodInfo Method;
+        }
+
+        private sealed class GroupNode : ILayoutItem
+        {
+            public string Path;
+            public string DisplayName;
+            public GroupKind Kind;
+            public string Subtitle;
+            public bool DefaultExpanded = true;
+
+            public float Order { get; set; } = float.MaxValue;
+            public int DeclIndex { get; set; } = int.MaxValue;
+
+            public readonly List<ILayoutItem> Children = new();
+            public readonly Dictionary<string, GroupNode> ChildGroups = new(StringComparer.Ordinal);
+        }
 
         private static readonly Dictionary<string, bool> FoldoutState = new();
 
-        internal FoldoutGroupDrawer(SerializedObject so, UnityEngine.Object[] targets)
+        private static GUIStyle _foldoutStyle;
+        private static GUIStyle _titleStyle;
+        private static GUIStyle _subtitleStyle;
+        private static GUIStyle _suffixStyle;
+
+        private readonly List<ILayoutItem> _topLevel;
+        public bool HasCustomContent { get; }
+
+        private InspectorLayout(List<ILayoutItem> topLevel, bool hasCustomContent)
         {
-            _so = so;
-            _targets = targets;
-            RebuildCache();
+            _topLevel = topLevel;
+            HasCustomContent = hasCustomContent;
         }
 
-        private void DrawNonSerializedShowInInspector()
+        // ---- Building -------------------------------------------------------
+
+        public static InspectorLayout Build(SerializedObject so, Type type)
         {
-            var type = _targets[0].GetType();
+            var serializedNames = CollectSerializedNames(so);
+
+            var entries = new List<MemberEntry>();
+            var consumed = new HashSet<string>(StringComparer.Ordinal);
+            var seenFields = new HashSet<string>(StringComparer.Ordinal);
+            bool hasCustom = false;
+            int declIndex = 0;
+
             const BindingFlags flags =
-                BindingFlags.Instance |
-                BindingFlags.Public |
-                BindingFlags.NonPublic;
+                BindingFlags.Instance | BindingFlags.Public |
+                BindingFlags.NonPublic | BindingFlags.DeclaredOnly;
 
-            var members = type.GetMembers(flags);
+            // Walk base -> derived so inherited fields keep their natural order on top.
+            var chain = new List<Type>();
+            for (var t = type; t != null && t != typeof(object); t = t.BaseType)
+                chain.Add(t);
+            chain.Reverse();
 
-            foreach (var member in members)
+            foreach (var t in chain)
             {
-                var attr = member.GetCustomAttribute<ShowInInspectorAttribute>(true);
-                if (attr == null)
+                foreach (var member in t.GetMembers(flags).OrderBy(m => m.MetadataToken))
+                {
+                    switch (member)
+                    {
+                        case FieldInfo field when serializedNames.Contains(field.Name):
+                            if (!seenFields.Add(field.Name))
+                                break;
+
+                            var fe = BuildFieldEntry(field);
+                            fe.DeclIndex = declIndex++;
+                            entries.Add(fe);
+                            consumed.Add(field.Name);
+                            if (fe.HasGroup || fe.HasDecorator)
+                                hasCustom = true;
+                            break;
+
+                        case FieldInfo field:
+                        {
+                            var sii = field.GetCustomAttribute<ShowInInspectorAttribute>(true);
+                            if (sii == null)
+                                break;
+                            if (!seenFields.Add(field.Name))
+                                break;
+
+                            var ve = BuildValueEntry(field, field.FieldType, sii);
+                            ve.DeclIndex = declIndex++;
+                            entries.Add(ve);
+                            hasCustom = true;
+                            break;
+                        }
+
+                        case PropertyInfo prop:
+                        {
+                            var sii = prop.GetCustomAttribute<ShowInInspectorAttribute>(true);
+                            if (sii == null || !prop.CanRead)
+                                break;
+
+                            var ve = BuildValueEntry(prop, prop.PropertyType, sii);
+                            ve.DeclIndex = declIndex++;
+                            entries.Add(ve);
+                            hasCustom = true;
+                            break;
+                        }
+
+                        case MethodInfo method:
+                        {
+                            var gui = method.GetCustomAttribute<OnInspectorGUIAttribute>(true);
+                            if (gui == null || method.GetParameters().Length != 0)
+                                break;
+
+                            var ge = new GuiCallbackEntry { Method = method };
+                            ReadCommon(method, ge);
+                            ge.DeclIndex = declIndex++;
+                            entries.Add(ge);
+                            hasCustom = true;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            // Safety net: never let a serialized field vanish if reflection missed it.
+            foreach (var name in serializedNames)
+            {
+                if (consumed.Contains(name))
                     continue;
-
-                if (member is FieldInfo field)
-                {
-                    DrawField(field, attr);
-                }
-                else if (member is PropertyInfo prop)
-                {
-                    DrawProperty(prop, attr);
-                }
+                entries.Add(new FieldEntry { PropertyPath = name, DeclIndex = declIndex++ });
             }
+
+            var topLevel = BuildTree(entries);
+            return new InspectorLayout(topLevel, hasCustom);
         }
 
-        private void DrawField(FieldInfo field, ShowInInspectorAttribute attr)
+        private static HashSet<string> CollectSerializedNames(SerializedObject so)
         {
-            var target = _targets[0];
-            var value = field.GetValue(target);
-            var newValue = DrawValue(field.Name, value, field.FieldType, attr.ReadOnly || field.IsInitOnly);
-
-            if (!Equals(value, newValue) && !attr.ReadOnly)
+            var names = new HashSet<string>(StringComparer.Ordinal);
+            using var it = so.GetIterator();
+            bool enter = true;
+            while (it.NextVisible(enter))
             {
-                Undo.RecordObject(target, $"Modify {field.Name}");
-                field.SetValue(target, newValue);
-                EditorUtility.SetDirty(target);
+                enter = false;
+                if (it.propertyPath == "m_Script")
+                    continue;
+                names.Add(it.name);
+            }
+            return names;
+        }
+
+        private static FieldEntry BuildFieldEntry(FieldInfo field)
+        {
+            var e = new FieldEntry { PropertyPath = field.Name, Field = field };
+            ReadCommon(field, e);
+
+            var label = field.GetCustomAttribute<LabelTextAttribute>(true);
+            if (label != null)
+                e.LabelOverride = label.Text;
+
+            var suffix = field.GetCustomAttribute<SuffixLabelAttribute>(true);
+            if (suffix != null)
+            {
+                e.Suffix = suffix.Label;
+                e.SuffixOverlay = suffix.Overlay;
+            }
+
+            var min = field.GetCustomAttribute<MinValueAttribute>(true);
+            if (min != null)
+            {
+                e.HasMin = true;
+                e.Min = min.Value;
+            }
+
+            var max = field.GetCustomAttribute<MaxValueAttribute>(true);
+            if (max != null)
+            {
+                e.HasMax = true;
+                e.Max = max.Value;
+            }
+
+            e.HasListSettings = field.GetCustomAttribute<ListDrawerSettingsAttribute>(true) != null;
+            return e;
+        }
+
+        private static InspectorValueEntry BuildValueEntry(MemberInfo member, Type _, ShowInInspectorAttribute attr)
+        {
+            var e = new InspectorValueEntry
+            {
+                Member = member,
+                ReadOnly = attr.ReadOnly || member.GetCustomAttribute<ReadOnlyAttribute>(true) != null,
+            };
+            ReadCommon(member, e);
+
+            var label = member.GetCustomAttribute<LabelTextAttribute>(true);
+            if (label != null)
+                e.LabelOverride = label.Text;
+
+            return e;
+        }
+
+        private static void ReadCommon(MemberInfo member, MemberEntry e)
+        {
+            var order = member.GetCustomAttribute<PropertyOrderAttribute>(true);
+            e.Order = order?.Order ?? 0f;
+
+            var title = member.GetCustomAttribute<TitleGroupAttribute>(true);
+            if (title != null && !string.IsNullOrWhiteSpace(title.Title))
+            {
+                e.GroupPath = title.Title.Trim();
+                e.GroupKind = GroupKind.Title;
+                e.GroupSubtitle = title.Subtitle;
+                e.GroupDefaultExpanded = true;
+                return;
+            }
+
+            var foldout = member.GetCustomAttribute<FoldoutGroupAttribute>(true);
+            if (foldout != null && !string.IsNullOrWhiteSpace(foldout.GroupName))
+            {
+                e.GroupPath = foldout.GroupName.Trim();
+                e.GroupKind = GroupKind.Foldout;
+                e.GroupDefaultExpanded = foldout.ExpandedByDefault;
             }
         }
 
-        private void DrawProperty(PropertyInfo prop, ShowInInspectorAttribute attr)
+        private static List<ILayoutItem> BuildTree(List<MemberEntry> entries)
         {
-            if (!prop.CanRead)
+            var topLevel = new List<ILayoutItem>();
+            var topGroups = new Dictionary<string, GroupNode>(StringComparer.Ordinal);
+
+            foreach (var e in entries)
+            {
+                if (!e.HasGroup)
+                {
+                    topLevel.Add(e);
+                    continue;
+                }
+
+                var segments = e.GroupPath.Split('/');
+                GroupNode parent = null;
+                var level = topGroups;
+                string accum = null;
+                GroupNode node = null;
+
+                for (int s = 0; s < segments.Length; s++)
+                {
+                    var seg = segments[s].Trim();
+                    accum = accum == null ? seg : accum + "/" + seg;
+
+                    if (!level.TryGetValue(seg, out node))
+                    {
+                        node = new GroupNode
+                        {
+                            Path = accum,
+                            DisplayName = seg,
+                            Kind = e.GroupKind,
+                            DefaultExpanded = e.GroupDefaultExpanded,
+                        };
+                        level[seg] = node;
+
+                        if (parent == null)
+                            topLevel.Add(node);
+                        else
+                            parent.Children.Add(node);
+                    }
+
+                    parent = node;
+                    level = node.ChildGroups;
+                }
+
+                // The leaf segment carries the real kind/subtitle for this member.
+                node.Kind = e.GroupKind;
+                node.DefaultExpanded = e.GroupDefaultExpanded;
+                if (e.GroupKind == GroupKind.Title && !string.IsNullOrEmpty(e.GroupSubtitle))
+                    node.Subtitle = e.GroupSubtitle;
+
+                node.Children.Add(e);
+            }
+
+            foreach (var g in topGroups.Values)
+                ComputeOrder(g);
+
+            topLevel.Sort(CompareItems);
+            return topLevel;
+        }
+
+        private static void ComputeOrder(GroupNode g)
+        {
+            float minOrder = float.MaxValue;
+            int minDecl = int.MaxValue;
+
+            foreach (var child in g.Children)
+            {
+                if (child is GroupNode sub)
+                    ComputeOrder(sub);
+
+                if (child.Order < minOrder) minOrder = child.Order;
+                if (child.DeclIndex < minDecl) minDecl = child.DeclIndex;
+            }
+
+            g.Order = minOrder == float.MaxValue ? 0f : minOrder;
+            g.DeclIndex = minDecl == int.MaxValue ? 0 : minDecl;
+            g.Children.Sort(CompareItems);
+        }
+
+        private static int CompareItems(ILayoutItem a, ILayoutItem b)
+        {
+            int c = a.Order.CompareTo(b.Order);
+            return c != 0 ? c : a.DeclIndex.CompareTo(b.DeclIndex);
+        }
+
+        // ---- Drawing --------------------------------------------------------
+
+        public void Draw(SerializedObject so, UnityEngine.Object[] targets)
+        {
+            EnsureStyles();
+            DrawScriptField(so);
+
+            foreach (var item in _topLevel)
+                DrawItem(item, so, targets);
+        }
+
+        private void DrawItem(ILayoutItem item, SerializedObject so, UnityEngine.Object[] targets)
+        {
+            switch (item)
+            {
+                case GroupNode g:
+                    DrawGroup(g, so, targets);
+                    break;
+                case FieldEntry f:
+                    DrawField(f, so, targets);
+                    break;
+                case InspectorValueEntry v:
+                    DrawValueEntry(v, targets);
+                    break;
+                case GuiCallbackEntry c:
+                    DrawGuiCallback(c, targets);
+                    break;
+            }
+        }
+
+        private void DrawGroup(GroupNode g, SerializedObject so, UnityEngine.Object[] targets)
+        {
+            if (g.Kind == GroupKind.Title)
+            {
+                DrawTitle(g.DisplayName, g.Subtitle);
+                foreach (var child in g.Children)
+                    DrawItem(child, so, targets);
+                EditorGUILayout.Space(2);
+                return;
+            }
+
+            using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
+            {
+                string key = MakeKey(targets, g.Path);
+                bool expanded = GetFoldout(key, g.DefaultExpanded);
+                bool newExpanded = EditorGUILayout.Foldout(expanded, g.DisplayName, true, _foldoutStyle);
+                SetFoldout(key, newExpanded);
+
+                if (!newExpanded)
+                    return;
+
+                EditorGUILayout.Space(2);
+                using (new EditorGUI.IndentLevelScope())
+                {
+                    foreach (var child in g.Children)
+                        DrawItem(child, so, targets);
+                }
+            }
+        }
+
+        private static void DrawField(FieldEntry e, SerializedObject so, UnityEngine.Object[] targets)
+        {
+            if (!ConditionalVisibility.IsVisible(e.Field, targets))
                 return;
 
-            var target = _targets[0];
-            var value = prop.GetValue(target);
+            var prop = so.FindProperty(e.PropertyPath);
+            if (prop == null)
+                return;
 
-            bool readOnly = attr.ReadOnly || !prop.CanWrite;
+            GUIContent label = e.LabelOverride != null
+                ? new GUIContent(e.LabelOverride, prop.tooltip)
+                : null;
 
-            var newValue = DrawValue(prop.Name, value, prop.PropertyType, readOnly);
+            EditorGUI.BeginChangeCheck();
 
-            if (!Equals(value, newValue) && !readOnly)
+            if (!string.IsNullOrEmpty(e.Suffix))
             {
-                Undo.RecordObject(target, $"Modify {prop.Name}");
-                prop.SetValue(target, newValue);
-                EditorUtility.SetDirty(target);
+                var content = label ?? new GUIContent(prop.displayName, prop.tooltip);
+                float h = EditorGUI.GetPropertyHeight(prop, content, true);
+                Rect rect = EditorGUILayout.GetControlRect(true, h);
+                EditorGUI.PropertyField(rect, prop, content, true);
+                DrawSuffix(rect, e.Suffix);
+            }
+            else if (label != null)
+            {
+                EditorGUILayout.PropertyField(prop, label, true);
+            }
+            else
+            {
+                EditorGUILayout.PropertyField(prop, true);
+            }
+
+            if (EditorGUI.EndChangeCheck())
+                ApplyClamp(prop, e);
+        }
+
+        private static void ApplyClamp(SerializedProperty prop, FieldEntry e)
+        {
+            if (!e.HasMin && !e.HasMax)
+                return;
+
+            switch (prop.propertyType)
+            {
+                case SerializedPropertyType.Float when prop.numericType == SerializedPropertyNumericType.Double:
+                {
+                    double v = prop.doubleValue;
+                    if (e.HasMin && v < e.Min) v = e.Min;
+                    if (e.HasMax && v > e.Max) v = e.Max;
+                    prop.doubleValue = v;
+                    break;
+                }
+                case SerializedPropertyType.Float:
+                {
+                    float v = prop.floatValue;
+                    if (e.HasMin && v < (float)e.Min) v = (float)e.Min;
+                    if (e.HasMax && v > (float)e.Max) v = (float)e.Max;
+                    prop.floatValue = v;
+                    break;
+                }
+                case SerializedPropertyType.Integer:
+                {
+                    long v = prop.longValue;
+                    if (e.HasMin && v < (long)e.Min) v = (long)e.Min;
+                    if (e.HasMax && v > (long)e.Max) v = (long)e.Max;
+                    prop.longValue = v;
+                    break;
+                }
             }
         }
 
-        private object DrawValue(string label, object value, Type type, bool readOnly)
+        private static void DrawSuffix(Rect rect, string suffix)
+        {
+            var line = new Rect(rect.x, rect.y, rect.width - 4f, EditorGUIUtility.singleLineHeight);
+            GUI.Label(line, suffix, _suffixStyle);
+        }
+
+        private static void DrawValueEntry(InspectorValueEntry e, UnityEngine.Object[] targets)
+        {
+            var target = targets.Length > 0 ? targets[0] : null;
+            if (target == null)
+                return;
+
+            if (!ConditionalVisibility.IsVisible(e.Member, targets))
+                return;
+
+            string label = e.LabelOverride ?? ObjectNames.NicifyVariableName(e.Member.Name);
+
+            if (e.Member is FieldInfo field)
+            {
+                var value = field.GetValue(target);
+                bool readOnly = e.ReadOnly || field.IsInitOnly;
+                var newValue = DrawValue(label, value, field.FieldType, readOnly);
+
+                if (!readOnly && !Equals(value, newValue))
+                {
+                    Undo.RecordObject(target, $"Modify {field.Name}");
+                    field.SetValue(target, newValue);
+                    EditorUtility.SetDirty(target);
+                }
+            }
+            else if (e.Member is PropertyInfo prop)
+            {
+                if (!prop.CanRead)
+                    return;
+
+                var value = prop.GetValue(target);
+                bool readOnly = e.ReadOnly || !prop.CanWrite;
+                var newValue = DrawValue(label, value, prop.PropertyType, readOnly);
+
+                if (!readOnly && !Equals(value, newValue))
+                {
+                    Undo.RecordObject(target, $"Modify {prop.Name}");
+                    prop.SetValue(target, newValue);
+                    EditorUtility.SetDirty(target);
+                }
+            }
+        }
+
+        private static object DrawValue(string label, object value, Type type, bool readOnly)
         {
             using (new EditorGUI.DisabledScope(readOnly))
             {
@@ -125,6 +615,9 @@ namespace MyToolz.Editor
                 if (type == typeof(string))
                     return EditorGUILayout.TextField(label, value as string ?? "");
 
+                if (type.IsEnum)
+                    return EditorGUILayout.EnumPopup(label, value as Enum ?? (Enum)Enum.ToObject(type, 0));
+
                 if (type == typeof(Vector2))
                     return EditorGUILayout.Vector2Field(label, value != null ? (Vector2)value : default);
 
@@ -137,242 +630,101 @@ namespace MyToolz.Editor
                 if (typeof(UnityEngine.Object).IsAssignableFrom(type))
                     return EditorGUILayout.ObjectField(label, value as UnityEngine.Object, type, true);
 
-                EditorGUILayout.LabelField(label, $"Type not supported ({type.Name})");
+                EditorGUILayout.LabelField(label, value != null ? value.ToString() : $"({type.Name})");
                 return value;
             }
         }
 
-
-        public void Draw(UnityEditor.Editor editor)
+        private static void DrawGuiCallback(GuiCallbackEntry e, UnityEngine.Object[] targets)
         {
-            if (_metaByPath == null)
-                RebuildCache();
-
-            if (!_hasAnyGroups)
-            {
-                editor.DrawDefaultInspector();
-                return;
-            }
-
-            _so.Update();
-
-            DrawScriptFieldIfPresent();
-
-            var ungrouped = new List<SerializedProperty>();
-            var grouped = new Dictionary<string, List<SerializedProperty>>();
-
-            using (var it = _so.GetIterator())
-            {
-                bool enterChildren = true;
-                while (it.NextVisible(enterChildren))
-                {
-                    enterChildren = false;
-
-                    if (it.propertyPath == "m_Script")
-                        continue;
-
-                    var prop = _so.FindProperty(it.propertyPath);
-                    if (prop == null)
-                        continue;
-
-                    if (!_metaByPath.TryGetValue(prop.propertyPath, out var meta) || !meta.IsGrouped)
-                    {
-                        ungrouped.Add(prop);
-                        continue;
-                    }
-
-                    if (!grouped.TryGetValue(meta.GroupName, out var list))
-                    {
-                        list = new List<SerializedProperty>();
-                        grouped.Add(meta.GroupName, list);
-                    }
-
-                    list.Add(prop);
-                }
-            }
-
-            foreach (var p in ungrouped)
-                EditorGUILayout.PropertyField(p, includeChildren: true);
-
-            EditorGUILayout.Space(6);
-
-            foreach (var kv in grouped)
-            {
-                var groupName = kv.Key;
-                var props = kv.Value;
-
-                using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
-                {
-                    bool expanded = GetFoldout(groupName, defaultExpanded: GetDefaultExpanded(groupName, props));
-                    var newExpanded = EditorGUILayout.Foldout(expanded, groupName, toggleOnLabelClick: true);
-                    SetFoldout(groupName, newExpanded);
-
-                    if (newExpanded)
-                    {
-                        EditorGUILayout.Space(2);
-                        using (new EditorGUI.IndentLevelScope())
-                        {
-                            foreach (var p in props)
-                                EditorGUILayout.PropertyField(p, includeChildren: true);
-                        }
-                    }
-                }
-            }
-
-            _so.ApplyModifiedProperties();
-        }
-
-        private void RebuildCache()
-        {
-            _metaByPath = new Dictionary<string, GroupMeta>();
-            _hasAnyGroups = false;
-
-            var commonType = GetCommonMostDerivedType(_targets);
-            if (commonType == null)
+            var target = targets.Length > 0 ? targets[0] : null;
+            if (target == null && !e.Method.IsStatic)
                 return;
 
-            var fieldMap = BuildFieldMap(commonType);
-
-            using (var it = _so.GetIterator())
+            try
             {
-                bool enterChildren = true;
-                while (it.NextVisible(enterChildren))
-                {
-                    enterChildren = false;
-
-                    if (it.propertyPath == "m_Script")
-                        continue;
-
-                    var topName = GetTopLevelName(it.propertyPath);
-
-                    if (fieldMap.TryGetValue(topName, out var attr) && attr != null && !string.IsNullOrWhiteSpace(attr.GroupName))
-                    {
-                        _metaByPath[it.propertyPath] = new GroupMeta(attr.GroupName.Trim(), attr.ExpandedByDefault);
-                        _hasAnyGroups = true;
-                    }
-                    else
-                    {
-                        _metaByPath[it.propertyPath] = GroupMeta.Ungrouped;
-                    }
-                }
+                e.Method.Invoke(e.Method.IsStatic ? null : target, null);
+            }
+            catch (TargetInvocationException tie)
+            {
+                Debug.LogException(tie.InnerException ?? tie, target);
+            }
+            catch (Exception ex)
+            {
+                Debug.LogException(ex, target);
             }
         }
 
-        private static string GetTopLevelName(string propertyPath)
+        private static void DrawTitle(string title, string subtitle)
         {
-            int dot = propertyPath.IndexOf('.');
-            return dot >= 0 ? propertyPath.Substring(0, dot) : propertyPath;
+            EditorGUILayout.Space(4);
+            EditorGUILayout.LabelField(title, _titleStyle);
+
+            if (!string.IsNullOrEmpty(subtitle))
+                EditorGUILayout.LabelField(subtitle, _subtitleStyle);
+
+            var rect = EditorGUILayout.GetControlRect(false, 1f);
+            EditorGUI.DrawRect(rect, new Color(1f, 1f, 1f, 0.15f));
+            EditorGUILayout.Space(2);
         }
 
-        private static Dictionary<string, FoldoutGroupAttribute> BuildFieldMap(Type type)
+        private static void DrawScriptField(SerializedObject so)
         {
-            var dict = new Dictionary<string, FoldoutGroupAttribute>();
+            var scriptProp = so.FindProperty("m_Script");
+            if (scriptProp == null)
+                return;
 
-            const BindingFlags flags =
-                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
-
-            for (var t = type; t != null && t != typeof(object); t = t.BaseType)
-            {
-                foreach (var f in t.GetFields(flags))
-                {
-                    if (f.IsStatic) continue;
-                    if (f.IsNotSerialized) continue;
-
-                    bool isPublic = f.IsPublic;
-                    bool hasSerializeField = f.GetCustomAttribute<SerializeField>(true) != null;
-
-                    if (!isPublic && !hasSerializeField) continue;
-
-                    var group = f.GetCustomAttribute<FoldoutGroupAttribute>(true);
-                    if (!dict.ContainsKey(f.Name))
-                        dict.Add(f.Name, group);
-                }
-            }
-
-            return dict;
+            using (new EditorGUI.DisabledScope(true))
+                EditorGUILayout.PropertyField(scriptProp);
         }
 
-        private static Type GetCommonMostDerivedType(UnityEngine.Object[] targets)
+        // ---- Foldout persistence & styles -----------------------------------
+
+        private static string MakeKey(UnityEngine.Object[] targets, string path)
         {
-            if (targets == null || targets.Length == 0) return null;
-
-            var t = targets[0]?.GetType();
-            if (t == null) return null;
-
-            for (int i = 1; i < targets.Length; i++)
+            unchecked
             {
-                if (targets[i] == null) continue;
-                if (targets[i].GetType() != t)
-                    return t;
-            }
+                int h = 17;
+                for (int i = 0; i < targets.Length; i++)
+                    h = h * 31 + (targets[i] ? targets[i].GetInstanceID() : 0);
 
-            return t;
-        }
-
-        private void DrawScriptFieldIfPresent()
-        {
-            var scriptProp = _so.FindProperty("m_Script");
-            if (scriptProp != null)
-            {
-                using (new EditorGUI.DisabledScope(true))
-                    EditorGUILayout.PropertyField(scriptProp);
+                return h + ":" + path;
             }
         }
 
-        private bool GetDefaultExpanded(string groupName, List<SerializedProperty> props)
+        private static bool GetFoldout(string key, bool defaultExpanded)
         {
-            foreach (var p in props)
-            {
-                if (_metaByPath.TryGetValue(p.propertyPath, out var meta) && meta.IsGrouped)
-                {
-                    if (!meta.ExpandedByDefault)
-                        return false;
-                }
-            }
-            return true;
-        }
-
-        private bool GetFoldout(string groupName, bool defaultExpanded)
-        {
-            var key = MakeKey(groupName);
-            if (FoldoutState.TryGetValue(key, out var val))
-                return val;
+            if (FoldoutState.TryGetValue(key, out var v))
+                return v;
 
             FoldoutState[key] = defaultExpanded;
             return defaultExpanded;
         }
 
-        private void SetFoldout(string groupName, bool value)
-        {
-            FoldoutState[MakeKey(groupName)] = value;
-        }
+        private static void SetFoldout(string key, bool value) => FoldoutState[key] = value;
 
-        private string MakeKey(string groupName)
+        private static void EnsureStyles()
         {
-            unchecked
+            _foldoutStyle ??= new GUIStyle(EditorStyles.foldout)
             {
-                int h = 17;
-                for (int i = 0; i < _targets.Length; i++)
-                    h = h * 31 + (_targets[i] ? _targets[i].GetInstanceID() : 0);
+                fontStyle = FontStyle.Bold,
+            };
 
-                return $"{h}:{groupName}";
-            }
-        }
-
-        private readonly struct GroupMeta
-        {
-            public static readonly GroupMeta Ungrouped = new GroupMeta(null, true);
-
-            public readonly string GroupName;
-            public readonly bool ExpandedByDefault;
-
-            public bool IsGrouped => !string.IsNullOrEmpty(GroupName);
-
-            public GroupMeta(string groupName, bool expandedByDefault)
+            _titleStyle ??= new GUIStyle(EditorStyles.boldLabel)
             {
-                GroupName = groupName;
-                ExpandedByDefault = expandedByDefault;
-            }
+                fontSize = 13,
+            };
+
+            _subtitleStyle ??= new GUIStyle(EditorStyles.miniLabel)
+            {
+                normal = { textColor = new Color(1f, 1f, 1f, 0.5f) },
+            };
+
+            _suffixStyle ??= new GUIStyle(EditorStyles.miniLabel)
+            {
+                alignment = TextAnchor.MiddleRight,
+                normal = { textColor = new Color(1f, 1f, 1f, 0.5f) },
+            };
         }
     }
 }

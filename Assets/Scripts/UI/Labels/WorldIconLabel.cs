@@ -4,7 +4,7 @@ using MyToolz.Events;
 using MyToolz.UI.Labels;
 using UnityEngine;
 
-namespace NoSaints.UI.Labels
+namespace MyToolz.UI.Labels
 {
     public class WorldIconLabel : Label
     {

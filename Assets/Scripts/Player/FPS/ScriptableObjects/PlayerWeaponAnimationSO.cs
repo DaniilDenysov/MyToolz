@@ -5,7 +5,7 @@ using UnityEngine;
 
 namespace MyToolz.Player.FPS.CombatSystem.Model
 {
-    [CreateAssetMenu(fileName = "create new player weapon animations", menuName = "NoSaints/CombatSystem/PlayerAnimation")]
+    [CreateAssetMenu(fileName = "create new player weapon animations", menuName = "MyToolz/CombatSystem/PlayerAnimation")]
     public class PlayerWeaponAnimationSO : ScriptableObject
     {
         //public FPSCameraShake cameraShake;

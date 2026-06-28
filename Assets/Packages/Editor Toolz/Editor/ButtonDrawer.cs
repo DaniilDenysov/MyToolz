@@ -1,3 +1,4 @@
+#if UNITY_EDITOR
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -8,9 +9,15 @@ using UnityEngine;
 
 namespace MyToolz.Editor
 {
-    [CustomEditor(typeof(UnityEngine.Object), editorForChildClasses: true)]
-    [CanEditMultipleObjects]
-    public class ButtonDrawer : UnityEditor.Editor
+    /// <summary>
+    /// Renders methods decorated with <see cref="ButtonAttribute"/> as inspector
+    /// buttons. This used to be a standalone <c>[CustomEditor]</c>, but a second
+    /// editor targeting <c>UnityEngine.Object</c> (for buttons) silently suppressed
+    /// the foldout-group editor — Unity only ever instantiates one editor per type.
+    /// The logic now lives here as a helper that the single
+    /// <see cref="MyToolzInspector"/> calls, so buttons and groups coexist.
+    /// </summary>
+    internal static class ButtonGUI
     {
         private const BindingFlags MethodFlags =
             BindingFlags.Instance | BindingFlags.Static |
@@ -26,18 +33,38 @@ namespace MyToolz.Editor
             EditorGUIUtility.singleLineHeight + 14f,
         };
 
-        private List<ButtonMethod> _methods;
-
-        protected virtual void OnEnable()
+        internal static List<ButtonMethod> Resolve(Type type)
         {
-            _methods = ResolveButtonMethods(target.GetType());
+            if (type == null)
+                return null;
+
+            if (Cache.TryGetValue(type, out var cached))
+                return cached;
+
+            var hierarchy = new Stack<Type>();
+            for (var t = type; t != null && t != typeof(object); t = t.BaseType)
+                hierarchy.Push(t);
+
+            var list = new List<ButtonMethod>();
+
+            foreach (var t in hierarchy)
+            {
+                var found = t.GetMethods(MethodFlags)
+                    .Select(m => (Method: m, Attr: m.GetCustomAttribute<ButtonAttribute>(inherit: true)))
+                    .Where(x => x.Attr != null && IsValidSignature(x.Method))
+                    .OrderBy(x => x.Method.MetadataToken)
+                    .Select(x => new ButtonMethod(x.Method, x.Attr));
+
+                list.AddRange(found);
+            }
+
+            Cache[type] = list;
+            return list;
         }
 
-        public override void OnInspectorGUI()
+        internal static void DrawButtons(IReadOnlyList<ButtonMethod> methods, UnityEngine.Object[] targets)
         {
-            DrawDefaultInspector();
-
-            if (_methods == null || _methods.Count == 0)
+            if (methods == null || methods.Count == 0)
                 return;
 
             EditorGUILayout.Space(6f);
@@ -47,11 +74,11 @@ namespace MyToolz.Editor
 
             EditorGUILayout.Space(4f);
 
-            foreach (var bm in _methods)
-                DrawButton(bm);
+            for (int i = 0; i < methods.Count; i++)
+                DrawButton(methods[i], targets);
         }
 
-        private void DrawButton(ButtonMethod bm)
+        private static void DrawButton(ButtonMethod bm, UnityEngine.Object[] targets)
         {
             bool playmode = Application.isPlaying;
 
@@ -86,7 +113,7 @@ namespace MyToolz.Editor
             using (new EditorGUI.DisabledScope(!enabled))
             {
                 if (GUILayout.Button(label, style))
-                    InvokeMethod(bm.Method);
+                    InvokeMethod(bm.Method, targets);
             }
 
             if (tint.HasValue)
@@ -104,7 +131,7 @@ namespace MyToolz.Editor
             }
         }
 
-        private void InvokeMethod(MethodInfo method)
+        private static void InvokeMethod(MethodInfo method, UnityEngine.Object[] targets)
         {
             bool isStatic = method.IsStatic;
 
@@ -151,32 +178,6 @@ namespace MyToolz.Editor
             return null;
         }
 
-        private static List<ButtonMethod> ResolveButtonMethods(Type type)
-        {
-            if (Cache.TryGetValue(type, out var cached))
-                return cached;
-
-            var hierarchy = new Stack<Type>();
-            for (var t = type; t != null && t != typeof(object); t = t.BaseType)
-                hierarchy.Push(t);
-
-            var list = new List<ButtonMethod>();
-
-            foreach (var t in hierarchy)
-            {
-                var found = t.GetMethods(MethodFlags)
-                    .Select(m => (Method: m, Attr: m.GetCustomAttribute<ButtonAttribute>(inherit: true)))
-                    .Where(x => x.Attr != null && IsValidSignature(x.Method))
-                    .OrderBy(x => x.Method.MetadataToken)
-                    .Select(x => new ButtonMethod(x.Method, x.Attr));
-
-                list.AddRange(found);
-            }
-
-            Cache[type] = list;
-            return list;
-        }
-
         private static bool IsValidSignature(MethodInfo method)
         {
             if (method.GetParameters().Length != 0)
@@ -194,7 +195,7 @@ namespace MyToolz.Editor
             return true;
         }
 
-        private readonly struct ButtonMethod
+        internal readonly struct ButtonMethod
         {
             public readonly MethodInfo Method;
             public readonly ButtonAttribute Attribute;
@@ -207,3 +208,4 @@ namespace MyToolz.Editor
         }
     }
 }
+#endif

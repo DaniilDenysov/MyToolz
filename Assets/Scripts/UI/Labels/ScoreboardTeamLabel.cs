@@ -2,7 +2,7 @@ using MyToolz.DesignPatterns.EventBus;
 using MyToolz.Events;
 using MyToolz.Networking.UI.Labels;
 using MyToolz.UI.Labels;
-using NoSaints.UI.Labels;
+using MyToolz.UI.Labels;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;

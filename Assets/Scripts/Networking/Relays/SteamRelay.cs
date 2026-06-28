@@ -11,7 +11,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using UnityEngine;
 
-namespace NoSaints.Relays
+namespace MyToolz.Relays
 {
     public class SteamLobbyDTO : LobbyDTO
     {
@@ -131,7 +131,7 @@ namespace NoSaints.Relays
         private List<SteamLobbyDTO> availableLobbies = new List<SteamLobbyDTO>();
         private CancellationTokenSource cancellationTokenSource = new CancellationTokenSource();
 
-        private const string gameIDValue = "NoSaints";
+        private const string gameIDValue = "MyToolz";
         private const string gameStateID = "game_state";
         private const string addressID = "address";
         private const string gameID = "game_id";

@@ -19,7 +19,7 @@ namespace MyToolz.Networking.Utilities
 
 namespace MyToolz.Player.FPS.CombatSystem.Model
 {
-    [CreateAssetMenu(fileName = "WeaponBulletHoleVFXMapping", menuName = "NoSaints/CombatSystem/Weapon Bullet Hole VFX")]
+    [CreateAssetMenu(fileName = "WeaponBulletHoleVFXMapping", menuName = "MyToolz/CombatSystem/Weapon Bullet Hole VFX")]
     public class WeaponBulletHoleMappingSO : ScriptableObject
     {
         [System.Serializable]

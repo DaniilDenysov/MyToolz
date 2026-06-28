@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace MyToolz.Player.FPS.CombatSystem.Model
 {
-    [CreateAssetMenu(fileName = "New Spray Pattern", menuName = "NoSaints/CombatSystem/Spray Pattern")]
+    [CreateAssetMenu(fileName = "New Spray Pattern", menuName = "MyToolz/CombatSystem/Spray Pattern")]
     public class SprayPatternSO : ScriptableObject
     {
         [SerializeField] private bool random = true;

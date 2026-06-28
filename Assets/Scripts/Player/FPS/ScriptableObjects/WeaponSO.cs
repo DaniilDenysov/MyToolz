@@ -20,7 +20,7 @@ namespace MyToolz.Player.FPS.CombatSystem.Model
         Hold
     }
 
-    [CreateAssetMenu(fileName = "create new weapon", menuName = "NoSaints/CombatSystem/Weapon")]
+    [CreateAssetMenu(fileName = "create new weapon", menuName = "MyToolz/CombatSystem/Weapon")]
     public class WeaponSO : ItemSO
     {
         //Displayable fields

@@ -74,7 +74,7 @@ namespace MyToolz.DesignPatterns.ObjectPool
                 int prefabId = prefabComponent.GetInstanceID();
                 loadedHandles[prefabId] = handle;
 
-                Container.BindMemoryPool<T, Pool<T>>()
+                container.BindMemoryPool<T, Pool<T>>()
                     .WithId(prefabId)
                     .WithInitialSize(poolObj.DefaultCapacity)
                     .WithFactoryArguments<Action<Pool<T>>, int, Action<T>, Action<int, T>, Action<T>>(

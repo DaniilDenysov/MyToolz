@@ -98,7 +98,7 @@ namespace MyToolz.Networking.Strategies
 
 namespace MyToolz.Networking.ScriptableObjects
 {
-    [CreateAssetMenu(fileName = "GameMode", menuName = "NoSaints/UI/GameMode")]
+    [CreateAssetMenu(fileName = "GameMode", menuName = "MyToolz/UI/GameMode")]
     public class GameModeSO : ScriptableObject
     {
         [FoldoutGroup("Basic Info", true)]

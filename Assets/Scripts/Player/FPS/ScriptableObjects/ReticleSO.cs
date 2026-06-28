@@ -2,7 +2,7 @@ using UnityEngine;
 
 namespace MyToolz.Player.FPS.CombatSystem.Model
 {
-    [CreateAssetMenu(fileName = "create new reticle", menuName = "NoSaints/CombatSystem/Reticle")]
+    [CreateAssetMenu(fileName = "create new reticle", menuName = "MyToolz/CombatSystem/Reticle")]
     public class ReticleSO : ScriptableObject
     {
         [SerializeField, Range(1f, 1000f)] private float deltaSizeMultiplier = 14f;

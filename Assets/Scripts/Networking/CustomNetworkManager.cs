@@ -7,7 +7,7 @@ using Zenject;
 using System.Threading.Tasks;
 using MyToolz.Networking.ScriptableObjects;
 using MyToolz.DesignPatterns.EventBus;
-using NoSaints.Relays;
+using MyToolz.Relays;
 using MyToolz.Utilities.Debug;
 using MyToolz.Networking.Relays;
 using MyToolz.Networking.Strategies;
