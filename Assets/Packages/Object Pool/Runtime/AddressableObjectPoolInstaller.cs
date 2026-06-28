@@ -72,6 +72,14 @@ namespace MyToolz.DesignPatterns.ObjectPool
                 }
 
                 int prefabId = prefabComponent.GetInstanceID();
+
+                if (container.HasBindingId<Pool<T>>(prefabId))
+                {
+                    mappings[prefabId] = container.ResolveId<Pool<T>>(prefabId);
+                    Addressables.Release(handle);
+                    continue;
+                }
+
                 loadedHandles[prefabId] = handle;
 
                 container.BindMemoryPool<T, Pool<T>>()
@@ -84,12 +92,13 @@ namespace MyToolz.DesignPatterns.ObjectPool
                         OnCreated,
                         OnDespawned)
                     .FromComponentInNewPrefab(prefabComponent)
-                    .UnderTransformGroup($"{typeof(T).Name} Pool")
-                    .NonLazy();
+                    .UnderTransformGroup($"{typeof(T).Name} Pool");
+
+                container.ResolveId<Pool<T>>(prefabId);
             }
         }
 
-        private void OnDestroy()
+        protected override void OnSingletonDestroy()
         {
             cancellationTokenSource?.Cancel();
             cancellationTokenSource?.Dispose();

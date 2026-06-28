@@ -56,6 +56,7 @@ namespace MyToolz.DesignPatterns.ObjectPool
         private EventBinding<ReleaseRequest<T>> releaseBinding;
 
         protected DiContainer container;
+        private bool initialized;
 
         [Serializable]
         public class PoolObject
@@ -65,30 +66,27 @@ namespace MyToolz.DesignPatterns.ObjectPool
             [Range(0, 100000)] public int MaxCapacity = 200;
         }
 
-        [Inject]
-        private void Construct(DiContainer container)
+        protected override void OnSingletonAwake()
         {
-            this.container = container;
-        }
-
-        private void Awake()
-        {
+            container = ProjectContext.Instance.Container;
             InitializePools();
+            initialized = true;
         }
 
         private void OnEnable()
         {
-            RegisterEventHandlers();
+            if (initialized)
+            {
+                RegisterEventHandlers();
+            }
         }
 
         private void OnDisable()
         {
-            DeregisterEventHandlers();
-        }
-
-        private void OnDestroy()
-        {
-            OnDisable();
+            if (initialized)
+            {
+                DeregisterEventHandlers();
+            }
         }
 
         protected virtual void RegisterEventHandlers()

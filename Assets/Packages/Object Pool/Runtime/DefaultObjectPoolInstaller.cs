@@ -19,13 +19,20 @@ namespace MyToolz.DesignPatterns.ObjectPool
 
                 int prefabId = poolObj.Prefab.GetInstanceID();
 
+                if (container.HasBindingId<Pool<T>>(prefabId))
+                {
+                    mappings[prefabId] = container.ResolveId<Pool<T>>(prefabId);
+                    continue;
+                }
+
                 container.BindMemoryPool<T, Pool<T>>()
                     .WithId(prefabId)
                     .WithInitialSize(poolObj.DefaultCapacity)
                     .WithFactoryArguments<Action<Pool<T>>, int, Action<T>, Action<int, T>, Action<T>>((pool) => mappings.Add(prefabId, pool), prefabId, OnSpawned, OnCreated, OnDespawned)
                     .FromComponentInNewPrefab(poolObj.Prefab)
-                    .UnderTransformGroup($"{typeof(T).Name} Pool")
-                    .NonLazy();
+                    .UnderTransformGroup($"{typeof(T).Name} Pool");
+
+                container.ResolveId<Pool<T>>(prefabId);
             }
         }
     }
