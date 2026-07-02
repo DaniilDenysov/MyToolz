@@ -1,7 +1,7 @@
 {
   "name": "com.mytoolz.io",
   "displayName": "IO",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "unity": "2022.3",
   "unityRelease": "46f1",
   "description": "Save/load system with pluggable serialization strategies. Includes Newtonsoft JSON and Unity JSON backends with ScriptableObject-driven configuration. Requires Zenject (https://github.com/modesttree/Zenject), SerializeReferenceExtensions (https://github.com/mackysoft/Unity-SerializeReferenceExtensions)",

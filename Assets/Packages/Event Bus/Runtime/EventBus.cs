@@ -48,11 +48,24 @@ namespace MyToolz.DesignPatterns.EventBus
 
             isResolving = true;
 
-            while (pendingRequests.Count > 0)
+            try
             {
-                pendingRequests.Dequeue().Invoke();
+                while (pendingRequests.Count > 0)
+                {
+                    pendingRequests.Dequeue().Invoke();
+                }
             }
+            finally
+            {
+                isResolving = false;
+            }
+        }
 
+        // Invoked via reflection by EventBusUtil.ClearAllBuses().
+        private static void Clear()
+        {
+            bindings.Clear();
+            pendingRequests.Clear();
             isResolving = false;
         }
     }

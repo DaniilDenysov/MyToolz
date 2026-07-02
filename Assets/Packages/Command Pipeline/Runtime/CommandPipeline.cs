@@ -33,12 +33,12 @@ namespace MyToolz.DesignPatterns.Command
 
         public virtual void Update()
         {
-            if (executingCommands.Count >= callStackSize) return;
-            if (pendingCommands.Count == 0) return;
-
-            var command = pendingCommands.Dequeue();
-            command.Execute();
-            executingCommands.Add(command);
+            while (executingCommands.Count < callStackSize && pendingCommands.Count > 0)
+            {
+                var command = pendingCommands.Dequeue();
+                command.Execute();
+                executingCommands.Add(command);
+            }
         }
 
         public virtual void Clear()

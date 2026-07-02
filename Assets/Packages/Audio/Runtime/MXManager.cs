@@ -68,6 +68,12 @@ namespace MyToolz.Audio
             UnregisterEvents();
             CancelTokenSource(ref lifetimeCts);
             CancelTokenSource(ref intensityFadeCts);
+
+            for (int i = 0; i < activeLoopInstances.Count; i++)
+            {
+                activeLoopInstances[i].Dispose();
+            }
+            activeLoopInstances.Clear();
         }
 
         public void RegisterEvents()
@@ -269,6 +275,16 @@ namespace MyToolz.Audio
                 for (int i = 0; i < clipCount; i++)
                 {
                     AudioSourceWrapper wrapper = manager.AcquireFromPool(manager.transform);
+                    if (wrapper == null)
+                    {
+                        DebugUtility.LogError(this, $"Failed to acquire an AudioSourceWrapper from the pool for song: {song.name}. Is an ObjectPoolInstaller for AudioSourceWrapper active?");
+                        for (int j = 0; j < i; j++)
+                        {
+                            manager.ReleaseToPool(wrappers[j]);
+                        }
+                        return;
+                    }
+
                     AudioSource source = wrapper.GetComponent<AudioSource>();
                     source.Configure(song.AudioSourceConfigSO);
                     source.clip = song.IntensityClips[i];
@@ -386,7 +402,7 @@ namespace MyToolz.Audio
 
                 float currentIntensity = manager.intensity;
 
-                if (currentIntensity <= 0f)
+                if (sources.Length == 1 || currentIntensity <= 0f)
                 {
                     sources[0].volume = primaryVolume;
                     return;

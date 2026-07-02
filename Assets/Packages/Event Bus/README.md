@@ -24,7 +24,7 @@ Runtime/
 Define an event struct, then raise and listen:
 
 ```csharp
-public struct PlayerDiedEvent { public int PlayerId; }
+public struct PlayerDiedEvent : IEvent { public int PlayerId; }
 
 EventBus<PlayerDiedEvent>.Register(binding);
 EventBus<PlayerDiedEvent>.Raise(new PlayerDiedEvent { PlayerId = 1 });
@@ -32,3 +32,5 @@ EventBus<PlayerDiedEvent>.Deregister(binding);
 ```
 
 Implement `IEventListener` on MonoBehaviours and register in `OnEnable`, deregister in `OnDisable`/`OnDestroy`.
+
+Events must implement `IEvent`. Raising, registering, or deregistering from inside an event handler is safe — nested requests are queued and processed after the current dispatch finishes.

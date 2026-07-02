@@ -23,10 +23,15 @@ var map = new BiDictionary<int, string>();
 map.TryAdd(1, "one");
 
 map.TryGetValue(1, out string name);   // "one"
-map.TryGetValue("one", out int id);    // 1
+map.TryGetKey("one", out int id);      // 1
 
-map.Remove("one");                     // removes both directions
+map.RemoveByValue("one");              // removes both directions
 ```
 
 Insertion is rejected (`TryAdd` returns `false`) if either the key or the value
 is already present, guaranteeing the mapping stays one-to-one.
+
+Method names are direction-explicit (`TryGetValue`/`TryGetKey`,
+`Remove`/`RemoveByValue`, `ContainsKey`/`ContainsValue`) rather than overloads,
+so the type still compiles and stays unambiguous when `TKey` and `TValue` are
+the same type.

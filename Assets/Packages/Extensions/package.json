@@ -1,7 +1,7 @@
 {
   "name": "com.mytoolz.extensions",
   "displayName": "Extensions",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "unity": "2022.3",
   "unityRelease": "46f1",
   "description": "Extensions used internally by the framework",

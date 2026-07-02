@@ -85,6 +85,7 @@ namespace MyToolz.DesignPatterns.ObjectPool
                 container.BindMemoryPool<T, Pool<T>>()
                     .WithId(prefabId)
                     .WithInitialSize(poolObj.DefaultCapacity)
+                    .WithMaxSize(poolObj.MaxCapacity)
                     .WithFactoryArguments<Action<Pool<T>>, int, Action<T>, Action<int, T>, Action<T>>(
                         (pool) => mappings.Add(prefabId, pool),
                         prefabId,

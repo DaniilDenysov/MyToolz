@@ -92,9 +92,9 @@ namespace MyToolz.Utilities.Debug
 
         [ThreadStatic] private static StringBuilder _sb;
 
-        private static DebugUtilityMessageSO errorMessage = Cached.ErrorMessage;
-        private static DebugUtilityMessageSO logMessage = Cached.LogMessage;
-        private static DebugUtilityMessageSO warningMessage = Cached.WarningMessage;
+        private static DebugUtilityMessageSO errorMessage => Cached != null ? Cached.ErrorMessage : null;
+        private static DebugUtilityMessageSO logMessage => Cached != null ? Cached.LogMessage : null;
+        private static DebugUtilityMessageSO warningMessage => Cached != null ? Cached.WarningMessage : null;
 
         private readonly struct CacheKey
         {

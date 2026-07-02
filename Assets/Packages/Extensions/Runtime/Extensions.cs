@@ -7,7 +7,7 @@ namespace MyToolz.Extensions
     {
         public static float ToFloat(this double arg)
         {
-            return float.Parse(arg.ToString());
+            return (float)arg;
         }
     }
 

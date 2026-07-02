@@ -48,3 +48,11 @@ public sealed class MessagePackStrategy<T> : SerializationStrategy<T> where T : 
     public override T Deserialize(string raw) { ... }
 }
 ```
+
+## Encryption Strategies
+
+An `EncryptionStrategy` is applied to the serialized text before writing and after reading, selected via the same SubclassSelector dropdown. The default is `NoEncryptionStrategy` (pass-through). To add your own, subclass `EncryptionStrategy`, mark it `[Serializable]`, and implement `Encrypt`/`Decrypt`.
+
+## Write Safety
+
+Saves are atomic: data is written to a `.tmp` file first, then swapped into place with `File.Replace`, which keeps the previous save as a `.bak` file (a copy/move fallback covers platforms without `File.Replace` support). Loading falls back to the `.bak` file when the main file is missing or corrupt, and restores it as the main save on success.

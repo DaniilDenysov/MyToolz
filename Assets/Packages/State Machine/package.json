@@ -1,7 +1,7 @@
 {
   "name": "com.mytoolz.statemachine",
   "displayName": "StateMachine",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "unity": "2022.3",
   "unityRelease": "46f1",
   "description": "State machine design pattern with priority-based and hierarchical variants. Requires Zenject (https://github.com/modesttree/Zenject), UniTask (https://github.com/Cysharp/UniTask)",

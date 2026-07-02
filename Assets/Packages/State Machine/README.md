@@ -23,3 +23,7 @@ Runtime/
 └── MultiThreadPriority/
     └── PriorityStateMachine_MultiThread.cs            Thread-safe priority state machine using UniTask
 ```
+
+## Notes
+
+- `PriorityStateMachine_MultiThread` evaluates state conditions on the thread pool via UniTask at a configurable rate (`evaluationRateHz`) and applies transitions on the main thread. The worker stops on disable and restarts automatically on re-enable. `IsConditionFulfilled()` implementations must therefore be thread-safe.

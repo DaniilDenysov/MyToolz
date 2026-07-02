@@ -49,12 +49,6 @@ namespace MyToolz.UI.Management
             {
                 state.OnExit();
             }
-
-            if (CurrentState != null)
-            {
-                CurrentState.OnExit();
-            }
-
         }
 
     }

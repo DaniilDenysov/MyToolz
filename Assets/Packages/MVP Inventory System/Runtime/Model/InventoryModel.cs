@@ -60,7 +60,7 @@ namespace MyToolz.InventorySystem.Models
             if (amount == 0 || !inventoryItems.TryGetValue(inventoryItemSO, out uint currentAmount))
                 return;
 
-            uint newAmount = (uint)Mathf.Max(0, currentAmount - amount);
+            uint newAmount = amount >= currentAmount ? 0u : currentAmount - amount;
             DebugUtility.Log(this, $"{newAmount}");
             if (newAmount == 0)
             {

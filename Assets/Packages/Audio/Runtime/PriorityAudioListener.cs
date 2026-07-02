@@ -4,7 +4,7 @@ using System;
 using System.Linq;
 using MyToolz.Events;
 
-namespace NoSaints.SFX
+namespace MyToolz.Audio
 {
     [RequireComponent(typeof(AudioListener))]
     public class PriorityAudioListener : MonoBehaviour, IEventListener
@@ -37,7 +37,7 @@ namespace NoSaints.SFX
             {
                 return;
             }
-            priorityListeners.OrderByDescending(l => l.priority);
+            priorityListeners.Sort((a, b) => b.priority.CompareTo(a.priority));
         }
 
         private void AddSelf()
@@ -64,13 +64,13 @@ namespace NoSaints.SFX
             onListenerUpdated?.Invoke(priorityListeners.FirstOrDefault().AudioListener);
         }
 
-        private void OnListenerChanged(AudioListener audioListener)
+        private void OnListenerChanged(AudioListener activeListener)
         {
-            if (audioListener == null)
+            if (activeListener == null || audioListener == null)
             {
                 return;
             }
-            audioListener.enabled = this.audioListener == audioListener;
+            audioListener.enabled = audioListener == activeListener;
         }
 
         private void OnEnable()

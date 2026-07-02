@@ -18,7 +18,7 @@ External: Zenject.
 Runtime/
 └── AnimatorStateMachine.cs
     ├── AnimatorState            Abstract serializable state with AnimationClip hashing, randomization, and loop detection
-    ├── IAnimatorStateMachine<T> Interface extending IStateMachine with animation duration query
+    ├── IAnimatorStateMachine<T> Interface extending IStateMachine with a normalized-time query
     └── AnimatorStateMachine<T>  Abstract MonoBehaviour driving an Animator via PriorityStateMachine
 ```
 
@@ -37,3 +37,5 @@ public class CharacterAnimator : AnimatorStateMachine<CharacterState> { }
 ```
 
 The state machine evaluates states by priority each frame. When a higher-priority state becomes valid, the animator crossfades to its animation hash. Randomized states select from an array of clips on each entry.
+
+`GetCurrentAnimationNormalizedTime()` returns the current animator state's normalized time wrapped to 0–1 (progress within the current loop iteration).

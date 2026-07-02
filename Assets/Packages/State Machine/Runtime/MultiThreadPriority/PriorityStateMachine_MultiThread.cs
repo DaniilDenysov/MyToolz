@@ -45,6 +45,7 @@ namespace MyToolz.DesignPatterns.StateMachine.MultiThreadPriorityBased
         private volatile int nextCandidateIndex = -1;
         private int evalIntervalMs;
         private CancellationTokenSource cts;
+        private bool workerInitialized;
 
         [Inject]
         private void Construct(DiContainer container)
@@ -75,6 +76,16 @@ namespace MyToolz.DesignPatterns.StateMachine.MultiThreadPriorityBased
 
             evalIntervalMs = Mathf.Max(1, Mathf.RoundToInt(1000f / evaluationRateHz));
             StartWorker();
+            workerInitialized = true;
+        }
+
+        protected virtual void OnEnable()
+        {
+            // Start() only runs once, so the worker must be restarted after a disable/enable cycle.
+            if (workerInitialized && cts == null)
+            {
+                StartWorker();
+            }
         }
 
         protected virtual void Update()

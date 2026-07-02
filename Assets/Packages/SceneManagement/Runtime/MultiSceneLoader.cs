@@ -22,6 +22,13 @@ namespace MyToolz.SceneManagement
         async void Start()
         {
             RegisterEvents();
+
+            if (sceneGroups == null || sceneGroups.Length == 0)
+            {
+                DebugUtility.LogWarning(this, "No scene groups configured, skipping initial load.");
+                return;
+            }
+
             await LoadSceneGroup(sceneGroups[0], null);
         }
 

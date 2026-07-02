@@ -1,7 +1,7 @@
 {
   "name": "com.mytoolz.mvpuimanagementsystem",
   "displayName": "MVP UIManagementSystem",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "unity": "2022.3",
   "unityRelease": "46f1",
   "description": "Plug-and-use system that manages the full UI lifecycle including panel registration, transitions, and input blocking. Requires Zenject (https://github.com/modesttree/Zenject), SerializeReferenceExtensions (https://github.com/mackysoft/Unity-SerializeReferenceExtensions)",

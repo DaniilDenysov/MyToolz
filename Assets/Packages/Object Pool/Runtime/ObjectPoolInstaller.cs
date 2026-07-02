@@ -51,6 +51,7 @@ namespace MyToolz.DesignPatterns.ObjectPool
 
         protected Dictionary<int, P> mappings = new();
         protected Dictionary<T, int> buffer = new();
+        protected HashSet<T> spawned = new();
 
         private EventBinding<PoolRequest<T>> requestBinding;
         private EventBinding<ReleaseRequest<T>> releaseBinding;
@@ -145,6 +146,7 @@ namespace MyToolz.DesignPatterns.ObjectPool
 
         public virtual void OnSpawned(T obj)
         {
+            spawned.Add(obj);
             obj.gameObject.SetActive(true);
             if (obj.TryGetComponent(out IPoolable poolable))
             {
@@ -154,6 +156,7 @@ namespace MyToolz.DesignPatterns.ObjectPool
 
         public virtual void OnDespawned(T obj)
         {
+            spawned.Remove(obj);
             obj.gameObject.SetActive(false);
             if (obj.TryGetComponent(out IPoolable poolable))
             {
@@ -187,12 +190,23 @@ namespace MyToolz.DesignPatterns.ObjectPool
 
         public virtual void Release(T obj)
         {
+            if (obj == null)
+            {
+                DebugUtility.LogError(this, "Provided object is null.");
+                return;
+            }
+
             if (buffer.TryGetValue(obj, out int prefabId))
             {
+                if (!spawned.Contains(obj))
+                {
+                    DebugUtility.LogWarning(this, $"Object already released: {obj.name}");
+                    return;
+                }
+
                 if (mappings.TryGetValue(prefabId, out var pool))
                 {
                     DebugUtility.Log(this, $"ReleaseRequest fullfilled!");
-                    buffer.Remove(obj);
                     pool.Despawn(obj);
                 }
                 else

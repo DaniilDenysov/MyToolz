@@ -208,16 +208,31 @@ namespace MyToolz.IO
             string processed = encryptionStrategy.Encrypt(raw);
 
             File.WriteAllText(tempPath, processed);
-
-            if (File.Exists(fullPath))
-                File.Copy(fullPath, backupPath, overwrite: true);
-
-            if (File.Exists(fullPath))
-                File.Delete(fullPath);
-
-            File.Move(tempPath, fullPath);
+            CommitTempFile();
 
             DebugUtility.Log(this, "Saved!");
+        }
+
+        private void CommitTempFile()
+        {
+            if (File.Exists(fullPath))
+            {
+                try
+                {
+                    // Atomic on NTFS: swaps temp into place and keeps the old file as .bak.
+                    File.Replace(tempPath, fullPath, backupPath);
+                }
+                catch (PlatformNotSupportedException)
+                {
+                    File.Copy(fullPath, backupPath, overwrite: true);
+                    File.Delete(fullPath);
+                    File.Move(tempPath, fullPath);
+                }
+            }
+            else
+            {
+                File.Move(tempPath, fullPath);
+            }
         }
 
         protected T LoadFromFile()
@@ -275,18 +290,7 @@ namespace MyToolz.IO
             string processed = encryptionStrategy.Encrypt(raw);
 
             await File.WriteAllTextAsync(tempPath, processed);
-
-            if (File.Exists(fullPath))
-            {
-                File.Copy(fullPath, backupPath, overwrite: true);
-            }
-
-            if (File.Exists(fullPath))
-            {
-                File.Delete(fullPath);
-            }
-
-            File.Move(tempPath, fullPath);
+            CommitTempFile();
 
             DebugUtility.Log(this, "Saved!");
         }

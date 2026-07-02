@@ -129,11 +129,18 @@ namespace MyToolz.UI.Management
 
         private void ExitAllLayers()
         {
-            do
+            while (layerStackList.Count > 0)
             {
-                ExitLayer();
-            } while (CurrentLayer);
-            layerStackList.Clear();
+                var so = layerStackList.Pop();
+                DebugUtility.Log(this, $"[UILayer] Popping layer {so?.name}");
+
+                if (!layerStacks.TryGetValue(so, out var screens)) continue;
+
+                screens.RemoveWhere((l) => l == default);
+
+                foreach (var layer in screens)
+                    layer.OnExit();
+            }
         }
     }
 

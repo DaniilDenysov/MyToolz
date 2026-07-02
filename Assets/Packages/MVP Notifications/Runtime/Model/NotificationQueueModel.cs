@@ -90,28 +90,39 @@ namespace MyToolz.UI.Notifications.Model
                 }
             }
 
-            if (active.Count >= maxActive)
-            {
-                int evictedId = TryEvict(data, key);
-                if (evictedId < 0 && active.Count >= maxActive)
-                {
-                    if (active.Count < maxActive)
-                    {
-                        var result = SpawnNew(data, key);
-                        NotifyChanged();
-                        return result;
-                    }
-                    EnqueuePending(data, key);
-                    NotifyChanged();
-                    return new AddOutcome { Result = AddResult.Enqueued, Key = key };
-                }
-            }
-
             if (active.Count < maxActive)
             {
                 var result = SpawnNew(data, key);
                 NotifyChanged();
                 return result;
+            }
+
+            int evictedId = TryEvict(data, key);
+            if (active.Count < maxActive)
+            {
+                var result = SpawnNew(data, key);
+                if (evictedId >= 0)
+                {
+                    result.Result = AddResult.ReplacedActive;
+                    result.ReplacedId = evictedId;
+                }
+                NotifyChanged();
+                return result;
+            }
+
+            if (data.Overflow == OverflowPolicy.ReplaceSameKeyOrDropNew)
+            {
+                if (TryReplacePending(data, key))
+                {
+                    NotifyChanged();
+                    return new AddOutcome { Result = AddResult.Enqueued, Key = key };
+                }
+                return new AddOutcome { Result = AddResult.Dropped, Key = key };
+            }
+
+            if (data.Overflow == OverflowPolicy.DropNew)
+            {
+                return new AddOutcome { Result = AddResult.Dropped, Key = key };
             }
 
             EnqueuePending(data, key);
@@ -123,9 +134,6 @@ namespace MyToolz.UI.Notifications.Model
         {
             switch (data.Overflow)
             {
-                case OverflowPolicy.DropNew:
-                    return -1;
-
                 case OverflowPolicy.DropOldest:
                     if (active.Count == 0) return -1;
                     var oldest = active[0];
@@ -137,7 +145,7 @@ namespace MyToolz.UI.Notifications.Model
                     return EvictLowestPriority();
 
                 case OverflowPolicy.ReplaceSameKeyOrDropNew:
-                    return EvictByKey(key, null);
+                    return EvictActiveByKey(key, null);
 
                 default:
                     return -1;
@@ -167,17 +175,8 @@ namespace MyToolz.UI.Notifications.Model
             return entry.Id;
         }
 
-        private int EvictByKey(string key, Type messageType)
+        private int EvictActiveByKey(string key, Type messageType)
         {
-            for (int i = pending.Count - 1; i >= 0; i--)
-            {
-                if (pending[i].Key != key) continue;
-                if (messageType != null && pending[i].Request.MessageType != messageType) continue;
-                pending.RemoveAt(i);
-                keyPresence.Remove(key);
-                return -1;
-            }
-
             for (int i = active.Count - 1; i >= 0; i--)
             {
                 if (active[i].Key != key) continue;
@@ -189,6 +188,17 @@ namespace MyToolz.UI.Notifications.Model
             }
 
             return -1;
+        }
+
+        private bool TryReplacePending(NotificationData data, string key)
+        {
+            for (int i = 0; i < pending.Count; i++)
+            {
+                if (pending[i].Key != key) continue;
+                pending[i] = new PendingEntry { Request = data, Key = key };
+                return true;
+            }
+            return false;
         }
 
         public int RemoveByKey(string key, Type messageType = null)
@@ -235,6 +245,7 @@ namespace MyToolz.UI.Notifications.Model
             if (pending.Count == 0) return null;
             var next = pending[0];
             pending.RemoveAt(0);
+            keyPresence.Remove(next.Key);
             return next;
         }
 

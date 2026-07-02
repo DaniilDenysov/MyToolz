@@ -177,12 +177,12 @@ namespace MyToolz.FreeCamera
 
         private void SubscribeInputActions()
         {
-            if (toggleAction != null && toggleAction != null)
+            if (toggleAction != null)
             {
                 toggleAction.OnPerformed += OnTogglePerformed;
             }
 
-            if (scrollAction != null && scrollAction != null)
+            if (scrollAction != null)
             {
                 scrollAction.OnInputPerformed += OnScrollPerformed;
             }
@@ -190,10 +190,10 @@ namespace MyToolz.FreeCamera
 
         private void UnsubscribeInputActions()
         {
-            if (toggleAction != null && toggleAction != null)
+            if (toggleAction != null)
                 toggleAction.OnPerformed -= OnTogglePerformed;
 
-            if (scrollAction != null && scrollAction != null)
+            if (scrollAction != null)
                 scrollAction.OnInputPerformed -= OnScrollPerformed;
         }
 

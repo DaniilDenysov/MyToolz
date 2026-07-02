@@ -27,52 +27,22 @@ namespace MyToolz.Tweener
             if (strategiesList == null || strategiesList.Count == 0)
                 return null;
 
-            if (paralelExecution)
+            Sequence sequence = DOTween.Sequence();
+
+            foreach (var strategy in strategiesList)
             {
-                Sequence sequence = DOTween.Sequence();
-                foreach (var strategy in strategiesList)
-                {
-                    var tween = strategy?.GetTween();
-                    if (tween != null)
-                    {
-                        sequence.Join(tween);
-                        tween.OnComplete(() =>
-                        {
+                var tween = strategy?.GetTween();
+                if (tween == null)
+                    continue;
 
-                        })
-                        .OnKill(() =>
-                        {
-
-                        });
-                        tween.Play();
-                    }
-                }
-                runningTweens.Add(sequence);
-                return sequence;
+                if (paralelExecution)
+                    sequence.Join(tween);
+                else
+                    sequence.Append(tween);
             }
-            else
-            {
-                Sequence sequence = DOTween.Sequence();
 
-                foreach (var strategy in strategiesList)
-                {
-                    var tween = strategy.GetTween();
-                    if (tween != null)
-                    {
-                        sequence.Append(tween);
-                    }
-                }
-                sequence.OnComplete(() =>
-                {
-
-                })
-                .OnKill(() =>
-                {
-
-                });
-                runningTweens.Add(sequence);
-                return sequence;
-            }
+            runningTweens.Add(sequence);
+            return sequence;
         }
 
         protected void CancelSequence()

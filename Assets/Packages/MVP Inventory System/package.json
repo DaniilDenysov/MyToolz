@@ -1,7 +1,7 @@
 {
   "name": "com.mytoolz.mvpinventorysystem",
   "displayName": "MVP InventorySystem",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "unity": "2022.3",
   "unityRelease": "46f1",
   "description": "MVP-based inventory system with drag-and-drop slots, item stacking, persistence, and pooled UI. Requires Zenject (https://github.com/modesttree/Zenject), SerializeReferenceExtensions (https://github.com/mackysoft/Unity-SerializeReferenceExtensions)",

@@ -127,11 +127,11 @@ EventBus<NotificationClearRequest>.Raise(new NotificationClearRequest
 
 | Policy | Behavior |
 |---|---|
-| `None` | Dropped. |
+| `None` | Enqueued (priority-ordered) until an active slot frees up. |
 | `DropNew` | Incoming notification is discarded. |
 | `DropOldest` | Oldest active notification is force-released. |
 | `DropLowestPriority` | Lowest priority active notification is force-released. Ties broken by age. |
-| `ReplaceSameKeyOrDropNew` | Replaces matching key if exists, otherwise dropped. |
+| `ReplaceSameKeyOrDropNew` | Replaces matching key (active or pending) if it exists, otherwise the incoming notification is dropped. |
 
 ## Deduplication Policies
 

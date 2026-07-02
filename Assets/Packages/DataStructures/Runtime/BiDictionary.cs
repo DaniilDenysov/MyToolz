@@ -20,18 +20,12 @@ namespace MyToolz.DataStructures
             return true;
         }
 
-        public bool TryAdd(TValue value, TKey key)
-        {
-            return TryAdd(key, value);
-        }
-
-
         public bool TryGetValue(TKey key, out TValue value)
         {
             return forward.TryGetValue(key, out value);
         }
 
-        public bool TryGetValue(TValue value, out TKey key)
+        public bool TryGetKey(TValue value, out TKey key)
         {
             return reverse.TryGetValue(value, out key);
         }
@@ -47,7 +41,7 @@ namespace MyToolz.DataStructures
             return false;
         }
 
-        public bool Remove(TValue value)
+        public bool RemoveByValue(TValue value)
         {
             if (reverse.TryGetValue(value, out TKey key))
             {
@@ -64,14 +58,14 @@ namespace MyToolz.DataStructures
             reverse.Clear();
         }
 
-        public bool Contains(TKey key)
+        public bool ContainsKey(TKey key)
         {
             return forward.ContainsKey(key);
         }
 
         public int Count => forward.Keys.Count;
 
-        public bool Contains(TValue value)
+        public bool ContainsValue(TValue value)
         {
             return reverse.ContainsKey(value);
         }

@@ -30,6 +30,9 @@ namespace MyToolz.Algorithms.AStar
 
         public T Dequeue()
         {
+            if (_count == 0)
+                throw new InvalidOperationException("Heap is empty.");
+
             var item = _items[0];
             _count--;
 

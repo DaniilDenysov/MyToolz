@@ -59,6 +59,8 @@ namespace MyToolz.DesignPatterns.StateMachine.PriorityBased
 
         protected virtual void Start()
         {
+            if (behaviourStates == null || statesCount == 0) return;
+
             behaviourStates = behaviourStates.OrderByDescending(a => a.Priority).ToArray();
             for (int i = 0; i < statesCount; i++)
             {

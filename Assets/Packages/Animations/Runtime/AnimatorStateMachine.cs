@@ -123,7 +123,7 @@ namespace MyToolz.Animations
 
     public interface IAnimatorStateMachine<T> : IStateMachine<T> where T : IState
     {
-        public float GetCurrentAninationDuration();
+        public float GetCurrentAnimationNormalizedTime();
     }
 
     public abstract class AnimatorStateMachine<T> : PriorityStateMachine<T>, IAnimatorStateMachine<T> where T : AnimatorState
@@ -212,11 +212,10 @@ namespace MyToolz.Animations
             DebugUtility.Log(this, $"Animator switched to {state.GetType().Name}");
         }
 
-        public float GetCurrentAninationDuration()
+        public float GetCurrentAnimationNormalizedTime()
         {
             AnimatorStateInfo animState = animator.GetCurrentAnimatorStateInfo(0);
-            float currentTime = animState.normalizedTime % 1 * animState.speedMultiplier;
-            return currentTime;
+            return animState.normalizedTime % 1f;
         }
     }
 }

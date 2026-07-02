@@ -18,9 +18,9 @@ Systems that require wiring (presenters, pools, state managers) use Zenject. Eac
 
 The packages fall into four groups:
 
-**Foundation** packages have zero or minimal internal dependencies and provide primitives used across the framework: Adapter, Prototype, Singleton, Debug Utility, Editor Toolz, Extensions, Event Bus, Command Pipeline, Tweener, and IO.
+**Foundation** packages have zero or minimal internal dependencies and provide primitives used across the framework: Adapter, Prototype, Singleton, Data Structures, Debug Utility, Editor Toolz, Extensions, Event Bus, Command Pipeline, Tweener, and IO.
 
-**Infrastructure** packages build on the foundation to provide system-level services: Object Pool, State Machine, Input Management, Input Commands, Input Command Pipeline, Auto Logger, Audio, Animations, UI Tweener, and Free Camera.
+**Infrastructure** packages build on the foundation to provide system-level services: Object Pool, State Machine, Input Management, Input Commands, Input Command Pipeline, Auto Logger, Audio, Animations, Scene Management, UI Tweener, and Free Camera.
 
 **MVP Core** provides the Model-View-Presenter pattern implementation and the UI Management System that all game-facing MVP packages extend.
 
@@ -32,7 +32,8 @@ The packages fall into four groups:
 Adapter ─────────────────────────────────────────────────────── (no deps)
 Prototype ───────────────────────────────────────────────────── (no deps)
 Singleton ───────────────────────────────────────────────────── (no deps)
-Command Pipeline ────────────────────────────────────────────── (no deps)
+Data Structures ─────────────────────────────────────────────── (no deps)
+Command Pipeline ────────────────────────────────────────────── (Unity Input System)
 
 Debug Utility ───────────────────────────────────────────────── (no deps)
   ├── Editor Toolz
@@ -42,7 +43,7 @@ Debug Utility ──────────────────────
   ├── Auto Logger ────────────── (UniTask)
   ├── Input Management ───────── (Unity Input System)
   │
-  ├── Object Pool ────────────── Event Bus, Zenject, [Addressables]
+  ├── Object Pool ────────────── Event Bus, Singleton, Zenject, [Addressables]
   ├── State Machine ──────────── Editor Toolz, Zenject, [UniTask]
   ├── Animations ─────────────── State Machine, Editor Toolz
   ├── IO ─────────────────────── Editor Toolz, Newtonsoft.Json
@@ -50,7 +51,8 @@ Debug Utility ──────────────────────
   ├── Input Commands ─────────── Event Bus, Command Pipeline, Unity Input System
   │   └── Input Command Pipeline ── Command Pipeline, Input Commands, Zenject
   │
-  ├── Audio ──────────────────── Editor Toolz, DOTween, UniTask, [Event Bus, Object Pool]
+  ├── Audio ──────────────────── Editor Toolz, Extensions, Singleton, Event Bus, Object Pool, DOTween, UniTask
+  ├── Scene Management ───────── Event Bus, Extensions, MVP Loading Screen, UniTask
   ├── UI Tweener ─────────────── Editor Toolz, Extensions, Tweener, DOTween
   │
   ├── MVP ────────────────────── (standalone)
@@ -74,7 +76,7 @@ Debug Utility ──────────────────────
 | Zenject | Object Pool, State Machine, Input Command Pipeline, MVP UI Management System, MVP Game Settings, MVP Health System, MVP Inventory System, MVP Loading Screen |
 | DOTween | Tweener, UI Tweener, Audio, MVP Health System, MVP Notifications |
 | UniTask | Auto Logger, MVP Clock, MVP Loading Screen, State Machine (multi-thread), Audio |
-| Unity Input System | Input Management, Input Commands, Input Command Pipeline, Free Camera, Tooltip System |
+| Unity Input System | Command Pipeline, Input Management, Input Commands, Input Command Pipeline, Free Camera, Tooltip System |
 | TextMeshPro | MVP Clock, MVP Game Settings, MVP Inventory System, MVP Notifications |
 | Newtonsoft.Json | IO |
 | Unity Addressables | Object Pool (optional, AddressableObjectPoolInstaller) |
@@ -132,7 +134,7 @@ Shared utility extension methods for common Unity and C# types plus scene manage
 Generic static event bus (`EventBus<T>`) with strongly-typed bindings and automatic assembly scanning. All cross-system communication in the framework flows through the bus.
 
 ```csharp
-public struct PlayerDiedEvent { public int PlayerId; }
+public struct PlayerDiedEvent : IEvent { public int PlayerId; }
 
 var binding = new EventBinding<PlayerDiedEvent>(OnPlayerDied);
 EventBus<PlayerDiedEvent>.Register(binding);
@@ -144,7 +146,11 @@ Implement `IEventListener` on MonoBehaviours: register in `OnEnable`, deregister
 
 ### Command Pipeline
 
-Command pattern implementation with `ICommand` (Execute/Undo) and `ICommandPipeline` for sequential command execution with undo support.
+Command pattern implementation with `ICommand` and `ICommandPipeline<T>`: a bounded pending queue (oldest command dropped on overflow) that executes commands as execution slots free up, with configurable queue size and concurrent execution limit.
+
+### Data Structures
+
+Framework-agnostic generic data structures. Currently ships `BiDictionary<TKey, TValue>` — a bidirectional dictionary with O(1) lookup in both directions and direction-explicit method names (`TryGetValue`/`TryGetKey`, `Remove`/`RemoveByValue`, `ContainsKey`/`ContainsValue`).
 
 ### Tweener
 
@@ -162,7 +168,7 @@ Requires `com.unity.nuget.newtonsoft-json` in your manifest.
 
 ### Object Pool
 
-Event-driven object pooling via EventBus and Zenject. Supports both direct prefab references (`DefaultObjectPoolInstaller<T>`) and Addressable assets (`AddressableObjectPoolInstaller<T>`). Pooled objects can implement `IPoolable` for spawn/despawn callbacks.
+Event-driven object pooling via EventBus and Zenject. Supports both direct prefab references (`DefaultObjectPoolInstaller<T>`) and Addressable assets (`AddressableObjectPoolInstaller<T>`). Pooled objects can implement `IPoolable` for spawn/despawn callbacks. Pools enforce their configured initial and max capacities, and double releases are detected and ignored with a warning.
 
 ```csharp
 EventBus<PoolRequest<Bullet>>.Raise(new PoolRequest<Bullet>
@@ -188,6 +194,10 @@ Three variants of the state machine pattern, all driven by `IState` and `IStateM
 
 Priority-based animator state machine extending `PriorityStateMachine`. `AnimatorState` maps serialized `AnimationClip` references to hash IDs with randomization support. `AnimatorStateMachine<T>` drives an `Animator` through priority-evaluated crossfade transitions, handling loop detection, interruption, and completion checks.
 
+### Scene Management
+
+Additive, priority-batched multi-scene loading driven by the EventBus with aggregated progress reporting. `SceneGroupSO` assets describe groups of scenes with per-scene load priorities (lower loads first, equal priorities load in parallel). `MultiSceneLoader` listens for `LoadSceneGroup`/`ReloadCurrentSceneGroup` events and raises loading-screen and lifecycle events (`SceneGroupLoading`/`SceneGroupLoaded`). Ships a self-contained, build-safe `SceneReference`.
+
 ### Input Management
 
 Mode-based input state system. `InputModeSO` ScriptableObjects define which Input System actions are enabled and cursor behavior per mode. `InputStateManager` switches between modes. `InputDeviceTracker` detects keyboard/gamepad changes.
@@ -208,7 +218,9 @@ Hooks into Unity's log callback and writes all console output to a file. Configu
 
 ScriptableObject-driven audio system covering the full playback lifecycle:
 
-`AudioClipSO` defines clips with randomization, per-clip config overrides, and cooldown intervals. `AudioSourceConfigSO` defines mixer group, volume/pitch ranges, spatial blend, and bypass settings. Extension methods on `AudioSource` provide `Configure`, `Play`, `PlayWithCooldown`, `PlayLoop`, `FadeOut`, `FadeIn`, and `CrossFade`. For fire-and-forget spatial audio, raise `PlayAudioClipSO` events to trigger pooled `AudioSourceWrapper` instances via `AudioSourceObjectPool`.
+`AudioClipSO` defines clips with randomization, per-clip config overrides, and cooldown intervals. `AudioSourceConfigSO` defines mixer group, volume/pitch ranges, spatial blend, and bypass settings. Extension methods on `AudioSource` provide `Configure`, `Play`, `PlayWithCooldown`, `PlayLoop`, `FadeOut`, `FadeIn`, and `CrossFade`. For fire-and-forget spatial audio, raise `PlayAudioClipSO` events — `AudioManager` throttles per-clip play intervals and spawns pooled `AudioSourceWrapper` instances via `AudioSourceObjectPool`.
+
+For music, `MXManager` plays `SongSO` assets composed of synchronized intensity-layer clips, crossfading between adjacent layers as the intensity (0–1) changes and blending between songs. It is driven by `PlaySong`, `StopSong`, and `SetIntensity` events. `PriorityAudioListener` keeps exactly one `AudioListener` enabled — the highest-priority registered one.
 
 ### UI Tweener
 
