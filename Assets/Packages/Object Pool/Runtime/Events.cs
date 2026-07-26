@@ -18,4 +18,9 @@ namespace MyToolz.Events
         public T PoolObject;
         public Action<T> Callback;
     }
+
+    public struct PoolAllRequest<T> : IEvent
+    {
+        public Action<T> Callback;
+    }
 }

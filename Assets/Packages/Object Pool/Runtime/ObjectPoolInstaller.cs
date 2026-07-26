@@ -59,6 +59,7 @@ namespace MyToolz.DesignPatterns.ObjectPool
 
         private EventBinding<PoolRequest<T>> requestBinding;
         private EventBinding<ReleaseRequest<T>> releaseBinding;
+        private EventBinding<PoolAllRequest<T>> releaseAllBinding;
 
         protected DiContainer container;
         private DiContainer sceneContainer;
@@ -167,12 +168,16 @@ namespace MyToolz.DesignPatterns.ObjectPool
 
             releaseBinding = new EventBinding<ReleaseRequest<T>>(OnReleaseRequestReceived);
             EventBus<ReleaseRequest<T>>.Register(releaseBinding);
+
+            releaseAllBinding = new EventBinding<PoolAllRequest<T>>(OnPoolAllRequestReceived);
+            EventBus<PoolAllRequest<T>>.Register(releaseAllBinding);
         }
 
         protected virtual void DeregisterEventHandlers()
         {
             EventBus<PoolRequest<T>>.Deregister(requestBinding);
             EventBus<ReleaseRequest<T>>.Deregister(releaseBinding);
+            EventBus<PoolAllRequest<T>>.Deregister(releaseAllBinding);
         }
 
         private void OnPoolRequestReceived(PoolRequest<T> request)
@@ -207,6 +212,18 @@ namespace MyToolz.DesignPatterns.ObjectPool
             catch (Exception e)
             {
                 DebugUtility.LogWarning(this, $"ReleaseRequest failed: {e}");
+            }
+        }
+
+        private void OnPoolAllRequestReceived(PoolAllRequest<T> request)
+        {
+            try
+            {
+                ReleaseAll(request.Callback);
+            }
+            catch (Exception e)
+            {
+                DebugUtility.LogWarning(this, $"PoolAllRequest failed: {e}");
             }
         }
 
@@ -357,6 +374,29 @@ namespace MyToolz.DesignPatterns.ObjectPool
             {
                 if (destroyIfNotInPool) Destroy(obj.gameObject);
                 DebugUtility.LogWarning(this, "Failed to get prefabId for object: " + obj.name);
+            }
+        }
+
+        public virtual void ReleaseAll(Action<T> callback = null)
+        {
+            if (spawned.Count == 0)
+            {
+                return;
+            }
+            
+            var toRelease = new List<T>(spawned);
+
+            foreach (var obj in toRelease)
+            {
+                if (obj == null)
+                {
+                    DebugUtility.LogWarning(this, "Null object encountered while releasing all pooled objects. Skipping.");
+                    spawned.Remove(obj);
+                    continue;
+                }
+
+                Release(obj);
+                callback?.Invoke(obj);
             }
         }
     }

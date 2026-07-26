@@ -16,7 +16,7 @@ External: Zenject. Optional: Unity Addressables (for `AddressableObjectPoolInsta
 
 ```
 Runtime/
-├── Events.cs                          PoolRequest<T> and ReleaseRequest<T> event definitions
+├── Events.cs                          PoolRequest<T>, ReleaseRequest<T>, and PoolAllRequest<T> event definitions
 ├── IPoolable.cs                       Optional callback interface for pooled components (OnSpawned / OnDespawned)
 ├── ObjectPoolInstaller.cs             Abstract base handling pool requests, instance tracking, and release validation
 ├── DefaultObjectPoolInstaller.cs      Concrete generic installer for direct prefab references
@@ -39,8 +39,15 @@ EventBus<PoolRequest<MyPrefab>>.Raise(new PoolRequest<MyPrefab>
 EventBus<ReleaseRequest<MyPrefab>>.Raise(new ReleaseRequest<MyPrefab> { PoolObject = obj });
 ```
 
+Release every currently spawned object of a type back to its pool in one call:
+
+```csharp
+EventBus<PoolAllRequest<MyPrefab>>.Raise(new PoolAllRequest<MyPrefab>());
+```
+
 Notes:
 
 - Pools are bound with the configured initial and max capacity — the pool never grows past `MaxCapacity`.
 - Pooled components may implement `IPoolable` to receive `OnSpawned` / `OnDespawned` callbacks.
 - Releasing an object twice is detected and ignored with a warning. Releasing an object that doesn't belong to any pool destroys it when `destroyIfNotInPool` is enabled.
+- `PoolAllRequest<T>` releases all spawned instances of `T` managed by the installer. Any destroyed (null) references encountered are skipped with a warning. Its optional `Callback` runs once per released object.
