@@ -37,7 +37,7 @@ namespace MyToolz.Audio
             {
                 return;
             }
-            priorityListeners.Sort((a, b) => b.priority.CompareTo(a.priority));
+            priorityListeners.OrderByDescending(l => l.priority);
         }
 
         private void AddSelf()
@@ -64,13 +64,13 @@ namespace MyToolz.Audio
             onListenerUpdated?.Invoke(priorityListeners.FirstOrDefault().AudioListener);
         }
 
-        private void OnListenerChanged(AudioListener activeListener)
+        private void OnListenerChanged(AudioListener audioListener)
         {
-            if (activeListener == null || audioListener == null)
+            if (audioListener == null)
             {
                 return;
             }
-            audioListener.enabled = audioListener == activeListener;
+            audioListener.enabled = this.audioListener == audioListener;
         }
 
         private void OnEnable()

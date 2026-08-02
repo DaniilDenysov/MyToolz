@@ -23,7 +23,7 @@ namespace MyToolz.Extensions
             audioSource.playOnAwake = configSO.PlayOnAwake;
         }
 
-        public static void Play(Vector3 position, AudioClipSO audioClipSO)
+        public static void Play(Vector3 position,AudioClipSO audioClipSO,float delay = 0f, Transform parent = null)
         {
             if (audioClipSO == null) return;
             EventBus<PlayAudioClipSO>.Raise(new PlayAudioClipSO()

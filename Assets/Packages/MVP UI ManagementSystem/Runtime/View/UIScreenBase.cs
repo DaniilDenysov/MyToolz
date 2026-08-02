@@ -18,8 +18,14 @@ namespace MyToolz.UI.Management
         protected bool isActive;
         public bool IsActive => isActive;
 
+        public UnityEvent OnEnterEvent => onEnter;
+        public UnityEvent OnExitEvent => onExit;
+
         public virtual void OnEnter()
         {
+            if (isActive)
+                return;
+
             isActive = true;
             if (screenTweener != null)
                 screenTweener.SetActive(true);
@@ -30,6 +36,9 @@ namespace MyToolz.UI.Management
 
         public virtual void OnExit()
         {
+            if (!isActive)
+                return;
+
             isActive = false;
             if (screenTweener != null)
                 screenTweener.SetActive(false);

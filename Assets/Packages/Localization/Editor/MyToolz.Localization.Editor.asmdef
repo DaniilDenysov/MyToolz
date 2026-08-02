@@ -1,0 +1,20 @@
+{
+    "name": "MyToolz.Localization.Editor",
+    "rootNamespace": "MyToolz.Localization.Editor",
+    "references": [
+        "MyToolz.Localization",
+        "Unity.TextMeshPro.Editor",
+        "Unity.TextMeshPro"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

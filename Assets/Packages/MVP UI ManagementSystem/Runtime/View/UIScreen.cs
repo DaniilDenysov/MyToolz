@@ -51,7 +51,12 @@ namespace MyToolz.UI.Management
 
         public override void OnEnter()
         {
+            bool wasActive = isActive;
             base.OnEnter();
+
+            if (wasActive)
+                return;
+
             if (input != null)
                 inputStateManager.ChangeState(input);
 

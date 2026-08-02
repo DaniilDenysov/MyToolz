@@ -3,7 +3,7 @@ using MyToolz.EditorToolz;
 using MyToolz.UI.Management;
 using System;
 using UnityEngine;
-using UnityEngine.UI;
+using Object = UnityEngine.Object;
 
 namespace MyToolz.UI.LoadingScreen
 {
@@ -12,32 +12,77 @@ namespace MyToolz.UI.LoadingScreen
     {
         [SerializeField, Required] private Camera loadingCamera;
         [SerializeField, Required] private UIScreen loadingScreen;
-        [SerializeField, Required] private Slider loadingBar;
+        [SerializeField, RequireInterface(typeof(IProgressBar))] private Object loadingBar;
+
+        private IProgressBar ProgressBar => loadingBar as IProgressBar;
+        private bool bound;
 
         public void Initialize(ISceneLoaderModel model)
         {
-            loadingBar.value = 0f;
+            BindCameraToScreen();
+            SetProgress(0f);
         }
 
         public void Show()
         {
             loadingScreen?.Open();
-            loadingCamera.gameObject.SetActive(true);
         }
 
         public void Hide()
         {
             if (loadingScreen.IsActive) loadingScreen?.Close();
-            loadingCamera.gameObject.SetActive(false);
         }
 
         public void UpdateView(ISceneLoaderModel model)
         {
-            loadingBar.value = model.CurrentProgress;
+            SetProgress(model.CurrentProgress);
         }
 
         public void Destroy(ISceneLoaderModel model)
         {
+            UnbindCameraFromScreen();
+        }
+
+        private void BindCameraToScreen()
+        {
+            if (bound || loadingScreen == null)
+            {
+                return;
+            }
+
+            bound = true;
+            loadingScreen.OnEnterEvent.AddListener(EnableCamera);
+            loadingScreen.OnExitEvent.AddListener(DisableCamera);
+        }
+
+        private void UnbindCameraFromScreen()
+        {
+            if (!bound || loadingScreen == null)
+            {
+                return;
+            }
+
+            bound = false;
+            loadingScreen.OnEnterEvent.RemoveListener(EnableCamera);
+            loadingScreen.OnExitEvent.RemoveListener(DisableCamera);
+        }
+
+        private void EnableCamera() => SetCameraActive(true);
+
+        private void DisableCamera() => SetCameraActive(false);
+
+        private void SetCameraActive(bool active)
+        {
+            if (loadingCamera != null)
+            {
+                loadingCamera.gameObject.SetActive(active);
+            }
+        }
+
+        private void SetProgress(float value)
+        {
+            if (ProgressBar != null)
+                ProgressBar.Value = value;
         }
     }
 }

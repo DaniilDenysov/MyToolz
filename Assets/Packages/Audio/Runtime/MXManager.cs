@@ -25,7 +25,8 @@ namespace MyToolz.Audio
         [FoldoutGroup("Blending"), SerializeField] private float defaultIntensityBlendDuration = 1f;
         [FoldoutGroup("Blending"), SerializeField, Range(0f, 1f)] private float intensity;
 
-        [FoldoutGroup("Songs"), SerializeField] private List<SongSO> songs = new();
+        [FoldoutGroup("Songs"), SerializeField] private SongSO defaultSong;
+        private SongSO currentSong;
 
         private EventBinding<PlaySong> playSongBinding;
         private EventBinding<StopSong> stopSongBinding;
@@ -68,12 +69,6 @@ namespace MyToolz.Audio
             UnregisterEvents();
             CancelTokenSource(ref lifetimeCts);
             CancelTokenSource(ref intensityFadeCts);
-
-            for (int i = 0; i < activeLoopInstances.Count; i++)
-            {
-                activeLoopInstances[i].Dispose();
-            }
-            activeLoopInstances.Clear();
         }
 
         public void RegisterEvents()
@@ -97,7 +92,12 @@ namespace MyToolz.Audio
 
         private void OnPlaySong(PlaySong evt)
         {
-            if (evt.SongIndex < 0 || evt.SongIndex >= songs.Count)
+            if (evt.Song == null)
+            {
+                return;
+            }
+
+            if (evt.Song == currentSong && activeLoopInstances.Count > 0)
             {
                 return;
             }
@@ -116,7 +116,8 @@ namespace MyToolz.Audio
                 intensity = Mathf.Clamp01(evt.Intensity);
             }
 
-            LoopInstance looper = new LoopInstance(this, songs[evt.SongIndex], evt.StartTime);
+            currentSong = evt.Song;
+            LoopInstance looper = new LoopInstance(this, evt.Song, evt.StartTime);
             looper.SetFadeIn(blendIn);
         }
 
@@ -168,7 +169,11 @@ namespace MyToolz.Audio
         private async UniTaskVoid PlayOnAwakeAsync(CancellationToken token)
         {
             await UniTask.Delay(TimeSpan.FromSeconds(0.25), cancellationToken: token);
-            EventBus<PlaySong>.Raise(PlaySong.Default(0));
+
+            if (defaultSong != null)
+            {
+                EventBus<PlaySong>.Raise(PlaySong.Default(defaultSong));
+            }
         }
 
         private async UniTaskVoid RunUpdateLoop(CancellationToken token)
@@ -275,16 +280,6 @@ namespace MyToolz.Audio
                 for (int i = 0; i < clipCount; i++)
                 {
                     AudioSourceWrapper wrapper = manager.AcquireFromPool(manager.transform);
-                    if (wrapper == null)
-                    {
-                        DebugUtility.LogError(this, $"Failed to acquire an AudioSourceWrapper from the pool for song: {song.name}. Is an ObjectPoolInstaller for AudioSourceWrapper active?");
-                        for (int j = 0; j < i; j++)
-                        {
-                            manager.ReleaseToPool(wrappers[j]);
-                        }
-                        return;
-                    }
-
                     AudioSource source = wrapper.GetComponent<AudioSource>();
                     source.Configure(song.AudioSourceConfigSO);
                     source.clip = song.IntensityClips[i];
@@ -402,7 +397,7 @@ namespace MyToolz.Audio
 
                 float currentIntensity = manager.intensity;
 
-                if (sources.Length == 1 || currentIntensity <= 0f)
+                if (currentIntensity <= 0f)
                 {
                     sources[0].volume = primaryVolume;
                     return;

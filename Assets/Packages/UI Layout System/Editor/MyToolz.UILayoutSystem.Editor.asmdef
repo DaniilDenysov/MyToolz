@@ -1,0 +1,19 @@
+{
+    "name": "MyToolz.UILayoutSystem.Editor",
+    "rootNamespace": "MyToolz.UI.Layout",
+    "references": [
+        "GUID:4e7dd4f81b36424d9a20cd4034d40fe8",
+        "UnityEditor.UI"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

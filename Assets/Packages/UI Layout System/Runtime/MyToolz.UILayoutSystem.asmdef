@@ -1,0 +1,19 @@
+{
+    "name": "MyToolz.UILayoutSystem",
+    "rootNamespace": "MyToolz.UI.Layout",
+    "references": [
+        "GUID:a16edf7fea814a9a98847d3735ffe1be",
+        "GUID:f51ebe6a0ceec4240a699833d6309b23"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "DOTween.dll"
+    ],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
