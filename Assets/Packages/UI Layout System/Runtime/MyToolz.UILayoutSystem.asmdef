@@ -3,7 +3,10 @@
     "rootNamespace": "MyToolz.UI.Layout",
     "references": [
         "GUID:a16edf7fea814a9a98847d3735ffe1be",
-        "GUID:f51ebe6a0ceec4240a699833d6309b23"
+        "GUID:f51ebe6a0ceec4240a699833d6309b23",
+        "GUID:5b8689adcdd33b09ffe4c352abaa54ae",
+        "GUID:6055be8ebefd69e48b49212b09b47b2f",
+        "GUID:2fdaf8ce94e860e60945a00743a987a4"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
