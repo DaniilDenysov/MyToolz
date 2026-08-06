@@ -1,0 +1,20 @@
+{
+    "name": "MyToolz.MVPGameSettings.Editor",
+    "rootNamespace": "MyToolz.GameSettings",
+    "references": [
+        "MyToolz.MVPGameSettings",
+        "UnityEngine.UI",
+        "UnityEditor.UI"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
