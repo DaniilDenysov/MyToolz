@@ -27,6 +27,23 @@ Custom inspector attributes and a unified inspector that replicate a subset of O
 | `[ListDrawerSettings]` | Mirrors common Odin list options so call sites compile unchanged |
 | `[OnInspectorGUI]` | Marks a parameterless method that draws custom IMGUI at its position in the member order |
 
+## Self-validation
+
+Implement `ISelfValidator` on a component or ScriptableObject to surface setup problems directly in
+the inspector — no custom editor required:
+
+```csharp
+public void Validate(SelfValidationResult result)
+{
+    if (target == null)
+        result.AddError("Target is required.");
+}
+```
+
+`MyToolzInspector` calls `Validate` on every repaint and draws a HelpBox per message
+(`AddInfo`/`AddWarning`/`AddError`) above the fields. Keep implementations editor-free (no
+`UnityEditor` references) so they compile into runtime assemblies.
+
 ### `[ShowIf]` / `[HideIf]` expressions
 
 The `"@expression"` form is evaluated by a small recursive-descent parser supporting the
@@ -57,6 +74,9 @@ inspector falls back to Unity's default rendering, so unaffected components are 
 Per-field property drawers (`[ReadOnly]`, `[ShowIf]`/`[HideIf]`, `[OnValueChanged]`) remain
 registered so they also work inside the default inspector and inside nested serialized types.
 
+Targets implementing `ISelfValidator` are validated every repaint and their messages drawn as
+HelpBoxes at the top of the inspector, regardless of whether the type uses any other feature.
+
 ## Structure
 
 ```
@@ -81,5 +101,6 @@ Runtime/
 ├── RequiredAttribute.cs
 ├── RequiredDrawer.cs
 ├── ShowHideIfAttribute.cs          [ShowIf] and [HideIf]
+├── ISelfValidator.cs               ISelfValidator + SelfValidationResult (inspector validation)
 └── ShowInInspector.cs
 ```

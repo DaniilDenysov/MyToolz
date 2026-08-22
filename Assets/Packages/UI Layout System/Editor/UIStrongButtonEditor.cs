@@ -16,12 +16,20 @@ namespace MyToolz.UI.Layout
     {
         private SerializedProperty requireBinding;
         private SerializedProperty disableWhenBroken;
+        private SerializedProperty clickClip;
+        private SerializedProperty pointerEnterClip;
+        private SerializedProperty pointerDownClip;
+        private SerializedProperty disableClip;
 
         protected override void OnEnable()
         {
             base.OnEnable();
             requireBinding = serializedObject.FindProperty("requireBinding");
             disableWhenBroken = serializedObject.FindProperty("disableWhenBroken");
+            clickClip = serializedObject.FindProperty("clickClip");
+            pointerEnterClip = serializedObject.FindProperty("pointerEnterClip");
+            pointerDownClip = serializedObject.FindProperty("pointerDownClip");
+            disableClip = serializedObject.FindProperty("disableClip");
         }
 
         public override void OnInspectorGUI()
@@ -31,6 +39,14 @@ namespace MyToolz.UI.Layout
             serializedObject.Update();
             EditorGUILayout.PropertyField(requireBinding);
             EditorGUILayout.PropertyField(disableWhenBroken);
+
+            EditorGUILayout.Space();
+            EditorGUILayout.LabelField("Audio (optional - leave empty for no sound)", EditorStyles.boldLabel);
+            EditorGUILayout.PropertyField(clickClip);
+            EditorGUILayout.PropertyField(pointerEnterClip);
+            EditorGUILayout.PropertyField(pointerDownClip);
+            EditorGUILayout.PropertyField(disableClip);
+
             serializedObject.ApplyModifiedProperties();
 
             EditorGUILayout.Space();

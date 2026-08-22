@@ -17,7 +17,7 @@ namespace MyToolz.UI.Management
 
         public void AddLayer(IUILayer layer)
         {
-            var so = layer.Layer;
+            UILayerSO so = layer.Layer;
 
             if (so == null)
             {
@@ -26,24 +26,33 @@ namespace MyToolz.UI.Management
             }
 
             if (!layerStacks.ContainsKey(so))
+            {
                 layerStacks[so] = new HashSet<IUILayer>();
+            }
 
             if (layerStacks[so].Add(layer))
+            {
                 DebugUtility.Log(this, $"[UILayer] Added {layer} to layer {so.name}");
+            }
         }
 
         public void RemoveLayer(IUILayer layer)
         {
-            var so = layer.Layer;
-            if (so == null || !layerStacks.ContainsKey(so)) return;
+            UILayerSO so = layer.Layer;
+            if (so == null || !layerStacks.ContainsKey(so))
+            {
+                return;
+            }
 
             if (layerStacks[so].Remove(layer))
+            {
                 DebugUtility.Log(this, $"[UILayer] Removed {layer} from layer {so.name}");
+            }
         }
 
         public void ChangeState(IUILayer layer)
         {
-            var so = layer.Layer;
+            UILayerSO so = layer.Layer;
             if (so == null)
             {
                 DebugUtility.LogError(this, "Layer is null!");
@@ -54,8 +63,9 @@ namespace MyToolz.UI.Management
 
             if (so == CurrentLayer || layerStackList.Contains(so))
             {
-                DebugUtility.Log(this, $"Re-entering loadingScreen in active layer {so.name}");
-                layer.OnEnter();
+                DebugUtility.Log(this, $"[UILayer] Re-entering {layer} in active layer {so.name}");
+                if (!layer.IsActive)
+                    layer.OnEnter();
                 if (layerStacks.TryGetValue(so, out var screens))
                 {
                     screens.Add(layer);
@@ -89,14 +99,15 @@ namespace MyToolz.UI.Management
 
         private void EnterLayer(UILayerSO so)
         {
-            if (so == null) return;
+            if (so == null)
+            {
+                return;
+            }
 
-            if (!layerStacks.TryGetValue(so, out var screens)) return;
-
-            screens.RemoveWhere((l) => l == default);
-
-            foreach (var layer in screens)
-                layer.OnEnter();
+            if (!layerStacks.TryGetValue(so, out HashSet<IUILayer> screens))
+            {
+                return;
+            }
 
             if (CurrentLayer == so)
             {
@@ -107,18 +118,35 @@ namespace MyToolz.UI.Management
                 DebugUtility.Log(this, $"[UILayer] Pushing layer {so?.name}");
                 layerStackList.Push(so);
             }
+
+            screens.RemoveWhere((l) => l == default);
+
+            foreach (IUILayer layer in screens)
+            {
+                if (!layer.IsActive)
+                    layer.OnEnter();
+            }
         }
 
         private void ExitLayer(bool pop = true)
         {
-            if (CurrentLayer == null) return;
+            if (CurrentLayer == null)
+            {
+                return;
+            }
 
-            if (!layerStacks.TryGetValue(CurrentLayer, out var screens)) return;
+            if (!layerStacks.TryGetValue(CurrentLayer, out HashSet<IUILayer> screens))
+            {
+                return;
+            }
 
             screens.RemoveWhere((l) => l == default);
 
-            foreach (var layer in screens)
-                layer.OnExit();
+            foreach (IUILayer layer in screens)
+            {
+                if (layer.IsActive)
+                    layer.OnExit();
+            }
 
             if (pop)
             {
@@ -131,15 +159,21 @@ namespace MyToolz.UI.Management
         {
             while (layerStackList.Count > 0)
             {
-                var so = layerStackList.Pop();
+                UILayerSO so = layerStackList.Pop();
                 DebugUtility.Log(this, $"[UILayer] Popping layer {so?.name}");
 
-                if (!layerStacks.TryGetValue(so, out var screens)) continue;
+                if (!layerStacks.TryGetValue(so, out HashSet<IUILayer> screens))
+                {
+                    continue;
+                }
 
                 screens.RemoveWhere((l) => l == default);
 
-                foreach (var layer in screens)
-                    layer.OnExit();
+                foreach (IUILayer layer in screens)
+                {
+                    if (layer.IsActive)
+                        layer.OnExit();
+                }
             }
         }
     }

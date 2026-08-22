@@ -41,6 +41,8 @@ namespace MyToolz.Editor
                 return;
             }
 
+            DrawSelfValidation();
+
             _layout ??= InspectorLayout.Build(serializedObject, target.GetType());
 
             if (!_layout.HasCustomContent)
@@ -56,6 +58,39 @@ namespace MyToolz.Editor
 
             ButtonGUI.DrawButtons(_buttons, targets);
         }
+
+        private void DrawSelfValidation()
+        {
+            if (targets == null)
+                return;
+
+            foreach (var t in targets)
+            {
+                if (t is not ISelfValidator validator)
+                    continue;
+
+                var result = new SelfValidationResult();
+                try
+                {
+                    validator.Validate(result);
+                }
+                catch (Exception e)
+                {
+                    Debug.LogException(e, t);
+                    continue;
+                }
+
+                foreach (var message in result.Messages)
+                    EditorGUILayout.HelpBox(message.Message, ToMessageType(message.Severity));
+            }
+        }
+
+        private static MessageType ToMessageType(ValidationSeverity severity) => severity switch
+        {
+            ValidationSeverity.Error => MessageType.Error,
+            ValidationSeverity.Warning => MessageType.Warning,
+            _ => MessageType.Info,
+        };
     }
 
     /// <summary>
@@ -146,8 +181,6 @@ namespace MyToolz.Editor
             HasCustomContent = hasCustomContent;
         }
 
-        // ---- Building -------------------------------------------------------
-
         public static InspectorLayout Build(SerializedObject so, Type type)
         {
             var serializedNames = CollectSerializedNames(so);
@@ -162,7 +195,6 @@ namespace MyToolz.Editor
                 BindingFlags.Instance | BindingFlags.Public |
                 BindingFlags.NonPublic | BindingFlags.DeclaredOnly;
 
-            // Walk base -> derived so inherited fields keep their natural order on top.
             var chain = new List<Type>();
             for (var t = type; t != null && t != typeof(object); t = t.BaseType)
                 chain.Add(t);
@@ -231,7 +263,6 @@ namespace MyToolz.Editor
                 }
             }
 
-            // Safety net: never let a serialized field vanish if reflection missed it.
             foreach (var name in serializedNames)
             {
                 if (consumed.Contains(name))
@@ -377,7 +408,6 @@ namespace MyToolz.Editor
                     level = node.ChildGroups;
                 }
 
-                // The leaf segment carries the real kind/subtitle for this member.
                 node.Kind = e.GroupKind;
                 node.DefaultExpanded = e.GroupDefaultExpanded;
                 if (e.GroupKind == GroupKind.Title && !string.IsNullOrEmpty(e.GroupSubtitle))
@@ -417,9 +447,6 @@ namespace MyToolz.Editor
             int c = a.Order.CompareTo(b.Order);
             return c != 0 ? c : a.DeclIndex.CompareTo(b.DeclIndex);
         }
-
-        // ---- Drawing --------------------------------------------------------
-
         public void Draw(SerializedObject so, UnityEngine.Object[] targets)
         {
             EnsureStyles();
@@ -677,9 +704,6 @@ namespace MyToolz.Editor
             using (new EditorGUI.DisabledScope(true))
                 EditorGUILayout.PropertyField(scriptProp);
         }
-
-        // ---- Foldout persistence & styles -----------------------------------
-
         private static string MakeKey(UnityEngine.Object[] targets, string path)
         {
             unchecked

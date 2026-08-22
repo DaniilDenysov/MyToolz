@@ -23,27 +23,33 @@ namespace MyToolz.UI.Management
 
         public virtual void OnEnter()
         {
-            if (isActive)
-                return;
-
             isActive = true;
             if (screenTweener != null)
+            {
                 screenTweener.SetActive(true);
+            }
+
             if (firstSelected != null)
+            {
                 EventSystem.current.firstSelectedGameObject = firstSelected;
+            }
+
             onEnter?.Invoke();
         }
 
         public virtual void OnExit()
         {
-            if (!isActive)
-                return;
-
             isActive = false;
             if (screenTweener != null)
+            {
                 screenTweener.SetActive(false);
+            }
+
             if (firstSelected != null)
+            {
                 EventSystem.current.firstSelectedGameObject = null;
+            }
+
             onExit?.Invoke();
         }
 

@@ -47,7 +47,17 @@ namespace MyToolz.SceneManagement
                         continue;
                     }
 
-                    var operation = SceneManager.LoadSceneAsync(sceneData.Reference.Path, LoadSceneMode.Additive);
+                    // Load by name (not path): scene names survive asset moves, whereas
+                    // SceneReference's cached path can go stale until re-serialized.
+                    var operation = SceneManager.LoadSceneAsync(sceneData.Name, LoadSceneMode.Additive);
+                    if (operation == null)
+                    {
+                        Debug.LogError($"[SceneGroupManager] Could not load scene '{sceneData.Name}'. " +
+                            "It is not registered in the active Build Profile / build list. " +
+                            "Check Build Profiles > Scene List.");
+                        scenesLoaded++;
+                        continue;
+                    }
                     operationGroup.Operations.Add(operation);
                 }
 

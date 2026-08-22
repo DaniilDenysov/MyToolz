@@ -5,6 +5,7 @@ namespace MyToolz.UI.Management
 {
     public interface IUIState
     {
+        bool IsActive { get; }
         void OnEnter();
         void OnExit();
     }
@@ -18,28 +19,30 @@ namespace MyToolz.UI.Management
         {
             if (newState == null) return;
             if (newState == CurrentState)
-            {
-                newState.OnEnter();
                 return;
-            }
+
             DebugUtility.Log(this, $"Exiting state: {CurrentState}");
-            CurrentState?.OnExit();
+            if (CurrentState != null && CurrentState.IsActive)
+                CurrentState.OnExit();
 
             stateStack.Push(newState);
 
             DebugUtility.Log(this, $"Entered state: {newState}");
-            CurrentState?.OnEnter();
+            if (!newState.IsActive)
+                newState.OnEnter();
         }
 
         public void ExitState()
         {
             DebugUtility.Log(this, $"Exiting state: {CurrentState}");
-            CurrentState?.OnExit();
+            if (CurrentState != null && CurrentState.IsActive)
+                CurrentState.OnExit();
 
-            if (stateStack.Count > 0) 
+            if (stateStack.Count > 0)
                 stateStack.Pop();
 
-            CurrentState?.OnEnter();
+            if (CurrentState != null && !CurrentState.IsActive)
+                CurrentState.OnEnter();
             DebugUtility.Log(this, $"Entered state: {CurrentState}");
         }
 
@@ -47,7 +50,8 @@ namespace MyToolz.UI.Management
         {
             while (stateStack.TryPop(out var state))
             {
-                state.OnExit();
+                if (state.IsActive)
+                    state.OnExit();
             }
         }
 

@@ -1,6 +1,6 @@
 # UI Tweener
 
-Strategy-based UI tweening system built on DOTween. Provides ScriptableObject-driven tween configurations and a composable strategy pattern for fade, scale, move, offset, size, pulsate, loop, delay, merge, join, and callback animations.
+Strategy-based UI tweening system built on DOTween. Provides ScriptableObject-driven tween configurations and a composable strategy pattern for fade, scale, move, rotate, offset, size, pulsate, loop, delay, merge, join, and callback animations.
 
 ## Dependencies
 
@@ -22,6 +22,7 @@ Runtime/
 │   ├── FadeTweenSO.cs                  Fade alpha configuration
 │   ├── ScaleTweenSO.cs                 Scale configuration
 │   ├── MoveTweenSO.cs                  Position move configuration
+│   ├── RotateTweenSO.cs                Rotation (euler from/to) configuration
 │   ├── OffsetTweenSO.cs                RectTransform offset configuration
 │   ├── SizeTweenSO.cs                  Size delta configuration
 │   └── PulsateTweenSO.cs               Pulsate animation configuration
@@ -29,6 +30,7 @@ Runtime/
     ├── FadeTweenStrategy.cs            Fade alpha in/out
     ├── ScaleTweenStrategy.cs           Scale transform
     ├── MoveTweenStrategy.cs            Move position
+    ├── RotateTweenStrategy.cs          Rotate transform (local euler)
     ├── OffsetTweenStrategy.cs          Animate RectTransform offsets
     ├── SizeTweenStrategy.cs            Animate size delta
     ├── PulsateTweenStrategy.cs         Repeating scale pulse

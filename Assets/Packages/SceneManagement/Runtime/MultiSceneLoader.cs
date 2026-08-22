@@ -81,9 +81,11 @@ namespace MyToolz.SceneManagement
             {
                 DebugUtility.LogError(this, "Loading pipeline was cancelled.");
             }
-
-            EventBus<LoadingScreenHide>.Raise(new LoadingScreenHide());
-            masterProgress.Dispose();
+            finally
+            {
+                EventBus<LoadingScreenHide>.Raise(new LoadingScreenHide());
+                masterProgress.Dispose();
+            }
         }
 
         public void OnDestroy()

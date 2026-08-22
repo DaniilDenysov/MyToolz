@@ -1,4 +1,7 @@
 using DG.Tweening;
+using MyToolz.Audio;
+using MyToolz.Audio.Events;
+using MyToolz.DesignPatterns.EventBus;
 using MyToolz.Tweener.UI;
 using System;
 using System.Collections.Generic;
@@ -39,6 +42,19 @@ namespace MyToolz.UI.Layout
 
         [Tooltip("While broken, force the button non-interactable so the breakage is visible in play, not just in the console.")]
         [SerializeField] private bool disableWhenBroken = true;
+
+        [Header("Audio (optional - leave empty for no sound)")]
+        [Tooltip("Played on a valid, interactable click.")]
+        [SerializeField] private AudioClipSO clickClip;
+
+        [Tooltip("Played when the pointer enters the button (hover).")]
+        [SerializeField] private AudioClipSO pointerEnterClip;
+
+        [Tooltip("Played when the pointer presses the button down.")]
+        [SerializeField] private AudioClipSO pointerDownClip;
+
+        [Tooltip("Played when the button is disabled while the game is running (not during scene unload/quit).")]
+        [SerializeField] private AudioClipSO disableClip;
 
         private int runtimeBindings;
         private bool disabledByAudit;
@@ -121,10 +137,45 @@ namespace MyToolz.UI.Layout
             Click();
         }
 
+        // ------------------------------------------------------------------------- audio events ----
+
+        public override void OnPointerEnter(PointerEventData eventData)
+        {
+            base.OnPointerEnter(eventData);
+            if (IsInteractable())
+                PlayClip(pointerEnterClip);
+        }
+
+        public override void OnPointerDown(PointerEventData eventData)
+        {
+            base.OnPointerDown(eventData);
+            if (eventData.button == PointerEventData.InputButton.Left && IsInteractable())
+                PlayClip(pointerDownClip);
+        }
+
+        protected override void OnDisable()
+        {
+            base.OnDisable();
+            // Only a genuine in-game disable - edit time, scene unload and app quit all leave the scene unloaded.
+            if (Application.isPlaying && gameObject.scene.isLoaded)
+                PlayClip(disableClip);
+        }
+
+        /// <summary>Raises the shared audio event for an optional clip; a null clip is a no-op.</summary>
+        private void PlayClip(AudioClipSO clip)
+        {
+            if (clip == null)
+                return;
+
+            EventBus<PlayAudioClipSO>.Raise(new PlayAudioClipSO { AudioClipSO = clip });
+        }
+
         private void Click()
         {
             if (!IsActive() || !IsInteractable())
                 return;
+
+            PlayClip(clickClip);
 
             Tween clickTween = Tweener != null ? Tweener.CreateSequence(ActivationTrigger.OnClick) : null;
             if (clickTween == null)

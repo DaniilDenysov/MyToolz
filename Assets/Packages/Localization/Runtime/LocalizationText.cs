@@ -1,4 +1,5 @@
 using MyToolz.DesignPatterns.EventBus;
+using System;
 using TMPro;
 using UnityEngine;
 
@@ -11,6 +12,7 @@ namespace MyToolz.Localization
         [SerializeField] private bool applyLanguageFont = true;
 
         private EventBinding<LanguageChanged> languageBinding;
+        private object[] arguments;
 
         public LocalizationBindingSO Binding
         {
@@ -50,6 +52,19 @@ namespace MyToolz.Localization
 
         public void Refresh() => Apply(ResolveLanguage());
 
+        /// <summary>
+        /// Sets the format arguments substituted into the resolved (localized) string, which is treated
+        /// as a composite format template - e.g. a binding that resolves to "Current score: {0}" with
+        /// argument <c>0</c> renders "Current score: 0". The arguments are remembered, so a later
+        /// refresh (a language change or a re-enable) re-applies them instead of erasing the caller's
+        /// dynamic value. Pass no arguments to render the template verbatim.
+        /// </summary>
+        public void SetArguments(params object[] args)
+        {
+            arguments = args;
+            Refresh();
+        }
+
         private void OnLanguageChanged(LanguageChanged e) => Refresh();
 
         private void Apply(LocalizationLanguageSO language)
@@ -64,7 +79,27 @@ namespace MyToolz.Localization
                 font = language.Font;
             }
 
-            SetText(binding.Resolve(language));
+            SetText(Format(binding.Resolve(language)));
+        }
+
+        // Applies the stored arguments to the resolved template. A template with no placeholders (or no
+        // stored arguments) is returned unchanged; a malformed template is returned as-is rather than
+        // throwing, so a bad key never breaks rendering.
+        private string Format(string value)
+        {
+            if (arguments == null || arguments.Length == 0)
+            {
+                return value;
+            }
+
+            try
+            {
+                return string.Format(value, arguments);
+            }
+            catch (FormatException)
+            {
+                return value;
+            }
         }
 
         private LocalizationLanguageSO ResolveLanguage()
