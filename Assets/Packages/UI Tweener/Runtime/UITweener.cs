@@ -149,6 +149,7 @@ namespace MyToolz.Tweener.UI
                 {
                     SetInteractable(true);
                 });
+                ApplyTimeMode(sequence);
                 runningTweens.Add(sequence);
                 return sequence;
             }
@@ -172,6 +173,7 @@ namespace MyToolz.Tweener.UI
                 {
                     SetInteractable(true);
                 });
+                ApplyTimeMode(sequence);
                 runningTweens.Add(sequence);
                 return sequence;
             }
