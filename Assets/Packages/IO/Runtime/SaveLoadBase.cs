@@ -47,6 +47,9 @@ namespace MyToolz.IO
         [FoldoutGroup("Persistance Settings"), SerializeField, SubclassSelector]
         private EncryptionStrategy encryptionStrategy = new NoEncryptionStrategy();
 
+        [FoldoutGroup("Persistance Settings"), SerializeReference, SubclassSelector, Tooltip("Where the raw save bytes are stored. FileStorage (default) writes files; use PlayerPrefs or PlatformStorage for WebGL-safe saving.")]
+        private StorageStrategy storageStrategy = new FileStorageStrategy();
+
         private string resolvedFolder => resolvedFolderCache;
         private string fullPathPreview => fullPath;
         private bool fileExistsInspector => FileExists();
@@ -57,6 +60,7 @@ namespace MyToolz.IO
         private string tempPath;
         private string backupPath;
         private string resolvedFolderCache;
+        private string key;
 
         private bool _hasSavedThisSession;
 
@@ -101,14 +105,17 @@ namespace MyToolz.IO
         [Button]
         private void DeleteFile()
         {
-            if (File.Exists(fullPath))
+            EnsureStorageAssigned();
+            StorageLocation location = BuildLocation();
+
+            if (storageStrategy.Exists(location))
             {
-                File.Delete(fullPath);
-                DebugUtility.LogWarning(this, $"Deleted file: {fullPath}");
+                storageStrategy.Delete(location);
+                DebugUtility.LogWarning(this, $"Deleted save: {key}");
             }
             else
             {
-                DebugUtility.LogWarning(this, "No file to delete.");
+                DebugUtility.LogWarning(this, "No save to delete.");
             }
         }
 
@@ -121,9 +128,9 @@ namespace MyToolz.IO
         {
             EnsureStrategyAssigned();
             EnsureEncryptionStrategyAssigned();
+            EnsureStorageAssigned();
             RebuildPaths();
-            EnsureFolderExists();
-            DebugUtility.Log(this, $"[SaveLoadBase] Awake {GetType().Name} instanceId={GetInstanceID()} scene={gameObject.scene.name} useCache={useCache} strategy={serializationStrategy.GetType().Name} encryption={encryptionStrategy.GetType().Name}");
+            DebugUtility.Log(this, $"[SaveLoadBase] Awake {GetType().Name} instanceId={GetInstanceID()} scene={gameObject.scene.name} useCache={useCache} strategy={serializationStrategy.GetType().Name} encryption={encryptionStrategy.GetType().Name} storage={storageStrategy.GetType().Name}");
         }
 
 #if UNITY_EDITOR
@@ -155,6 +162,17 @@ namespace MyToolz.IO
             DebugUtility.LogWarning(this, "No encryption strategy assigned in the inspector. Defaulting to NoEncryptionStrategy.");
         }
 
+        private void EnsureStorageAssigned()
+        {
+            if (storageStrategy != null)
+            {
+                return;
+            }
+
+            storageStrategy = new FileStorageStrategy();
+            DebugUtility.LogWarning(this, "No storage strategy assigned in the inspector. Defaulting to FileStorageStrategy.");
+        }
+
         private void RebuildPaths()
         {
             string sanitized = SanitizeFileName(fileName);
@@ -176,7 +194,15 @@ namespace MyToolz.IO
             fullPath = Path.Combine(resolvedFolderCache, sanitized + extension);
             tempPath = fullPath + ".tmp";
             backupPath = fullPath + ".bak";
+
+            // Backend-agnostic id for key/value stores (PlayerPrefs, browser storage).
+            key = string.IsNullOrWhiteSpace(filePath)
+                ? sanitized + extension
+                : $"{filePath.Replace('\\', '/').TrimEnd('/')}/{sanitized}{extension}";
         }
+
+        private StorageLocation BuildLocation() =>
+            new StorageLocation(fullPath, tempPath, backupPath, resolvedFolderCache, key);
 
         private static string SanitizeFileName(string name)
         {
@@ -202,100 +228,76 @@ namespace MyToolz.IO
 
         protected void SaveToFile(T data)
         {
-            EnsureFolderExists();
-
             string raw = serializationStrategy.Serialize(data);
             string processed = encryptionStrategy.Encrypt(raw);
 
-            File.WriteAllText(tempPath, processed);
-            CommitTempFile();
+            storageStrategy.Write(BuildLocation(), processed);
 
             DebugUtility.Log(this, "Saved!");
         }
 
-        private void CommitTempFile()
-        {
-            if (File.Exists(fullPath))
-            {
-                try
-                {
-                    // Atomic on NTFS: swaps temp into place and keeps the old file as .bak.
-                    File.Replace(tempPath, fullPath, backupPath);
-                }
-                catch (PlatformNotSupportedException)
-                {
-                    File.Copy(fullPath, backupPath, overwrite: true);
-                    File.Delete(fullPath);
-                    File.Move(tempPath, fullPath);
-                }
-            }
-            else
-            {
-                File.Move(tempPath, fullPath);
-            }
-        }
-
         protected T LoadFromFile()
         {
-            if (File.Exists(fullPath))
-            {
-                try
-                {
-                    string raw = File.ReadAllText(fullPath);
-                    string decrypted = encryptionStrategy.Decrypt(raw);
-                    T result = serializationStrategy.Deserialize(decrypted);
+            StorageLocation location = BuildLocation();
 
-                    if (result != null)
-                    {
-                        DebugUtility.Log(this, "Loaded!");
-                        return result;
-                    }
-                }
-                catch (Exception e)
-                {
-                    DebugUtility.LogError(this, $"Failed to load save file, attempting backup. Reason: {e.Message}");
-                }
+            if (TryLoadSlot(location, primary: true, out T primary))
+            {
+                return primary;
             }
 
-            if (File.Exists(backupPath))
+            if (TryLoadSlot(location, primary: false, out T backup))
             {
-                try
-                {
-                    DebugUtility.LogWarning(this, "Loading from backup file.");
-                    string raw = File.ReadAllText(backupPath);
-                    string decrypted = encryptionStrategy.Decrypt(raw);
-                    T result = serializationStrategy.Deserialize(decrypted);
-
-                    if (result != null)
-                    {
-                        File.Copy(backupPath, fullPath, overwrite: true);
-                        DebugUtility.Log(this, "Restored save from backup.");
-                        return result;
-                    }
-                }
-                catch (Exception e)
-                {
-                    DebugUtility.LogError(this, $"Backup file also failed to load. Reason: {e.Message}");
-                }
+                DebugUtility.Log(this, "Restored save from backup.");
+                return backup;
             }
 
             return null;
         }
 
+        private bool TryLoadSlot(in StorageLocation location, bool primary, out T result)
+        {
+            result = null;
+
+            try
+            {
+                string raw;
+                bool found = primary
+                    ? storageStrategy.TryReadPrimary(location, out raw)
+                    : storageStrategy.TryReadBackup(location, out raw);
+
+                if (!found)
+                {
+                    return false;
+                }
+
+                string decrypted = encryptionStrategy.Decrypt(raw);
+                result = serializationStrategy.Deserialize(decrypted);
+
+                if (result != null)
+                {
+                    DebugUtility.Log(this, primary ? "Loaded!" : "Loaded from backup.");
+                    return true;
+                }
+            }
+            catch (Exception e)
+            {
+                DebugUtility.LogError(this, $"Failed to load {(primary ? "save" : "backup")} data. Reason: {e.Message}");
+            }
+
+            return false;
+        }
+
         protected async Task SaveToFileAsync(T data)
         {
-            EnsureFolderExists();
-
             string raw = serializationStrategy.Serialize(data);
             string processed = encryptionStrategy.Encrypt(raw);
 
-            await File.WriteAllTextAsync(tempPath, processed);
-            CommitTempFile();
+            await storageStrategy.WriteAsync(BuildLocation(), processed);
 
             DebugUtility.Log(this, "Saved!");
         }
 
-        protected bool FileExists() => File.Exists(fullPath);
+        protected bool FileExists() => storageStrategy != null && storageStrategy.Exists(BuildLocation());
 
         public void Save(T obj)
         {
