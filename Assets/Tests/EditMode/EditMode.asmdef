@@ -1,0 +1,32 @@
+{
+    "name": "EditMode",
+    "rootNamespace": "MyToolz.Tests.EditMode",
+    "references": [
+        "MyToolz.EventBus",
+        "MyToolz.DebugUtility",
+        "MyToolz.IO",
+        "MyToolz.MVPUIManagementSystem",
+        "MyToolz.EditorToolz",
+        "MyToolz.StateMachine",
+        "MyToolz.InputManagement",
+        "MyToolz.SceneManagement",
+        "MyToolz.MVPLoadingScreen",
+        "MyToolz.Audio.Runtime"
+    ],
+    "optionalUnityReferences": [
+        "TestAssemblies"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

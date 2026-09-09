@@ -1,0 +1,25 @@
+{
+    "name": "PlayMode",
+    "rootNamespace": "MyToolz.Tests.PlayMode",
+    "references": [
+        "MyToolz.ObjectPool",
+        "MyToolz.EventBus",
+        "MyToolz.DebugUtility",
+        "MyToolz.Singleton",
+        "Zenject"
+    ],
+    "optionalUnityReferences": [
+        "TestAssemblies"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
