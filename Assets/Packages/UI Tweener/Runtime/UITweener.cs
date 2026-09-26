@@ -98,10 +98,13 @@ namespace MyToolz.Tweener.UI
         {
             if (state)
             {
-                if (HasTrigger(ActivationTrigger.Enable))
-                    CreateSequence(ActivationTrigger.Enable).Play();
-
+                bool alreadyActive = gameObject.activeInHierarchy;
                 gameObject.SetActive(true);
+
+                // Activating an inactive object invokes OnEnable, which already starts the
+                // enable sequence. Only start it here when the object was already active.
+                if (alreadyActive && HasTrigger(ActivationTrigger.Enable))
+                    CreateSequence(ActivationTrigger.Enable).Play();
             }
             else
             {
