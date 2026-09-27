@@ -6,11 +6,15 @@ using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.AddressableAssets;
 using UnityEngine.ResourceManagement.AsyncOperations;
-using Zenject;
 
 namespace MyToolz.DesignPatterns.ObjectPool
 {
-    public class AddressableObjectPoolInstaller<T> : ObjectPoolInstaller<T, Pool<T>>
+    /// <summary>
+    /// Pools Addressable prefabs (requested with <c>PoolRequest.Key = reference.RuntimeKey</c>) and,
+    /// like <see cref="DefaultObjectPoolInstaller{T}"/>, any directly referenced prefabs in
+    /// <c>poolObjects</c> (requested with <c>PoolRequest.Prefab</c>).
+    /// </summary>
+    public class AddressableObjectPoolInstaller<T> : DefaultObjectPoolInstaller<T>
         where T : MonoBehaviour
     {
         [Serializable]
@@ -19,6 +23,7 @@ namespace MyToolz.DesignPatterns.ObjectPool
             public AssetReferenceGameObject AssetReference;
             [Range(0, 100000)] public int DefaultCapacity = 100;
             [Range(0, 100000)] public int MaxCapacity = 200;
+            public PoolCapacityMode CapacityMode = PoolCapacityMode.SoftLock;
         }
 
         [SerializeField] private AddressablePoolObject[] addressablePoolObjects;
@@ -26,13 +31,15 @@ namespace MyToolz.DesignPatterns.ObjectPool
         private readonly Dictionary<int, AsyncOperationHandle<GameObject>> loadedHandles = new();
         private CancellationTokenSource cancellationTokenSource;
 
-        public override async void InitializePools()
+        protected override async Task InitializePoolsAsync()
         {
-            await InitializePoolsAsync();
-        }
+            InitializePools();
 
-        public async Task InitializePoolsAsync()
-        {
+            if (addressablePoolObjects == null)
+            {
+                return;
+            }
+
             cancellationTokenSource = new CancellationTokenSource();
             var token = cancellationTokenSource.Token;
 
@@ -57,7 +64,8 @@ namespace MyToolz.DesignPatterns.ObjectPool
 
                 if (handle.Status != AsyncOperationStatus.Succeeded)
                 {
-                    DebugUtility.LogError(this, $"Failed to load addressable asset: {poolObj.AssetReference.RuntimeKey}");
+                    ReportFailure($"Failed to load addressable asset {poolObj.AssetReference.RuntimeKey}: {handle.OperationException?.Message ?? "unknown error"}");
+                    if (handle.IsValid()) Addressables.Release(handle);
                     continue;
                 }
 
@@ -66,12 +74,14 @@ namespace MyToolz.DesignPatterns.ObjectPool
 
                 if (prefabComponent == null)
                 {
-                    DebugUtility.LogError(this, $"Loaded asset does not contain component {typeof(T).Name}: {poolObj.AssetReference.RuntimeKey}");
+                    ReportFailure($"Loaded asset does not contain component {typeof(T).Name}: {poolObj.AssetReference.RuntimeKey}");
                     Addressables.Release(handle);
                     continue;
                 }
 
                 int prefabId = prefabComponent.GetInstanceID();
+
+                RegisterMetadata(poolObj, prefabId);
 
                 if (container.HasBindingId<Pool<T>>(prefabId))
                 {
@@ -81,28 +91,22 @@ namespace MyToolz.DesignPatterns.ObjectPool
                 }
 
                 loadedHandles[prefabId] = handle;
-
-                container.BindMemoryPool<T, Pool<T>>()
-                    .WithId(prefabId)
-                    .WithInitialSize(poolObj.DefaultCapacity)
-                    .WithMaxSize(poolObj.MaxCapacity)
-                    .WithFactoryArguments<Action<Pool<T>>, int, Action<T>, Action<int, T>, Action<T>>(
-                        (pool) => mappings.Add(prefabId, pool),
-                        prefabId,
-                        OnSpawned,
-                        OnCreated,
-                        OnDespawned)
-                    .FromComponentInNewPrefab(prefabComponent)
-                    .UnderTransformGroup($"{typeof(T).Name} Pool");
-
-                container.ResolveId<Pool<T>>(prefabId);
+                BindPrefabPool(prefabComponent, poolObj.DefaultCapacity, poolObj.MaxCapacity);
             }
+        }
+
+        private void RegisterMetadata(AddressablePoolObject poolObj, int prefabId)
+        {
+            keyToPrefabId[poolObj.AssetReference.RuntimeKey] = prefabId;
+            maxCapacities[prefabId] = poolObj.MaxCapacity;
+            capacityModes[prefabId] = poolObj.CapacityMode;
         }
 
         protected override void OnSingletonDestroy()
         {
             cancellationTokenSource?.Cancel();
             cancellationTokenSource?.Dispose();
+            cancellationTokenSource = null;
 
             foreach (var handle in loadedHandles.Values)
             {

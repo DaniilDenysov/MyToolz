@@ -1,6 +1,10 @@
+using System;
 using System.Collections.Generic;
+using System.Text.RegularExpressions;
 using MyToolz.DesignPatterns.EventBus;
 using NUnit.Framework;
+using UnityEngine;
+using UnityEngine.TestTools;
 
 namespace MyToolz.Tests.EditMode
 {
@@ -246,6 +250,71 @@ namespace MyToolz.Tests.EditMode
             Assert.AreEqual(1, calls, "removed no-arg callback must not fire again");
 
             EventBus<SampleEvent>.Deregister(binding);
+        }
+
+        [Test]
+        public void Raise_ThrowingListener_DoesNotStopOtherListeners()
+        {
+            int after = 0;
+            var throwing = new EventBinding<SampleEvent>(_ => throw new InvalidOperationException("boom"));
+            var healthy = new EventBinding<SampleEvent>(_ => after++);
+            EventBus<SampleEvent>.Register(throwing);
+            EventBus<SampleEvent>.Register(healthy);
+
+            LogAssert.Expect(LogType.Error, new Regex("boom"));
+            Assert.DoesNotThrow(() => EventBus<SampleEvent>.Raise(new SampleEvent()));
+
+            Assert.AreEqual(1, after, "a throwing listener must not starve the listeners after it");
+            EventBus<SampleEvent>.Deregister(throwing);
+            EventBus<SampleEvent>.Deregister(healthy);
+        }
+
+        [Test]
+        public void Raise_ThrowingListener_StillDrainsQueuedRequests()
+        {
+            int queued = 0;
+            bool raisedNested = false;
+            var healthy = new EventBinding<SampleEvent>(_ => queued++);
+            var throwing = new EventBinding<SampleEvent>(_ =>
+            {
+                if (!raisedNested)
+                {
+                    raisedNested = true;
+                    EventBus<SampleEvent>.Raise(new SampleEvent());
+                    throw new InvalidOperationException("boom");
+                }
+            });
+            EventBus<SampleEvent>.Register(throwing);
+            EventBus<SampleEvent>.Register(healthy);
+
+            LogAssert.Expect(LogType.Error, new Regex("boom"));
+            EventBus<SampleEvent>.Raise(new SampleEvent());
+
+            Assert.AreEqual(2, queued, "the raise queued before the throw must still run in the same call");
+            EventBus<SampleEvent>.Deregister(throwing);
+            EventBus<SampleEvent>.Deregister(healthy);
+        }
+
+        [Test]
+        public void Raise_DeliversInRegistrationOrder()
+        {
+            var order = new List<int>();
+            var bindings = new List<EventBinding<SampleEvent>>();
+            for (int i = 0; i < 16; i++)
+            {
+                int index = i;
+                var binding = new EventBinding<SampleEvent>(_ => order.Add(index));
+                bindings.Add(binding);
+                EventBus<SampleEvent>.Register(binding);
+            }
+
+            EventBus<SampleEvent>.Raise(new SampleEvent());
+
+            for (int i = 0; i < 16; i++)
+            {
+                Assert.AreEqual(i, order[i]);
+                EventBus<SampleEvent>.Deregister(bindings[i]);
+            }
         }
     }
 }

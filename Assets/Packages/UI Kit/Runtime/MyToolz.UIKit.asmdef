@@ -1,0 +1,28 @@
+{
+    "name": "MyToolz.UIKit",
+    "rootNamespace": "MyToolz.UI.Kit",
+    "references": [
+        "UnityEngine.UI",
+        "Unity.TextMeshPro",
+        "DOTween.Modules",
+        "MackySoft.SerializeReferenceExtensions",
+        "MyToolz.Audio.Runtime",
+        "MyToolz.EditorToolz",
+        "MyToolz.EventBus",
+        "MyToolz.MVPGameSettings",
+        "MyToolz.Tweener",
+        "MyToolz.UILayoutSystem",
+        "MyToolz.UITweener"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "DOTween.dll"
+    ],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

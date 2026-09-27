@@ -8,6 +8,12 @@ using UnityEngine.EventSystems;
 
 namespace MyToolz.Tweener.UI
 {
+    /// <summary>
+    /// Marks a component on the same GameObject that plays the OnClick tween itself (for example a
+    /// button that also validates the click), so <see cref="UITweener"/> does not play it a second time.
+    /// </summary>
+    public interface IUITweenClickOwner { }
+
     [System.Serializable]
     public abstract class TweenStrategy : AbstractTweenStrategy
     {
@@ -98,10 +104,13 @@ namespace MyToolz.Tweener.UI
         {
             if (state)
             {
-                if (HasTrigger(ActivationTrigger.Enable))
-                    CreateSequence(ActivationTrigger.Enable).Play();
-
+                bool alreadyActive = gameObject.activeInHierarchy;
                 gameObject.SetActive(true);
+
+                // Activating an inactive object invokes OnEnable, which already starts the
+                // enable sequence. Only start it here when the object was already active.
+                if (alreadyActive && HasTrigger(ActivationTrigger.Enable))
+                    CreateSequence(ActivationTrigger.Enable).Play();
             }
             else
             {
@@ -203,6 +212,9 @@ namespace MyToolz.Tweener.UI
 
         public void OnPointerClick(PointerEventData eventData)
         {
+            if (GetComponent<IUITweenClickOwner>() != null)
+                return;
+
             CreateSequence(ActivationTrigger.OnClick).Play();
         }
     }

@@ -35,7 +35,7 @@ namespace MyToolz.UI.Layout
     /// </summary>
     [DisallowMultipleComponent]
     [AddComponentMenu("MyToolz/UI Layout/Strong Button")]
-    public class UIStrongButton : Button
+    public class UIStrongButton : Button, IUITweenClickOwner
     {
         [Tooltip("Treat a button with no working binding as broken. Disable only for buttons that are intentionally event-less.")]
         [SerializeField] private bool requireBinding = true;

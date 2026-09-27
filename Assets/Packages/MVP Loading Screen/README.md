@@ -26,7 +26,10 @@ Runtime/
 ├── SceneLoaderView.cs            View rendering progress bar and status
 ├── SceneLoader.cs                Async scene loader using UniTask
 ├── SceneLoaderEvents.cs          EventBus events for load started/completed/failed
-└── SceneLoaderInstaller.cs       Zenject installer
+├── SceneLoaderInstaller.cs       Zenject installer
+├── IProgressBar.cs               Progress widget contract used by the view
+├── CustomSlider.cs / ProgressBarSlider.cs  Slider-based IProgressBar implementations
+└── IndeterminateLoadingRing.cs   Spinning arc (MaskableGraphic) IProgressBar for loads without a known progress
 Optional/
 └── ExampleSceneLoading.cs        Demo usage
 ```
@@ -34,3 +37,9 @@ Optional/
 ## Setup
 
 Add `SceneLoaderInstaller` to your SceneContext. Place the `SceneLoaderView` prefab in your scene. Trigger scene loads through the `SceneLoader` API or by raising `SceneLoadRequestEvent` on the EventBus.
+
+## Minimum loading time
+
+`SceneLoader.minimalLoadingDuration` (seconds, unscaled) keeps the loading screen up for at least that long
+so a fast load does not flash it. It defaults to **0** (activate as soon as the scene is ready); raise it
+per scene when the screen should linger.

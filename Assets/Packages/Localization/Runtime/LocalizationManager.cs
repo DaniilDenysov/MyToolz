@@ -17,6 +17,8 @@ namespace MyToolz.Localization
         [SerializeField] private LocalizationLanguageSO defaultLanguage;
         [Tooltip("Persists the selected language across sessions via GameSettings (stores the language code). Register it in the SettingsPresenter so it is saved and loaded.")]
         [SerializeField] private StringSettingSO languageSetting;
+        [Tooltip("On the first launch, when no language is saved yet, start in the device's language when the database has it and in the default language otherwise, then save that choice so later launches keep it.")]
+        [SerializeField] private bool detectDeviceLanguage = true;
 
         [ShowInInspector, ReadOnly] private LocalizationLanguageSO currentLanguage;
 
@@ -42,6 +44,12 @@ namespace MyToolz.Localization
             changeBinding = new EventBinding<ChangeLanguageRequest>(OnChangeLanguageRequest);
             EventBus<ChangeLanguageRequest>.Register(changeBinding);
 
+            if (languageSetting != null)
+            {
+                languageSetting.OnSettingUpdated += OnSavedLanguageUpdated;
+                languageSetting.OnLoadCompleted += OnSettingsLoaded;
+            }
+
             currentLanguage = ResolveInitialLanguage();
             Broadcast();
         }
@@ -52,6 +60,30 @@ namespace MyToolz.Localization
             {
                 EventBus<ChangeLanguageRequest>.Deregister(changeBinding);
             }
+
+            if (languageSetting != null)
+            {
+                languageSetting.OnSettingUpdated -= OnSavedLanguageUpdated;
+                languageSetting.OnLoadCompleted -= OnSettingsLoaded;
+            }
+        }
+
+        public static LocalizationLanguageSO FindForDevice(IReadOnlyList<LocalizationLanguageSO> languages, SystemLanguage deviceLanguage)
+        {
+            if (languages == null)
+            {
+                return null;
+            }
+
+            foreach (LocalizationLanguageSO language in languages)
+            {
+                if (language != null && language.Matches(deviceLanguage))
+                {
+                    return language;
+                }
+            }
+
+            return null;
         }
 
         public void SetLanguage(LocalizationLanguageSO language)
@@ -89,18 +121,20 @@ namespace MyToolz.Localization
 
         private LocalizationLanguageSO ResolveInitialLanguage()
         {
-            if (languageSetting != null)
+            LocalizationLanguageSO saved = SavedLanguage();
+
+            if (saved != null)
             {
-                string savedCode = languageSetting.CurrentValue;
-                if (!string.IsNullOrEmpty(savedCode))
+                return saved;
+            }
+
+            if (detectDeviceLanguage)
+            {
+                LocalizationLanguageSO detected = FindForDevice(database.Languages, Application.systemLanguage);
+
+                if (detected != null)
                 {
-                    foreach (LocalizationLanguageSO language in database.Languages)
-                    {
-                        if (language != null && language.Code == savedCode)
-                        {
-                            return language;
-                        }
-                    }
+                    return detected;
                 }
             }
 
@@ -110,6 +144,52 @@ namespace MyToolz.Localization
             }
 
             return database.DefaultLanguage;
+        }
+
+        private LocalizationLanguageSO SavedLanguage()
+        {
+            if (languageSetting == null || database == null)
+            {
+                return null;
+            }
+
+            string savedCode = languageSetting.CurrentValue;
+
+            if (string.IsNullOrEmpty(savedCode))
+            {
+                return null;
+            }
+
+            foreach (LocalizationLanguageSO language in database.Languages)
+            {
+                if (language != null && language.Code == savedCode)
+                {
+                    return language;
+                }
+            }
+
+            return null;
+        }
+
+        private void OnSavedLanguageUpdated()
+        {
+            LocalizationLanguageSO saved = SavedLanguage();
+
+            if (saved == null || saved == currentLanguage)
+            {
+                return;
+            }
+
+            currentLanguage = saved;
+            Broadcast();
+        }
+
+        private void OnSettingsLoaded()
+        {
+            if (SavedLanguage() == null)
+            {
+                Persist();
+            }
         }
 
         private void Persist()

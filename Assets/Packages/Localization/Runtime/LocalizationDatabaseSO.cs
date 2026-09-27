@@ -53,7 +53,31 @@ namespace MyToolz.Localization
         public LocalizationLanguageSO DefaultLanguage
             => defaultLanguage != null ? defaultLanguage : (languages.Count > 0 ? languages[0] : null);
 
-        public bool Contains(LocalizationLanguageSO language) => language != null && languages.Contains(language);
+        public bool Contains(LocalizationLanguageSO language) => IndexOfLanguage(language) >= 0;
+
+        private int IndexOfLanguage(LocalizationLanguageSO language)
+        {
+            if (language == null)
+            {
+                return -1;
+            }
+
+            for (int i = 0; i < languages.Count; i++)
+            {
+                LocalizationLanguageSO candidate = languages[i];
+                if (candidate == null)
+                {
+                    continue;
+                }
+
+                if (candidate == language || candidate.Code == language.Code)
+                {
+                    return i;
+                }
+            }
+
+            return -1;
+        }
 
         public bool TryTranslate(string key, LocalizationLanguageSO language, out string value)
         {
@@ -64,7 +88,7 @@ namespace MyToolz.Localization
                 return false;
             }
 
-            int column = languages.IndexOf(language);
+            int column = IndexOfLanguage(language);
             if (column < 0)
             {
                 return false;

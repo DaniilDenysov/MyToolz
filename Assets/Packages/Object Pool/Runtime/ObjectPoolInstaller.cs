@@ -1,6 +1,7 @@
 using MyToolz.Utilities.Debug;
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using UnityEngine;
 using Zenject;
 using MyToolz.DesignPatterns.EventBus;
@@ -49,8 +50,11 @@ namespace MyToolz.DesignPatterns.ObjectPool
         [SerializeField] protected PoolObject[] poolObjects;
         [SerializeField] protected bool destroyIfNotInPool = true;
         [SerializeField] private PoolContext contextMode = PoolContext.Scene;
+        [Tooltip("Hold requests raised while the pools are still loading and serve them once ready. Off by default: callers that expect the callback to run inside Raise would receive the object late.")]
+        [SerializeField] private bool queueRequestsWhileLoading;
 
         protected Dictionary<int, P> mappings = new();
+        protected Dictionary<object, int> keyToPrefabId = new();
         protected Dictionary<T, int> buffer = new();
         protected HashSet<T> spawned = new();
         protected Dictionary<int, int> maxCapacities = new();
@@ -61,11 +65,22 @@ namespace MyToolz.DesignPatterns.ObjectPool
         private EventBinding<ReleaseRequest<T>> releaseBinding;
         private EventBinding<PoolAllRequest<T>> releaseAllBinding;
 
+        private const int MaxDeferredRequests = 256;
+
         protected DiContainer container;
         private DiContainer sceneContainer;
         private bool singletonReady;
         private bool initialized;
+        private bool initializing;
+        private bool failed;
         private bool registered;
+        private readonly List<PoolRequest<T>> deferredRequests = new();
+
+        /// <summary>True once every pool has been built and requests are served.</summary>
+        public bool IsReady => initialized;
+
+        /// <summary>True when initialization threw; requests are refused with an error instead of silently dropped.</summary>
+        public bool HasFailed => failed;
 
         [Serializable]
         public class PoolObject
@@ -91,7 +106,7 @@ namespace MyToolz.DesignPatterns.ObjectPool
 
         private void TryInitialize()
         {
-            if (initialized || !singletonReady)
+            if (initialized || initializing || failed || !singletonReady)
             {
                 return;
             }
@@ -110,10 +125,84 @@ namespace MyToolz.DesignPatterns.ObjectPool
                 container = sceneContainer;
             }
 
-            RegisterCapacityMetadata();
-            InitializePools();
-            initialized = true;
+            initializing = true;
+
+            // Listen straight away so requests raised while an async pool is still loading are
+            // reported (or queued, when enabled) instead of vanishing silently.
             RegisterIfActive();
+            _ = InitializeRoutine();
+        }
+
+        // Never async void: every exception is caught here and reported, so a failed load cannot
+        // leave the installer "initializing" forever with requests quietly dropped.
+        private async Task InitializeRoutine()
+        {
+            try
+            {
+                RegisterCapacityMetadata();
+                await InitializePoolsAsync();
+
+                if (this == null)
+                {
+                    return;
+                }
+
+                initialized = true;
+            }
+            catch (Exception e)
+            {
+                failed = true;
+                ReportFailure($"Pool initialization threw: {e}");
+            }
+            finally
+            {
+                initializing = false;
+            }
+
+            if (this == null)
+            {
+                return;
+            }
+
+            RegisterIfActive();
+            ResolveDeferredRequests();
+        }
+
+        /// <summary>
+        /// Logs the failure and raises <see cref="PoolInitializationFailed"/> so the game can tell the
+        /// player instead of freezing silently.
+        /// </summary>
+        protected void ReportFailure(string reason)
+        {
+            DebugUtility.LogError(this, $"{typeof(T).Name} pool: {reason}");
+            EventBus<PoolInitializationFailed>.Raise(new PoolInitializationFailed
+            {
+                ItemType = typeof(T),
+                Reason = reason
+            });
+        }
+
+        private void ResolveDeferredRequests()
+        {
+            if (deferredRequests.Count == 0)
+            {
+                return;
+            }
+
+            var requests = deferredRequests.ToArray();
+            deferredRequests.Clear();
+
+            foreach (var request in requests)
+            {
+                if (initialized)
+                {
+                    Serve(request);
+                }
+                else
+                {
+                    DebugUtility.LogError(this, $"{typeof(T).Name} pool failed to initialize; a queued request was dropped.");
+                }
+            }
         }
 
         private void RegisterCapacityMetadata()
@@ -152,7 +241,7 @@ namespace MyToolz.DesignPatterns.ObjectPool
 
         private void RegisterIfActive()
         {
-            if (!initialized || registered || !isActiveAndEnabled)
+            if ((!initialized && !initializing) || registered || !isActiveAndEnabled)
             {
                 return;
             }
@@ -182,9 +271,32 @@ namespace MyToolz.DesignPatterns.ObjectPool
 
         private void OnPoolRequestReceived(PoolRequest<T> request)
         {
+            if (initialized)
+            {
+                Serve(request);
+                return;
+            }
+
+            if (failed)
+            {
+                DebugUtility.LogError(this, $"{typeof(T).Name} pool failed to initialize; request dropped.");
+                return;
+            }
+
+            if (queueRequestsWhileLoading && deferredRequests.Count < MaxDeferredRequests)
+            {
+                deferredRequests.Add(request);
+                return;
+            }
+
+            DebugUtility.LogWarning(this, $"{typeof(T).Name} pool is still loading; request dropped.");
+        }
+
+        private void Serve(PoolRequest<T> request)
+        {
             try
             {
-                T obj = Get(request.Prefab);
+                T obj = request.Key != null ? Get(request.Key) : Get(request.Prefab);
                 if (obj == null)
                 {
                     return;
@@ -229,6 +341,12 @@ namespace MyToolz.DesignPatterns.ObjectPool
 
         public abstract void InitializePools();
 
+        protected virtual Task InitializePoolsAsync()
+        {
+            InitializePools();
+            return Task.CompletedTask;
+        }
+
         public virtual void OnCreated(int prefabId, T obj)
         {
             buffer.TryAdd(obj, prefabId);
@@ -271,11 +389,31 @@ namespace MyToolz.DesignPatterns.ObjectPool
                 return null;
             }
 
-            int prefabId = prefab.GetInstanceID();
+            return GetByPrefabId(prefab.GetInstanceID(), prefab.name);
+        }
 
+        public virtual T Get(object key)
+        {
+            if (key == null)
+            {
+                DebugUtility.LogError(this, "Provided key is null.");
+                return null;
+            }
+
+            if (!keyToPrefabId.TryGetValue(key, out int prefabId))
+            {
+                DebugUtility.LogWarning(this, $"No pool found for key: {key}");
+                return null;
+            }
+
+            return GetByPrefabId(prefabId, key.ToString());
+        }
+
+        private T GetByPrefabId(int prefabId, string label)
+        {
             if (!mappings.TryGetValue(prefabId, out var pool))
             {
-                DebugUtility.LogWarning(this, $"No pool found for prefab: {prefab.name}");
+                DebugUtility.LogWarning(this, $"No pool found for: {label}");
                 return null;
             }
 
@@ -300,7 +438,7 @@ namespace MyToolz.DesignPatterns.ObjectPool
 
             if (mode == PoolCapacityMode.HardLock)
             {
-                DebugUtility.LogWarning(this, $"Pool for {prefab.name} reached its max capacity of {maxCapacity}. Request refused.");
+                DebugUtility.LogWarning(this, $"Pool for {label} reached its max capacity of {maxCapacity}. Request refused.");
                 return null;
             }
 

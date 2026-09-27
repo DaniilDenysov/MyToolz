@@ -60,6 +60,11 @@ points to a per-system reference file when you need depth.
 | Enforce a single instance, DI unavailable      | `PrivateSingleton<T>` (not `PublicSingleton<T>`) | `MyToolz.DesignPatterns.Singleton`  | [singleton.md](references/singleton.md) |
 | Save/load data to disk                         | `SaveLoadBase<T>` / `ISaver<T>`       | `MyToolz.IO`                                | [io.md](references/io.md) |
 | A screen/UI feature                            | MVP (Model + View + Presenter + Installer) | `MyToolz.DesignPatterns.MVP.*` + per-package | [mvp.md](references/mvp.md) |
+| Manage screens as a layered stack              | `UIScreen` / `UILayerStateManager`    | `MyToolz.UI.Management`                      | [ui-management-system.md](references/ui-management-system.md) |
+| Handle player input / input modes             | `InputCommandSO` / `InputModeSO` / `InputStateManager` | `MyToolz.InputManagement`      | [input.md](references/input.md) |
+| Play a sound effect or music                   | `PlayAudioClipSO` / `PlaySong` events | `MyToolz.Audio`                             | [audio.md](references/audio.md) |
+| Localize player-facing text                    | `LocalizationText` / `LocalizationBindingSO` | `MyToolz.Localization`               | [localization.md](references/localization.md) |
+| Animate UI (show/hide, hover, click)           | `UITweener` + tween strategies        | `MyToolz.Tweener.UI`, `MyToolz.Tweener`     | [ui-tweener.md](references/ui-tweener.md), [tweener.md](references/tweener.md) |
 | Wire dependencies / write an installer         | Zenject `MonoInstaller` + `[Inject]`  | `Zenject`                                   | [zenject-installers.md](references/zenject-installers.md) |
 
 ## Minimum-viable usage per core system
@@ -239,6 +244,7 @@ Newtonsoft.Json must be present or the project won't compile.
 - Putting game logic in an MVP View, or injecting a concrete type where an interface exists.
 - Adding Odin attributes; use `MyToolz.EditorToolz` equivalents.
 
-When a system isn't covered here (MVP packages, Localization, Tweener, Input, etc.),
-read an existing package under `Assets/Packages/` and mirror its structure — the
-conventions above hold throughout.
+When a system isn't covered here (other MVP feature packages, SceneManagement, AStar,
+etc.), read an existing package under `Assets/Packages/` and mirror its structure — the
+conventions above hold throughout. For a full inventory of every package and its
+intended use, see the companion `mytoolz-catalog` skill.

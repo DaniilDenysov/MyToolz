@@ -23,7 +23,7 @@ Runtime/
 ├── AudioSourceConfigSO.cs      ScriptableObject for AudioSource settings (mixer, volume, pitch, spatial blend, etc.)
 ├── AudioSourceExtensions.cs    Extension methods: Configure, Play, PlayWithCooldown, PlayLoop, StopLoop, FadeOut, FadeIn, CrossFade
 ├── AudioSourceWrapper.cs       Poolable MonoBehaviour wrapping AudioSource with auto-release on clip completion
-├── AudioSourceObjectPool.cs    Object pool installer for pooled AudioSourceWrapper instances
+├── AudioSourceObjectPool.cs    Object pool installer (Addressable or direct prefab) for pooled AudioSourceWrapper instances
 ├── AudioManager.cs             Singleton for fire-and-forget SFX: listens for PlayAudioClipSO, enforces per-clip play intervals, spawns pooled sources
 ├── Events.cs                   PlayAudioClipSO event definition
 ├── MXManager.cs                Singleton music manager: intensity-layered songs with looping, song blending, and intensity fades
@@ -53,7 +53,7 @@ EventBus<PlayAudioClipSO>.Raise(new PlayAudioClipSO
 
 ## Music (MXManager)
 
-Create `SongSO` assets, each holding one or more intensity-layer clips of equal length. Add an `MXManager` to the scene, assign its song list and an `AudioSourceWrapper` prefab, and make sure an object pool installer for `AudioSourceWrapper` is active. All layers of a song play in sync; the current intensity (0–1) crossfades between adjacent layers.
+Create `SongSO` assets, each holding one or more intensity-layer clips of equal length. Add an `MXManager` to the scene, assign its default song and either an Addressable reference or a direct prefab for `AudioSourceWrapper`, and make sure an `AudioSourceObjectPool` that pools the same prefab is active. All layers of a song play in sync; the current intensity (0–1) crossfades between adjacent layers.
 
 ```csharp
 EventBus<PlaySong>.Raise(PlaySong.Default(0));  // play song 0 with default blend/intensity
@@ -66,3 +66,11 @@ Songs loop by default (`loopCurrentSong`): the next iteration starts just before
 ## Priority AudioListener
 
 Add `PriorityAudioListener` next to every `AudioListener` in the scene (player camera, free camera, kill cam, ...) and set a priority. Only the listener with the highest priority stays enabled; the rest are disabled automatically as listeners register and deregister.
+
+### Pooled sources: Addressable or direct prefab
+
+`AudioManager` and `MXManager` request their `AudioSourceWrapper` from the pool by Addressable runtime key when
+an `AssetReference` is assigned, and by direct prefab otherwise. `AudioSourceObjectPool` is an
+`AddressableObjectPoolInstaller`, which pools both kinds, so either setup works with the same installer.
+
+`PlayAudioClipSO.Pitch` overrides the pitch chosen by the clip's config for one playback (0 = use the config).

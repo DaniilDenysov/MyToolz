@@ -20,7 +20,7 @@ The packages fall into four groups:
 
 **Foundation** packages have zero or minimal internal dependencies and provide primitives used across the framework: Adapter, Prototype, Singleton, Data Structures, Debug Utility, Editor Toolz, Extensions, Event Bus, Command Pipeline, Tweener, and IO.
 
-**Infrastructure** packages build on the foundation to provide system-level services: Object Pool, State Machine, Input Management, Input Commands, Input Command Pipeline, Auto Logger, Audio, Animations, Scene Management, UI Tweener, and Free Camera.
+**Infrastructure** packages build on the foundation to provide system-level services: Object Pool, State Machine, Input Management, Input Commands, Input Command Pipeline, Auto Logger, Audio, Animations, Scene Management, UI Tweener, UI Layout System, UI Kit, and Free Camera.
 
 **MVP Core** provides the Model-View-Presenter pattern implementation and the UI Management System that all game-facing MVP packages extend.
 
@@ -54,6 +54,8 @@ Debug Utility ──────────────────────
   ├── Audio ──────────────────── Editor Toolz, Extensions, Singleton, Event Bus, Object Pool, DOTween, UniTask
   ├── Scene Management ───────── Event Bus, Extensions, MVP Loading Screen, UniTask
   ├── UI Tweener ─────────────── Editor Toolz, Extensions, Tweener, DOTween
+  ├── UI Layout System ───────── UI Tweener, Tweener, Audio, Event Bus, Editor Toolz, DOTween, TextMeshPro
+  ├── UI Kit ─────────────────── UI Layout System, UI Tweener, Audio, Event Bus, MVP Game Settings, DOTween, TextMeshPro
   │
   ├── MVP ────────────────────── (standalone)
   ├── MVP UI Management System ─ Editor Toolz, Input Management, UI Tweener, Zenject
@@ -74,12 +76,12 @@ Debug Utility ──────────────────────
 | Dependency | Required by |
 |---|---|
 | Zenject | Object Pool, State Machine, Input Command Pipeline, MVP UI Management System, MVP Game Settings, MVP Health System, MVP Inventory System, MVP Loading Screen |
-| DOTween | Tweener, UI Tweener, Audio, MVP Health System, MVP Notifications |
+| DOTween | Tweener, UI Tweener, UI Layout System, UI Kit, Audio, MVP Health System, MVP Notifications, MVP Loading Screen |
 | UniTask | Auto Logger, MVP Clock, MVP Loading Screen, State Machine (multi-thread), Audio |
 | Unity Input System | Command Pipeline, Input Management, Input Commands, Input Command Pipeline, Free Camera, Tooltip System |
 | TextMeshPro | MVP Clock, MVP Game Settings, MVP Inventory System, MVP Notifications |
 | Newtonsoft.Json | IO |
-| Unity Addressables | Object Pool (optional, AddressableObjectPoolInstaller) |
+| Unity Addressables | Object Pool (AddressableObjectPoolInstaller), Audio, Scene Management (Addressable scene groups) |
 
 ---
 
@@ -225,6 +227,18 @@ For music, `MXManager` plays `SongSO` assets composed of synchronized intensity-
 ### UI Tweener
 
 Strategy-based UI animation system built on DOTween. `UITweener` sequences a list of tween strategies in order. Available strategies: FadeTween, ScaleTween, MoveTween, OffsetTween, SizeTween, PulsateTween, PulsateFadeTween, LoopTween, DelayTween, MergeTween (parallel), JoinUITweener, SelectObject, PlaySFX, and OnCompleteCallback. Configured via ScriptableObjects.
+
+### UI Layout System
+
+Layout helpers and hardened controls: `FlexLayoutGroup`, `SafeAreaFitter`, and `UIStrongButton` (a `Button`
+that audits its bindings, plays optional click/hover/press/disable sounds, and owns its click tween).
+
+### UI Kit
+
+Ready-made widgets: `ArcLayout`, swipeable `CardCarousel<TCard>` (tap the centred card, or an optional Play-style
+`chooseButton`, to choose it), `TextBoxFitter`, `FitContentToHeight`,
+`UIShine`, `UISparkleBurst` / `WorldSparkleBurst`, `UISpinner`, and the setting-bound `UIStrongToggle` and
+`SwitchButton`. The loading-screen `IndeterminateLoadingRing` ships with MVP Loading Screen.
 
 ### Free Camera
 
