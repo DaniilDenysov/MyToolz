@@ -1,7 +1,7 @@
 {
   "name": "com.mytoolz.mvpgamesettings",
   "displayName": "MVP GameSettings",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "unity": "2022.3",
   "unityRelease": "46f1",
   "description": "ScriptableObject-driven game settings system with save/load persistence and MVP views for sliders, toggles, dropdowns, and input fields. Requires Zenject (https://github.com/modesttree/Zenject)",

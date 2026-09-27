@@ -45,3 +45,16 @@ Runtime/
 ## Setup
 
 Create setting SO assets for each configurable option. Add `SettingsPresenter` to your scene and assign the settings list. Create matching views for each setting type in your settings UI panel.
+
+## Saving
+
+`SettingsPresenter` batches writes instead of saving the whole file on every change:
+
+- A change marks the settings dirty. The file is written `saveDelaySeconds` (default 1 s, unscaled) after the
+  last change, and never later than `maxSaveDelaySeconds` (default 5 s) after the first unsaved one, so a
+  slider drag or a value that changes every frame costs one write.
+- Pending changes are written immediately when the app is paused, loses focus, quits, or the presenter is
+  disabled/destroyed. Call `Flush()` to write pending changes now, or `Save()` to force a write.
+- A setting's twin copies (e.g. the same asset loaded again from a bundle) mirror each other's values; their
+  mirrored updates are coalesced into the same write.
+- Saving is refused until the stored values have loaded, so defaults never overwrite a save.

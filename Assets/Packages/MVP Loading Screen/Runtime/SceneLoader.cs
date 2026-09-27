@@ -4,6 +4,7 @@ using MyToolz.DesignPatterns.Singleton;
 using MyToolz.Events;
 using MyToolz.Extensions;
 using MyToolz.Utilities.Debug;
+using System;
 using System.Threading;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -12,6 +13,9 @@ namespace MyToolz.SceneManagement
 {
     public class SceneLoader : PrivateSingleton<SceneLoader>, IEventListener
     {
+        [Tooltip("Keeps the loading screen up for at least this many seconds (unscaled), e.g. so a very fast load does not flash it. 0 = activate as soon as the scene is ready.")]
+        [SerializeField, Min(0f)] private float minimalLoadingDuration;
+
         private EventBinding<LoadScene> onLoadSceneBinding;
 
         private void Start()
@@ -56,6 +60,7 @@ namespace MyToolz.SceneManagement
 
         private async UniTaskVoid LoadSceneAsync(string sceneName, LoadSceneMode mode, CancellationToken token)
         {
+            float startedAt = Time.realtimeSinceStartup;
             AsyncOperation operation = SceneManager.LoadSceneAsync(sceneName, mode);
 
             if (operation == null)
@@ -88,6 +93,18 @@ namespace MyToolz.SceneManagement
             }
 
             progress.Report(1f);
+
+            float remaining = minimalLoadingDuration - (Time.realtimeSinceStartup - startedAt);
+
+            if (remaining > 0f)
+            {
+                await UniTask.Delay(
+                    TimeSpan.FromSeconds(remaining),
+                    DelayType.UnscaledDeltaTime,
+                    PlayerLoopTiming.Update,
+                    token);
+            }
+
             operation.allowSceneActivation = true;
 
             await operation.ToUniTask(cancellationToken: token);

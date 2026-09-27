@@ -13,6 +13,7 @@ namespace MyToolz.ScriptableObjects.GameSettings
 
         public T DefaultValue => defaultValue;
         public T CurrentValue => hasBeenSet ? currentValue : defaultValue;
+        public override bool HasValue => hasBeenSet;
 
 #if UNITY_EDITOR
         protected override void OnEnable()
@@ -31,6 +32,7 @@ namespace MyToolz.ScriptableObjects.GameSettings
 
             currentValue = defaultValue;
             hasBeenSet = false;
+            ForgetLoad();
         }
 #endif
 
@@ -41,10 +43,34 @@ namespace MyToolz.ScriptableObjects.GameSettings
                 DebugUtility.LogError(this, $"Invalid value on {settingName}, it will not be accepted!");
                 return;
             }
-            currentValue = newValue;
+            Accept(newValue);
+            OnSetted();
+
+            foreach (SettingSOAbstract twin in Twins())
+            {
+                SettingSOGeneric<T> mirror = (SettingSOGeneric<T>)twin;
+                mirror.Accept(newValue);
+                mirror.OnSetted();
+            }
+        }
+
+        private void Accept(T value)
+        {
+            currentValue = value;
             hasBeenSet = true;
             NotifyValueUpdated();
-            OnSetted();
+        }
+
+        protected override void AdoptValueFrom(SettingSOAbstract source)
+        {
+            SettingSOGeneric<T> typed = (SettingSOGeneric<T>)source;
+            if (!typed.hasBeenSet)
+            {
+                return;
+            }
+
+            currentValue = typed.currentValue;
+            hasBeenSet = true;
         }
 
         protected virtual bool IsValueValid(T value)
@@ -79,6 +105,7 @@ namespace MyToolz.ScriptableObjects.GameSettings
                 DebugUtility.LogError(this, $"ID mismatch on {settingName}, loaded {entry.Id} doesn't match {id}");
                 return;
             }
+            bool accepted = false;
             try
             {
                 T loadedValue = entry.GetValue<T>();
@@ -86,6 +113,7 @@ namespace MyToolz.ScriptableObjects.GameSettings
                 {
                     currentValue = loadedValue;
                     hasBeenSet = true;
+                    accepted = true;
                 }
                 else
                 {
@@ -98,6 +126,20 @@ namespace MyToolz.ScriptableObjects.GameSettings
             }
             NotifyValueUpdated();
             OnLoaded();
+
+            if (!accepted)
+            {
+                return;
+            }
+
+            foreach (SettingSOAbstract twin in Twins())
+            {
+                SettingSOGeneric<T> mirror = (SettingSOGeneric<T>)twin;
+                mirror.currentValue = currentValue;
+                mirror.hasBeenSet = true;
+                mirror.NotifyValueUpdated();
+                mirror.OnLoaded();
+            }
         }
 
         public override SettingEntry Save()

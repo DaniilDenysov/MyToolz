@@ -13,10 +13,23 @@ namespace MyToolz.GameSettings
     public class SettingsPresenter : MonoBehaviour
     {
         [SerializeField] private SettingSOAbstract[] settings;
+
+        [Tooltip("Setting changes are batched: the file is written this many seconds (unscaled) after the last change. Pausing, quitting and destroying the presenter write pending changes immediately.")]
+        [SerializeField, Min(0f)] private float saveDelaySeconds = 1f;
+
+        [Tooltip("Upper bound on how long a stream of changes can postpone the write.")]
+        [SerializeField, Min(0f)] private float maxSaveDelaySeconds = 5f;
+
         private readonly Dictionary<string, SettingSOAbstract> savableComponents = new();
         private ISaver<SavableData> saver;
         private bool hasSavedThisSession;
         private bool hasLoaded;
+        private bool dirty;
+        private float firstChangeAt;
+        private float lastChangeAt;
+
+        /// <summary>True while a setting change is waiting to be written.</summary>
+        public bool HasPendingChanges => dirty;
 
 #if UNITY_EDITOR
         [Button("Refresh")]
@@ -63,38 +76,88 @@ namespace MyToolz.GameSettings
         private void Start()
         {
             SavableData loaded = saver.Load();
-            hasLoaded = true;
 
-            if (loaded?.Data == null || loaded.Data.Count == 0)
+            if (loaded?.Data != null)
             {
-                return;
+                foreach (SettingEntry entry in loaded.Data)
+                {
+                    if (!savableComponents.TryGetValue(entry.Id, out SettingSOAbstract settingComponent))
+                    {
+                        continue;
+                    }
+                    if (settingComponent == null)
+                    {
+                        DebugUtility.LogError(this, "Setting component is null!");
+                        continue;
+                    }
+                    settingComponent.Load(entry);
+                }
             }
 
-            foreach (SettingEntry entry in loaded.Data)
+            hasLoaded = true;
+            foreach (SettingSOAbstract setting in savableComponents.Values)
             {
-                if (!savableComponents.TryGetValue(entry.Id, out SettingSOAbstract settingComponent))
-                {
-                    continue;
-                }
-                if (settingComponent == null)
-                {
-                    DebugUtility.LogError(this, "Setting component is null!");
-                    continue;
-                }
-                settingComponent.Load(entry);
+                setting.OnSettingUpdated += MarkDirty;
+                setting.CompleteLoad();
             }
         }
 
         private void OnEnable()
         {
-            Application.quitting += Save;
+            Application.quitting += Flush;
         }
 
         private void OnDisable()
         {
-            Application.quitting -= Save;
+            Application.quitting -= Flush;
+            Flush();
         }
 
+        private void Update()
+        {
+            if (!dirty)
+            {
+                return;
+            }
+
+            float now = Time.unscaledTime;
+            if (now - lastChangeAt >= saveDelaySeconds || now - firstChangeAt >= Mathf.Max(saveDelaySeconds, maxSaveDelaySeconds))
+            {
+                Save();
+            }
+        }
+
+        /// <summary>
+        /// Records that a setting changed. Changes (including the mirrored updates of a setting's
+        /// twin copies) are coalesced into one write instead of one full save per change.
+        /// </summary>
+        private void MarkDirty()
+        {
+            if (!hasLoaded)
+            {
+                return;
+            }
+
+            float now = Time.unscaledTime;
+            if (!dirty)
+            {
+                dirty = true;
+                firstChangeAt = now;
+            }
+
+            lastChangeAt = now;
+        }
+
+        /// <summary>Writes pending changes now, if there are any.</summary>
+        public void Flush()
+        {
+            if (dirty)
+            {
+                Save();
+            }
+        }
+
+        /// <summary>Writes every setting immediately, whether or not anything changed.</summary>
         public void Save()
         {
             if (!hasLoaded)
@@ -108,6 +171,7 @@ namespace MyToolz.GameSettings
                 Data = savableComponents.Values.Select(c => c.Save()).Where(entry => entry != null).ToList()
             };
             saver.Save(data);
+            dirty = false;
             hasSavedThisSession = true;
         }
 
@@ -115,14 +179,27 @@ namespace MyToolz.GameSettings
         {
             if (pause)
             {
-                hasSavedThisSession = false;
-                Save();
+                Flush();
+            }
+        }
+
+        private void OnApplicationFocus(bool hasFocus)
+        {
+            // WebGL and some Android launchers deliver focus loss without a pause.
+            if (!hasFocus)
+            {
+                Flush();
             }
         }
 
         private void OnDestroy()
         {
-            if (!hasSavedThisSession)
+            foreach (SettingSOAbstract setting in savableComponents.Values)
+            {
+                setting.OnSettingUpdated -= MarkDirty;
+            }
+
+            if (dirty || !hasSavedThisSession)
             {
                 Save();
             }

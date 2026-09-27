@@ -10,12 +10,16 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using UnityEngine;
+using UnityEngine.AddressableAssets;
 
 namespace MyToolz.Audio
 {
     public class MXManager : PrivateSingleton<MXManager>, IEventListener
     {
-        [FoldoutGroup("Pool"), SerializeField, Required] private AudioSourceWrapper audioSourcePrefab;
+        [FoldoutGroup("Pool"), SerializeField, Tooltip("Addressable AudioSourceWrapper prefab pooled by an AddressableObjectPoolInstaller.")]
+        private AssetReferenceGameObject audioSourceReference;
+        [FoldoutGroup("Pool"), SerializeField, Tooltip("Directly referenced prefab, used when no Addressable reference is set.")]
+        private AudioSourceWrapper audioSourcePrefab;
 
         [FoldoutGroup("Playback"), SerializeField] private bool loopCurrentSong = true;
         [FoldoutGroup("Playback"), SerializeField] private bool playOnAwake = true;
@@ -69,6 +73,19 @@ namespace MyToolz.Audio
             UnregisterEvents();
             CancelTokenSource(ref lifetimeCts);
             CancelTokenSource(ref intensityFadeCts);
+        }
+
+        protected override void OnSingletonDestroy()
+        {
+            // Hand every playing source back before this transform (their parent) is destroyed,
+            // otherwise the pool keeps references to destroyed wrappers.
+            for (int i = 0; i < activeLoopInstances.Count; i++)
+            {
+                activeLoopInstances[i].Dispose();
+            }
+
+            activeLoopInstances.Clear();
+            currentSong = null;
         }
 
         public void RegisterEvents()
@@ -214,17 +231,29 @@ namespace MyToolz.Audio
         private AudioSourceWrapper AcquireFromPool(Transform parent)
         {
             AudioSourceWrapper result = null;
+            bool abandoned = false;
+            bool addressable = audioSourceReference != null && audioSourceReference.RuntimeKeyIsValid();
 
             EventBus<PoolRequest<AudioSourceWrapper>>.Raise(new PoolRequest<AudioSourceWrapper>
             {
+                Key = addressable ? audioSourceReference.RuntimeKey : null,
                 Prefab = audioSourcePrefab,
                 Callback = (wrapper) =>
                 {
+                    // A pool that queues requests while loading can answer after this method has
+                    // returned; nobody owns that wrapper any more, so hand it straight back.
+                    if (abandoned)
+                    {
+                        ReleaseToPool(wrapper);
+                        return;
+                    }
+
                     wrapper.transform.SetParent(parent);
                     result = wrapper;
                 }
             });
 
+            abandoned = result == null;
             return result;
         }
 
@@ -254,6 +283,7 @@ namespace MyToolz.Audio
             private readonly SongSO song;
             private readonly AudioSourceWrapper[] wrappers;
             private readonly AudioSource[] sources;
+            private readonly float configuredVolume;
             private float fadeInStart;
             private float fadeInEnd;
             private float fadeOutStart;
@@ -266,6 +296,11 @@ namespace MyToolz.Audio
             {
                 this.manager = manager;
                 this.song = song;
+                configuredVolume = song.AudioSourceConfigSO == null
+                    ? 1f
+                    : song.AudioSourceConfigSO.RandomizeVolume
+                        ? song.AudioSourceConfigSO.GetRandomVolume()
+                        : song.AudioSourceConfigSO.Volume;
 
                 if (song.IntensityClips.Count == 0)
                 {
@@ -280,6 +315,16 @@ namespace MyToolz.Audio
                 for (int i = 0; i < clipCount; i++)
                 {
                     AudioSourceWrapper wrapper = manager.AcquireFromPool(manager.transform);
+                    if (wrapper == null)
+                    {
+                        DebugUtility.LogWarning(this, $"Audio pool not ready; aborting loop for song: {song.name}");
+                        for (int j = 0; j < i; j++)
+                        {
+                            manager.ReleaseToPool(wrappers[j]);
+                        }
+                        return;
+                    }
+
                     AudioSource source = wrapper.GetComponent<AudioSource>();
                     source.Configure(song.AudioSourceConfigSO);
                     source.clip = song.IntensityClips[i];
@@ -337,7 +382,7 @@ namespace MyToolz.Audio
                     return true;
                 }
 
-                float primaryVolume = manager.maxVolume;
+                float primaryVolume = manager.maxVolume * configuredVolume;
 
                 if (fadeInStart >= 0f && fadeInEnd >= 0f)
                 {
@@ -397,7 +442,7 @@ namespace MyToolz.Audio
 
                 float currentIntensity = manager.intensity;
 
-                if (currentIntensity <= 0f)
+                if (sources.Length == 1 || currentIntensity <= 0f)
                 {
                     sources[0].volume = primaryVolume;
                     return;

@@ -135,8 +135,8 @@ namespace MyToolz.Editor
             if (value == null)
                 return false;
 
-            if (value.GetType().IsEnum)
-                return value.Equals(compareValue);
+            if (compareValue is string text && !(value is string))
+                return string.Equals(value.ToString(), text, StringComparison.OrdinalIgnoreCase);
 
             return Equals(value, compareValue);
         }

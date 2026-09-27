@@ -37,16 +37,16 @@ namespace MyToolz.IO
         public override string Serialize(T data)
         {
             DebugUtility.LogWarning(this, 
-                "[SaveLoadBase] UnityJsonStrategy does not support collections, dictionaries, or non-public fields. " +
-                "Use NewtonsoftJsonStrategy unless you have a specific reason not to.");
+                "[SaveLoadBase] UnityJsonStrategy does not support dictionaries and has limited polymorphic/managed-reference support. " +
+                "It serializes fields supported by Unity (including private fields marked [SerializeField]). Use NewtonsoftJsonStrategy unless you have a specific reason not to.");
             return JsonUtility.ToJson(data, _prettyPrint);
         }
 
         public override T Deserialize(string raw)
         {
             DebugUtility.LogWarning(this,
-                "[SaveLoadBase] UnityJsonStrategy does not support collections, dictionaries, or non-public fields. " +
-                "Use NewtonsoftJsonStrategy unless you have a specific reason not to.");
+                "[SaveLoadBase] UnityJsonStrategy does not support dictionaries and has limited polymorphic/managed-reference support. " +
+                "It serializes fields supported by Unity (including private fields marked [SerializeField]). Use NewtonsoftJsonStrategy unless you have a specific reason not to.");
             return JsonUtility.FromJson<T>(raw);
         }
     }

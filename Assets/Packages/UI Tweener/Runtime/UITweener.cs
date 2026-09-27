@@ -8,6 +8,12 @@ using UnityEngine.EventSystems;
 
 namespace MyToolz.Tweener.UI
 {
+    /// <summary>
+    /// Marks a component on the same GameObject that plays the OnClick tween itself (for example a
+    /// button that also validates the click), so <see cref="UITweener"/> does not play it a second time.
+    /// </summary>
+    public interface IUITweenClickOwner { }
+
     [System.Serializable]
     public abstract class TweenStrategy : AbstractTweenStrategy
     {
@@ -206,6 +212,9 @@ namespace MyToolz.Tweener.UI
 
         public void OnPointerClick(PointerEventData eventData)
         {
+            if (GetComponent<IUITweenClickOwner>() != null)
+                return;
+
             CreateSequence(ActivationTrigger.OnClick).Play();
         }
     }

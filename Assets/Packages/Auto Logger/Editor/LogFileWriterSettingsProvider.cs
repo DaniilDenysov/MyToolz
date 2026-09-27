@@ -32,6 +32,18 @@ namespace MyToolz.Utilities.AutoLogger.Editor
             EditorGUILayout.LabelField("Log File Writer", EditorStyles.boldLabel);
             EditorGUILayout.Space(4);
 
+            EditorGUILayout.LabelField("Activation", EditorStyles.boldLabel);
+            EditorGUILayout.PropertyField(so.FindProperty("enabled"),
+                new GUIContent("Enabled", "Master switch. When off, player builds never hook the console or touch the disk."));
+            using (new EditorGUI.DisabledGroupScope(!prefs.enabled))
+            {
+                EditorGUILayout.PropertyField(so.FindProperty("enabledInReleaseBuilds"),
+                    new GUIContent("Release Builds", "Also log in non-development builds."));
+                EditorGUILayout.PropertyField(so.FindProperty("enabledOnWebGL"),
+                    new GUIContent("WebGL", "WebGL has no thread pool and each flush is an IndexedDB write."));
+            }
+
+            EditorGUILayout.Space(8);
             EditorGUILayout.LabelField("Path", EditorStyles.boldLabel);
             EditorGUILayout.PropertyField(so.FindProperty("customLogDirectory"),
                 new GUIContent("Custom Log Directory",
@@ -60,6 +72,10 @@ namespace MyToolz.Utilities.AutoLogger.Editor
             EditorGUILayout.LabelField("Features", EditorStyles.boldLabel);
             EditorGUILayout.PropertyField(so.FindProperty("trackSceneChanges"));
             EditorGUILayout.PropertyField(so.FindProperty("trackStatistics"));
+            using (new EditorGUI.DisabledGroupScope(!prefs.trackStatistics))
+            {
+                EditorGUILayout.PropertyField(so.FindProperty("maxTrackedMessages"));
+            }
             EditorGUILayout.PropertyField(so.FindProperty("trackFps"));
 
             EditorGUILayout.Space(8);

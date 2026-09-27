@@ -1,7 +1,7 @@
 {
   "name": "com.mytoolz.mvploadingscreen",
   "displayName": "MVP LoadingScreen",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "unity": "2022.3",
   "unityRelease": "46f1",
   "description": "Plug-and-use loading screen solution with async scene management and MVP architecture. Requires Zenject (https://github.com/modesttree/Zenject), UniTask (https://github.com/Cysharp/UniTask), SerializeReferenceExtensions (https://github.com/mackysoft/Unity-SerializeReferenceExtensions)",

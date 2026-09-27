@@ -19,13 +19,18 @@ namespace MyToolz.Audio
             audioSource = GetComponent<AudioSource>();
         }
 
-        public void Play(AudioClipSO audioClipSO)
+        public void Play(AudioClipSO audioClipSO) => Play(audioClipSO, 0f);
+
+        public void Play(AudioClipSO audioClipSO, float pitch)
         {
             var audio = audioClipSO.GetClipAndConfig();
             if (audio.clip == null) return;
 
             if (audio.config != null)
                 audioSource.Configure(audio.config);
+
+            if (pitch > 0f)
+                audioSource.pitch = pitch;
 
             audioSource.clip = audio.clip;
             audioSource.Play();

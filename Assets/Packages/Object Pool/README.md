@@ -20,7 +20,7 @@ Runtime/
 ├── IPoolable.cs                       Optional callback interface for pooled components (OnSpawned / OnDespawned)
 ├── ObjectPoolInstaller.cs             Abstract base handling pool requests, instance tracking, and release validation
 ├── DefaultObjectPoolInstaller.cs      Concrete generic installer for direct prefab references
-└── AddressableObjectPoolInstaller.cs  Concrete generic installer for Addressable prefabs
+└── AddressableObjectPoolInstaller.cs  Installer for Addressable prefabs (also pools direct prefab references)
 ```
 
 ## Usage
@@ -39,6 +39,16 @@ EventBus<PoolRequest<MyPrefab>>.Raise(new PoolRequest<MyPrefab>
 EventBus<ReleaseRequest<MyPrefab>>.Raise(new ReleaseRequest<MyPrefab> { PoolObject = obj });
 ```
 
+Addressable pools are requested by runtime key instead of prefab:
+
+```csharp
+EventBus<PoolRequest<MyPrefab>>.Raise(new PoolRequest<MyPrefab>
+{
+    Key = assetReference.RuntimeKey,
+    Callback = obj => obj.Fire()
+});
+```
+
 Release every currently spawned object of a type back to its pool in one call:
 
 ```csharp
@@ -51,3 +61,9 @@ Notes:
 - Pooled components may implement `IPoolable` to receive `OnSpawned` / `OnDespawned` callbacks.
 - Releasing an object twice is detected and ignored with a warning. Releasing an object that doesn't belong to any pool destroys it when `destroyIfNotInPool` is enabled.
 - `PoolAllRequest<T>` releases all spawned instances of `T` managed by the installer. Any destroyed (null) references encountered are skipped with a warning. Its optional `Callback` runs once per released object.
+- Initialization is awaited (Addressable prefabs load asynchronously). Requests raised while the pools are
+  still loading are refused with a warning; enable `queueRequestsWhileLoading` to hold them (up to 256) and
+  serve them once ready instead (only when callers do not rely on the callback running inside `Raise`).
+- If initialization fails - an Addressable load fails, or building a pool throws - the error is logged and
+  `PoolInitializationFailed` (`ItemType`, `Reason`) is raised. Listen for it to show an error instead of
+  leaving the game waiting on objects that will never arrive. `IsReady` / `HasFailed` expose the state.

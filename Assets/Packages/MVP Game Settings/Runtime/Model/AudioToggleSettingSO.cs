@@ -24,6 +24,11 @@ namespace MyToolz.ScriptableObjects.GameSettings
             ApplyCurrent();
         }
 
+        protected override void OnLoadFinished()
+        {
+            ApplyCurrent();
+        }
+
         public void ApplyCurrent()
         {
             if (audioMixer == null || string.IsNullOrEmpty(exposedParameter))

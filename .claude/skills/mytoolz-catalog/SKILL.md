@@ -14,7 +14,7 @@ description: >-
 
 # MyToolz package catalogue
 
-MyToolz is a Unity 2022.3 monorepo. Every reusable **tool** is a self-contained package in
+MyToolz is a Unity 6 (6000.3) monorepo. Every reusable **tool** is a self-contained package in
 `Assets/Packages/<Name>/` (each with its own `package.json`, a `Runtime/` folder, sometimes
 `Editor/` and `Optional/`). Game code lives in `Assets/Scripts/`. Everything is under the
 `MyToolz.*` namespace.
@@ -50,8 +50,8 @@ skill for the full API, gotchas, and worked examples.
 
 | Package | Namespace | What it is | Intended use |
 |---------|-----------|-----------|--------------|
-| **EventBus** | `MyToolz.DesignPatterns.EventBus`, `MyToolz.Events` | Type-safe static event bus. | Define `struct X : IEvent`; `EventBus<X>.Raise(e)`. Subscribers implement `IEventListener`, hold an `EventBinding<X>`, and `Register`/`Deregister` in pairs. → `references/event-bus.md` |
-| **ObjectPool** | `MyToolz.DesignPatterns.ObjectPool`, `MyToolz.Events` | Event-driven pooling over Zenject `MemoryPool`. | Add a pool installer listing the prefab; spawn with `EventBus<PoolRequest<T>>.Raise(...)`, return with `ReleaseRequest<T>`. Pooled objects implement `IPoolable`. → `references/object-pool.md` |
+| **EventBus** | `MyToolz.DesignPatterns.EventBus`, `MyToolz.Events` | Type-safe static event bus. | Define `struct X : IEvent`; `EventBus<X>.Raise(e)`. Subscribers implement `IEventListener`, hold an `EventBinding<X>`, and `Register`/`Deregister` in pairs. Listeners run in registration order; a throwing listener is logged and the rest still run. → `references/event-bus.md` |
+| **ObjectPool** | `MyToolz.DesignPatterns.ObjectPool`, `MyToolz.Events` | Event-driven pooling over Zenject `MemoryPool`. | Add a pool installer listing the prefab (`DefaultObjectPoolInstaller<T>`, or `AddressableObjectPoolInstaller<T>` for Addressable prefabs requested by `Key`); spawn with `EventBus<PoolRequest<T>>.Raise(...)`, return with `ReleaseRequest<T>`. Pooled objects implement `IPoolable`. Listen for `PoolInitializationFailed` to surface load failures. → `references/object-pool.md` |
 | **StateMachine** | `MyToolz.DesignPatterns.StateMachine` (+ `.SimplePriorityBased`, `.PriorityBased`) | Interface-based state machines. | Implement `IState` (`OnEnter`/`OnExit`); for auto-selecting behaviours extend `SimplePriorityStateMachine` with `IPriorityState.Priority`. → `references/state-machine.md` |
 | **Singleton** | `MyToolz.DesignPatterns.Singleton` | Safe MonoBehaviour singleton bases. | Default to `PrivateSingleton<T>` (uniqueness, no global static). `PublicSingleton<T>` (global `Instance`) is a red flag — prohibited unless explicitly requested. Override `OnSingletonAwake`/`OnSingletonDestroy`, never `Awake`/`OnDestroy`. → `references/singleton.md` |
 | **Command Pipeline** | `MyToolz.DesignPatterns.Command` | Generic command queue. | Implement `ICommand.Execute()`; `CommandPipeline<T>` queues (`queueSize`) and runs up to `callStackSize` concurrently via `Enqueue`/`Update`. Input builds on this — see Input Command Pipeline. → `references/input.md` |
@@ -61,8 +61,8 @@ skill for the full API, gotchas, and worked examples.
 
 | Package | Namespace | What it is | Intended use |
 |---------|-----------|-----------|--------------|
-| **IO** | `MyToolz.IO` | Save/load with swappable serialization/storage/encryption. | Subclass `SaveLoadBase<T> where T : class,new()` (it *is* a `MonoInstaller`), drop on a context, inject `ISaver<T>` and call `Save`/`Load` (never null). Default: Newtonsoft JSON, atomic writes + `.bak`. Requires `com.unity.nuget.newtonsoft-json`. → `references/io.md` |
-| **AutoLogger** | `MyToolz.Utilities.AutoLogger` | Automatic build-only session logger. | Zero code — active only in builds (`#if !UNITY_EDITOR`), auto-hooks `Application.logMessageReceived`. Configure `LogFileWriterPreferences` (ScriptableObject in `Resources/`). Captures FPS, scene history, message-frequency stats, writes a summary on quit. |
+| **IO** | `MyToolz.IO` | Save/load with swappable serialization/storage/encryption. | Subclass `SaveLoadBase<T> where T : class,new()` (it *is* a `MonoInstaller`), drop on a context, inject `ISaver<T>` and call `Save`/`Load` (never null). Default: Newtonsoft JSON, atomic writes + `.bak`. `AesEncryptionStrategy` = random IV + HMAC (tamper-evident; set a project key), `XorEncryptionStrategy` = obfuscation only. Requires `com.unity.nuget.newtonsoft-json`. → `references/io.md` |
+| **AutoLogger** | `MyToolz.Utilities.AutoLogger` | Automatic build-only session logger. | Zero code — active only in builds (`#if !UNITY_EDITOR`), auto-hooks `Application.logMessageReceived`. Configure `LogFileWriterPreferences` (ScriptableObject in `Resources/`, Project Settings > Log File Writer): `enabled`, `enabledInReleaseBuilds`, `enabledOnWebGL` (off by default). Captures FPS, scene history, bounded message-frequency stats, writes a summary on quit. |
 
 ## Dependency injection
 
@@ -85,13 +85,14 @@ themselves installers. → `mytoolz-framework → references/zenject-installers.
 | Package | Namespace | What it is | Intended use |
 |---------|-----------|-----------|--------------|
 | **MVP UI ManagementSystem** | `MyToolz.UI.Management` | Layered screen stack. | Model screens as `UIScreen`/`UISubScreen`; group with `UILayerSO` (`Override`/`Additive`/`Blend`); open/close via `Open()`/`Close()` through the injected `UILayerStateManager`. Add `UIInstaller`. → `references/ui-management-system.md` |
-| **UI Layout System** | `MyToolz.UI.Layout` | Layout & robust UI widgets. | `FlexLayoutGroup` + `FlexChild` (flexbox-style grow/shrink/basis); `SafeAreaFitter` (notch-safe RectTransform); `UIStrongButton` (a `Button` that loudly reports broken `onClick` bindings instead of failing silently). |
+| **UI Layout System** | `MyToolz.UI.Layout` | Layout & robust UI widgets. | `FlexLayoutGroup` + `FlexChild` (flexbox-style grow/shrink/basis); `SafeAreaFitter` (notch-safe RectTransform); `UIStrongButton` (a `Button` that loudly reports broken `onClick` bindings instead of failing silently, with optional click/hover/press/disable `AudioClipSO`s). |
+| **UI Kit** | `MyToolz.UI.Kit` | Ready-made uGUI widgets. | `ArcLayout` (children on an arch), `CardCarousel<TCard>` (swipe/snap carousel; implement `Choose`; optional `chooseButton` such as a Play button calls `ChooseCurrent`), `TextBoxFitter`, `FitContentToHeight`, `UIShine`, `UISparkleBurst`/`WorldSparkleBurst`, `UISpinner`, `UIStrongToggle` (bound to a `BoolSettingSO`) and `SwitchButton` (cycles an `IntSettingSO` via a `SwitchButtonStrategy`). |
 | **Tweener** | `MyToolz.Tweener` | DOTween sequence base. | Extend `Tweener<T>` with `AbstractTweenStrategy` subclasses; strategies compose into a `Sequence` (parallel or serial), `ignoreTimeScale` for pause-proof tweens. → `mytoolz-framework → references/tweener.md` |
 | **UI Tweener** | `MyToolz.Tweener.UI` | Trigger-driven UI tweens. | Put `UITweener` on a UI object; add tween strategies (Fade/Move/Scale/Rotate/Size/Offset/Pulsate/…) each bound to an `ActivationTrigger` (Awake/Start/Enable/Disable/OnClick/OnEnter/OnExit/Manual); drive with `SetActive(bool)`. This is the `screenTweener` used by UI screens. → `mytoolz-framework → references/ui-tweener.md` |
 | **Tooltip System** | `MyToolz.UI.ToolTip` | Cursor-following tooltips. | Add one `TooltipSystem` (assign root + text); add `TooltipArea` (with a description) to any UI Graphic. Hover raises `ShowTooltip`/`HideTooltip` (`MyToolz.UI.Events`) over the EventBus. |
-| **MVP Game Settings** | `MyToolz.GameSettings`, `MyToolz.ScriptableObjects.GameSettings` | Settings screen + persisted settings. | Author setting SOs (`FloatSettingSO`, `BoolSettingSO`, `ResolutionSettingSO`, `QualitySettingSO`, `AudioSettingSO`, …) from `SettingSOAbstract`; `SettingsPresenter` binds them to views (slider/dropdown/toggle/carousel) and persists via IO. |
+| **MVP Game Settings** | `MyToolz.GameSettings`, `MyToolz.ScriptableObjects.GameSettings` | Settings screen + persisted settings. | Author setting SOs (`FloatSettingSO`, `BoolSettingSO`, `ResolutionSettingSO`, `QualitySettingSO`, `AudioSettingSO`, …) from `SettingSOAbstract`; `SettingsPresenter` binds them to views (slider/dropdown/toggle/carousel) and persists via IO, batching writes (`saveDelaySeconds`, flushed on pause/quit; `Flush()`/`Save()` to force). |
 | **MVP Notifications** | `MyToolz.UI.Notifications`, events in `MyToolz.UI.Events` | Queued on-screen notifications. | Add `NotificationInstaller` + a `PlayerNotificationView`; raise `NotificationRequest` (with `NotificationData`: priority, overflow, dedupe) to show one, `NotificationClearRequest` to clear. Views are pooled; extend `NotificationBase` for new kinds. |
-| **MVP Loading Screen** | `MyToolz.UI.LoadingScreen`, events in `MyToolz.Events` | Scene-loading screen (a.k.a. SceneLoader). | Add `SceneLoaderInstaller`; raise `LoadScene`, watch `SceneLoading`/`SceneLoaded`. `SceneLoaderPresenter` drives an `IProgressBar` from `ISceneLoaderModel` progress. |
+| **MVP Loading Screen** | `MyToolz.UI.LoadingScreen`, events in `MyToolz.Events` | Scene-loading screen (a.k.a. SceneLoader). | Add `SceneLoaderInstaller`; raise `LoadScene`, watch `SceneLoading`/`SceneLoaded`. `SceneLoaderPresenter` drives an `IProgressBar` (slider or `IndeterminateLoadingRing`) from `ISceneLoaderModel` progress. `minimalLoadingDuration` defaults to 0. |
 | **MVP Clock** | `MyToolz.Clock` (`.Interfaces`) | Timer / stopwatch feature. | `IClockPresenter` (`Start`/`Stop`/`Pause`/`Resume` + `Elapsed`/`Paused`/… events) over `IClockModel` (`ClockMode` count-up/down) and `IClockView : IReadOnlyView<float>`. |
 | **MVP Inventory System** | `MyToolz.InventorySystem` (`.Models`, `.Installers`, …) | Grid inventory with drag/drop + save. | Extend the generic `InventoryInstaller<T,Model>` / `InventoryModel<T>` with your `ItemSO` type; drag-drop views, object-pooled item views, `InventorySaver`. See the package's `Optional/Implementation/` for a concrete worked set. |
 | **MVP Health System** | `MyToolz.HealthSystem` (`.Interfaces`, `.Installers`) | Damage / heal / death. | Add `HealthSystemInstaller`; model implements `IHealthModel : IDamagable<IDamageArgs>, IHealable` (+ `IKillable`), fires `HealthChanged`/`Died`. Presenters (`HitBoxPresenter`, `HealableHitBoxPresenter`) apply damage/heal; `HealthbarView` renders. |
@@ -107,7 +108,7 @@ themselves installers. → `mytoolz-framework → references/zenject-installers.
 
 | Package | Namespace | What it is | Intended use |
 |---------|-----------|-----------|--------------|
-| **SceneManagement** | `MyToolz.SceneManagement` | Additive multi-scene group loading. | Author `SceneGroupSO`s (scenes + `SceneType` + priority batches); add a `MultiSceneLoader`; raise `LoadSceneGroup`/`ReloadCurrentSceneGroup` (UniTask, progress-reporting). For a loading-screen UI on top, combine with **MVP Loading Screen**. |
+| **SceneManagement** | `MyToolz.SceneManagement` | Additive multi-scene group loading. | Author `SceneGroupSO`s (scenes + `SceneType` + priority batches); add a `MultiSceneLoader`; raise `LoadSceneGroup`/`ReloadCurrentSceneGroup` (UniTask, progress-reporting). Scenes load from Addressables or the build list (`SceneLoadBackend.Auto`); failures raise `SceneGroupLoadFailed` instead of `SceneGroupLoaded`. For a loading-screen UI on top, combine with **MVP Loading Screen**. |
 
 ## Gameplay / algorithms
 

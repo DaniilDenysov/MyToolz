@@ -20,11 +20,15 @@ namespace MyToolz.ScriptableObjects.GameSettings
             ApplyCurrent();
         }
 
+        protected override void OnSetted()
+        {
+            ApplyCurrent();
+        }
+
         public override void SetCurrentValue(double newValue)
         {
             newValue = Mathf.Clamp(newValue.ToFloat(), minValue.ToFloat(), maxValue.ToFloat());
             base.SetCurrentValue(newValue);
-            ApplyCurrent();
         }
 
         public void ApplyCurrent()

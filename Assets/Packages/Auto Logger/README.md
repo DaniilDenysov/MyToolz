@@ -20,4 +20,22 @@ Runtime/
 
 ## Setup
 
-Open **Edit > Preferences** (or **Unity > Settings** on macOS) and navigate to the Auto Logger section. Configure the output file path and enable/disable logging. Once enabled, all `Debug.Log`, `Debug.LogWarning`, and `Debug.LogError` calls are captured and appended to the configured file.
+Open **Project Settings > Log File Writer**. It creates `Assets/Resources/LogFileWriterPreferences.asset`
+on first use. Configure the output folder, retention and which statistics to collect. Once active, every
+`Debug.Log`, `Debug.LogWarning` and `Debug.LogError` in a player build is captured and appended to a
+per-session file. The logger never runs inside the editor.
+
+### Activation switches
+
+| Field | Default | Effect |
+|---|---|---|
+| `enabled` | on | Master switch. Off means the logger never hooks the console or touches the disk. |
+| `enabledInReleaseBuilds` | on | Turn off to log only in development builds. |
+| `enabledOnWebGL` | off | WebGL has no thread pool and each flush becomes an IndexedDB write. When enabled there, batches are written on the main thread. |
+
+### Notes
+
+- Batches are written every ~32 ms on a thread-pool thread (main thread on WebGL); a lock guards the file so
+  the final drain in `Shutdown` never races the writer loop.
+- The "most frequent messages" table is bounded by `maxTrackedMessages` (default 512); further distinct
+  messages are counted in one "(other messages)" bucket.

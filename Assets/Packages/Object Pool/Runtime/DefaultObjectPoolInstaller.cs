@@ -9,6 +9,11 @@ namespace MyToolz.DesignPatterns.ObjectPool
     {
         public override void InitializePools()
         {
+            if (poolObjects == null)
+            {
+                return;
+            }
+
             foreach (var poolObj in poolObjects)
             {
                 if (poolObj.Prefab == null)
@@ -17,24 +22,30 @@ namespace MyToolz.DesignPatterns.ObjectPool
                     continue;
                 }
 
-                int prefabId = poolObj.Prefab.GetInstanceID();
-
-                if (container.HasBindingId<Pool<T>>(prefabId))
-                {
-                    mappings[prefabId] = container.ResolveId<Pool<T>>(prefabId);
-                    continue;
-                }
-
-                container.BindMemoryPool<T, Pool<T>>()
-                    .WithId(prefabId)
-                    .WithInitialSize(poolObj.DefaultCapacity)
-                    .WithMaxSize(poolObj.MaxCapacity)
-                    .WithFactoryArguments<Action<Pool<T>>, int, Action<T>, Action<int, T>, Action<T>>((pool) => mappings.Add(prefabId, pool), prefabId, OnSpawned, OnCreated, OnDespawned)
-                    .FromComponentInNewPrefab(poolObj.Prefab)
-                    .UnderTransformGroup($"{typeof(T).Name} Pool");
-
-                container.ResolveId<Pool<T>>(prefabId);
+                BindPrefabPool(poolObj.Prefab, poolObj.DefaultCapacity, poolObj.MaxCapacity);
             }
+        }
+
+        /// <summary>Binds (or reuses) the Zenject memory pool for one prefab.</summary>
+        protected void BindPrefabPool(T prefab, int defaultCapacity, int maxCapacity)
+        {
+            int prefabId = prefab.GetInstanceID();
+
+            if (container.HasBindingId<Pool<T>>(prefabId))
+            {
+                mappings[prefabId] = container.ResolveId<Pool<T>>(prefabId);
+                return;
+            }
+
+            container.BindMemoryPool<T, Pool<T>>()
+                .WithId(prefabId)
+                .WithInitialSize(defaultCapacity)
+                .WithMaxSize(maxCapacity)
+                .WithFactoryArguments<Action<Pool<T>>, int, Action<T>, Action<int, T>, Action<T>>((pool) => mappings[prefabId] = pool, prefabId, OnSpawned, OnCreated, OnDespawned)
+                .FromComponentInNewPrefab(prefab)
+                .UnderTransformGroup($"{typeof(T).Name} Pool");
+
+            container.ResolveId<Pool<T>>(prefabId);
         }
     }
 }
