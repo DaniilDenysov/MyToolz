@@ -13,10 +13,18 @@ namespace MyToolz.GameSettings
     public class SettingsPresenter : MonoBehaviour
     {
         [SerializeField] private SettingSOAbstract[] settings;
+        [SerializeField, Min(0f), Tooltip("Seconds (unscaled) to wait after the last setting change before saving. " +
+            "Coalesces slider drags into one write. Pause, focus loss, quit and destroy flush immediately.")]
+        private float saveDelay = 0.5f;
+
         private readonly Dictionary<string, SettingSOAbstract> savableComponents = new();
         private ISaver<SavableData> saver;
-        private bool hasSavedThisSession;
         private bool hasLoaded;
+        private bool dirty;
+        private float saveAt;
+
+        public bool IsLoaded => hasLoaded;
+        public LoadStatus LoadStatus { get; private set; } = LoadStatus.NotAttempted;
 
 #if UNITY_EDITOR
         [Button("Refresh")]
@@ -35,7 +43,6 @@ namespace MyToolz.GameSettings
                 .ToList();
         }
 #endif
-
 
         [Inject]
         private void Construct(ISaver<SavableData> saver)
@@ -62,39 +69,104 @@ namespace MyToolz.GameSettings
 
         private void Start()
         {
-            SavableData loaded = saver.Load();
+            SavableData loaded = LoadSettings();
+
+            if (loaded?.Data != null)
+            {
+                foreach (SettingEntry entry in loaded.Data)
+                {
+                    if (entry == null || string.IsNullOrEmpty(entry.Id))
+                    {
+                        continue;
+                    }
+                    if (!savableComponents.TryGetValue(entry.Id, out SettingSOAbstract settingComponent))
+                    {
+                        continue;
+                    }
+                    if (settingComponent == null)
+                    {
+                        DebugUtility.LogError(this, "Setting component is null!");
+                        continue;
+                    }
+                    settingComponent.Load(entry);
+                }
+            }
+
             hasLoaded = true;
-
-            if (loaded?.Data == null || loaded.Data.Count == 0)
+            foreach (SettingSOAbstract setting in savableComponents.Values)
             {
-                return;
+                setting.OnSettingUpdated -= MarkDirty;
+                setting.OnSettingUpdated += MarkDirty;
+                setting.CompleteLoad();
+            }
+        }
+
+        private SavableData LoadSettings()
+        {
+            if (saver == null)
+            {
+                DebugUtility.LogError(this, "No ISaver<SavableData> is bound; settings use their defaults and will not be saved.");
+                LoadStatus = LoadStatus.Missing;
+                return null;
             }
 
-            foreach (SettingEntry entry in loaded.Data)
+            if (saver is IRecoverableSaver<SavableData> recoverable)
             {
-                if (!savableComponents.TryGetValue(entry.Id, out SettingSOAbstract settingComponent))
+                recoverable.TryLoad(out SavableData data, out LoadStatus status);
+                LoadStatus = status;
+                if (status == LoadStatus.Unreadable)
                 {
-                    continue;
+                    DebugUtility.LogError(this,
+                        "Saved settings exist but could not be read. Defaults are in use; the unreadable save is only replaced once a setting is changed.");
                 }
-                if (settingComponent == null)
-                {
-                    DebugUtility.LogError(this, "Setting component is null!");
-                    continue;
-                }
-                settingComponent.Load(entry);
+                return data;
             }
+
+            SavableData legacy = saver.Load();
+            LoadStatus = legacy != null ? LoadStatus.LoadedPrimary : LoadStatus.Missing;
+            return legacy;
         }
 
         private void OnEnable()
         {
-            Application.quitting += Save;
+            Application.quitting += Flush;
         }
 
         private void OnDisable()
         {
-            Application.quitting -= Save;
+            Application.quitting -= Flush;
+            Flush();
         }
 
+        private void Update()
+        {
+            if (dirty && Time.unscaledTime >= saveAt)
+            {
+                Save();
+            }
+        }
+
+        private void MarkDirty()
+        {
+            if (!hasLoaded)
+            {
+                return;
+            }
+
+            dirty = true;
+            saveAt = Time.unscaledTime + saveDelay;
+        }
+
+        /// <summary>Writes pending changes now, if there are any.</summary>
+        public void Flush()
+        {
+            if (dirty)
+            {
+                Save();
+            }
+        }
+
+        /// <summary>Writes every setting now, whether or not it changed.</summary>
         public void Save()
         {
             if (!hasLoaded)
@@ -103,29 +175,46 @@ namespace MyToolz.GameSettings
                 return;
             }
 
+            if (saver == null)
+            {
+                return;
+            }
+
             SavableData data = new SavableData
             {
                 Data = savableComponents.Values.Select(c => c.Save()).Where(entry => entry != null).ToList()
             };
             saver.Save(data);
-            hasSavedThisSession = true;
+            dirty = false;
         }
 
         private void OnApplicationPause(bool pause)
         {
             if (pause)
             {
-                hasSavedThisSession = false;
-                Save();
+                Flush();
+            }
+        }
+
+        private void OnApplicationFocus(bool hasFocus)
+        {
+            if (!hasFocus)
+            {
+                Flush();
             }
         }
 
         private void OnDestroy()
         {
-            if (!hasSavedThisSession)
+            foreach (SettingSOAbstract setting in savableComponents.Values)
             {
-                Save();
+                if (setting != null)
+                {
+                    setting.OnSettingUpdated -= MarkDirty;
+                }
             }
+
+            Flush();
         }
     }
 }

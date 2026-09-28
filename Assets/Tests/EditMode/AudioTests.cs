@@ -165,4 +165,98 @@ namespace MyToolz.Tests.EditMode
             Assert.AreSame(config, resolvedConfig);
         }
     }
+
+    public class MusicLayerWeightTests
+    {
+        [Test]
+        public void SingleLayer_PlaysAtFullVolume_ForAnyIntensity()
+        {
+            foreach (float intensity in new[] { 0f, 0.3f, 0.5f, 1f })
+            {
+                float[] weights = MXManager.GetLayerWeights(1, intensity);
+                Assert.AreEqual(1, weights.Length);
+                Assert.AreEqual(1f, weights[0], 1e-5, $"intensity {intensity}");
+            }
+        }
+
+        [Test]
+        public void TwoLayers_CrossFadeWithIntensity()
+        {
+            float[] weights = MXManager.GetLayerWeights(2, 0.25f);
+            Assert.AreEqual(0.75f, weights[0], 1e-5);
+            Assert.AreEqual(0.25f, weights[1], 1e-5);
+        }
+
+        [Test]
+        public void ThreeLayers_BlendOnlyNeighbours()
+        {
+            float[] weights = MXManager.GetLayerWeights(3, 0.75f);
+            Assert.AreEqual(0f, weights[0], 1e-5);
+            Assert.AreEqual(0.5f, weights[1], 1e-5);
+            Assert.AreEqual(0.5f, weights[2], 1e-5);
+        }
+
+        [Test]
+        public void Extremes_SelectFirstOrLastLayer()
+        {
+            Assert.AreEqual(1f, MXManager.GetLayerWeights(3, 0f)[0], 1e-5);
+            Assert.AreEqual(1f, MXManager.GetLayerWeights(3, 1f)[2], 1e-5);
+        }
+
+        [Test]
+        public void ZeroLayers_ReturnsEmpty()
+        {
+            Assert.IsEmpty(MXManager.GetLayerWeights(0, 0.5f));
+        }
+    }
+
+    public class PriorityAudioListenerTests
+    {
+        private readonly List<GameObject> _objects = new List<GameObject>();
+
+        [TearDown]
+        public void TearDown()
+        {
+            foreach (var go in _objects)
+            {
+                if (go == null) continue;
+                go.GetComponent<PriorityAudioListener>().UnregisterEvents();
+                Object.DestroyImmediate(go);
+            }
+            _objects.Clear();
+        }
+
+        private PriorityAudioListener Create(uint priority)
+        {
+            var go = new GameObject($"listener {priority}");
+            _objects.Add(go);
+            var listener = go.AddComponent<PriorityAudioListener>();
+            listener.Priority = priority;
+            listener.RegisterEvents();
+            return listener;
+        }
+
+        [Test]
+        public void HighestPriority_IsTheOnlyEnabledListener_RegardlessOfOrder()
+        {
+            var high = Create(80);
+            var low = Create(10);
+
+            Assert.IsTrue(high.GetComponent<AudioListener>().enabled);
+            Assert.IsFalse(low.GetComponent<AudioListener>().enabled);
+            Assert.AreSame(high, PriorityAudioListener.Active);
+        }
+
+        [Test]
+        public void RemovingTheActiveListener_EnablesTheNextBest()
+        {
+            var high = Create(80);
+            var low = Create(10);
+
+            high.UnregisterEvents();
+
+            Assert.IsTrue(low.GetComponent<AudioListener>().enabled);
+            Assert.IsFalse(high.GetComponent<AudioListener>().enabled, "the removed listener does not stay enabled alongside the new one");
+        }
+    }
 }

@@ -167,6 +167,14 @@ namespace MyToolz.Networking.RespawnSystem
         }
 
         private GameModeSO gameModeSO;
+
+        // Server-side respawn bookkeeping. The client clock, respawn screen and blockRespawn flag are
+        // presentation only; the server honours a respawn request only for a connection that died (or
+        // was reset) and has waited out the respawn time, so a client cannot spawn extra characters.
+        private const float RespawnTimeTolerance = 0.25f;
+        private readonly Dictionary<int, float> serverPendingRespawns = new Dictionary<int, float>();
+        private bool serverRespawnBlocked;
+
         private RespawnDistributionStrategy respawnDistributionStrategy
         {
             get
@@ -176,6 +184,7 @@ namespace MyToolz.Networking.RespawnSystem
         }
         private EventBinding<PlayerKilledEvent> playerEventBinding;
         private EventBinding<GameReseted> gameResetedEventBinding;
+        private EventBinding<GameReseted> gameResetedServerEventBinding;
         private EventBinding<GameOverEvent> gameOverEventBinding;
         private EventBinding<PlayersAddedToTeam> playerStateChangedEventBinding;
 
@@ -218,6 +227,23 @@ namespace MyToolz.Networking.RespawnSystem
         private void OnGameOver(GameOverEvent @event)
         {
             blockRespawn = true;
+            if (NetworkServer.active)
+            {
+                serverRespawnBlocked = true;
+            }
+        }
+
+        // Server half of a reset: every connected player may respawn once, immediately.
+        private void OnGameResetedServer(GameReseted gameReseted)
+        {
+            if (!NetworkServer.active) return;
+
+            serverRespawnBlocked = false;
+            serverPendingRespawns.Clear();
+            foreach (var conn in NetworkServer.connections.Values)
+            {
+                if (conn != null) serverPendingRespawns[conn.connectionId] = float.NegativeInfinity;
+            }
         }
 
         private void OnDisable()
@@ -231,6 +257,8 @@ namespace MyToolz.Networking.RespawnSystem
             StopAllCoroutines();
             autoRespawnClock.Stop();
             clock.Stop();
+            // A new round: the game-over lock from the previous one no longer applies.
+            blockRespawn = false;
             OnRespawn();
         }
 
@@ -245,6 +273,10 @@ namespace MyToolz.Networking.RespawnSystem
         private void OnPlayerKilled(PlayerKilledEvent @event)
         {
             if (!NetworkServer.active) return;
+            if (@event.VictimConn != null)
+            {
+                serverPendingRespawns[@event.VictimConn.connectionId] = Time.time;
+            }
             Vector3 victimPosition = Vector3.zero;
             Vector3 killerPosition = Vector3.zero;
             Vector3 victimCameraPosition = Vector3.zero;
@@ -324,13 +356,39 @@ namespace MyToolz.Networking.RespawnSystem
             RespawnPlayer();
         }
 
+        // requiresAuthority = false because the respawn manager is a scene object nobody owns; the
+        // sender's entitlement is validated below instead.
         [Command(requiresAuthority = false)]
         public void RespawnPlayer(NetworkConnectionToClient conn = null)
         {
-            Transform spawnPoint = GetNextSpawnPoint(conn.identity.GetComponent<Core.NetworkPlayer>().TeamGuid);
+            if (conn == null || conn.identity == null) return;
+
+            if (serverRespawnBlocked)
+            {
+                DebugUtility.LogWarning(this, $"Respawn rejected for connection {conn.connectionId}: the game is over.");
+                return;
+            }
+
+            if (!serverPendingRespawns.TryGetValue(conn.connectionId, out float diedAt))
+            {
+                DebugUtility.LogWarning(this, $"Respawn rejected for connection {conn.connectionId}: no pending respawn (player is alive or already respawned).");
+                return;
+            }
+
+            float minimumDelay = gameModeSO != null ? respawnTime : 0f;
+            if (Time.time + RespawnTimeTolerance < diedAt + minimumDelay)
+            {
+                DebugUtility.LogWarning(this, $"Respawn rejected for connection {conn.connectionId}: respawn time has not elapsed.");
+                return;
+            }
+
+            if (!conn.identity.TryGetComponent(out Core.NetworkPlayer networkPlayer)) return;
+
+            Transform spawnPoint = GetNextSpawnPoint(networkPlayer.TeamGuid);
             if (spawnPoint != null)
-            {   
-                SpawnPlayer(conn,spawnPoint.position);
+            {
+                serverPendingRespawns.Remove(conn.connectionId);
+                SpawnPlayer(conn, spawnPoint.position);
             }
             else
             {
@@ -407,6 +465,8 @@ namespace MyToolz.Networking.RespawnSystem
             EventBus<PlayersAddedToTeam>.Register(playerStateChangedEventBinding);
             gameResetedEventBinding = new EventBinding<GameReseted>(OnGameReseted);
             EventBus<GameReseted>.Register(gameResetedEventBinding);
+            gameResetedServerEventBinding = new EventBinding<GameReseted>(OnGameResetedServer);
+            EventBus<GameReseted>.Register(gameResetedServerEventBinding);
 
             clock.Elapsed += StartAutoRespawnClock;
             autoRespawnClock.Elapsed += Respawn;
@@ -418,6 +478,7 @@ namespace MyToolz.Networking.RespawnSystem
             EventBus<PlayerKilledEvent>.Deregister(playerEventBinding);
             EventBus<PlayersAddedToTeam>.Deregister(playerStateChangedEventBinding);
             EventBus<GameReseted>.Deregister(gameResetedEventBinding);
+            EventBus<GameReseted>.Deregister(gameResetedServerEventBinding);
 
             clock.Elapsed -= StartAutoRespawnClock;
             autoRespawnClock.Elapsed -= Respawn;

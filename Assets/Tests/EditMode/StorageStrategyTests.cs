@@ -83,6 +83,43 @@ namespace MyToolz.Tests.EditMode
         }
 
         [Test]
+        public void Pending_ReadsCompletedTempFile()
+        {
+            Directory.CreateDirectory(_folder);
+            File.WriteAllText(_location.TempPath, "pending");
+
+            Assert.IsTrue(_storage.TryReadPending(_location, out string content));
+            Assert.AreEqual("pending", content);
+        }
+
+        [Test]
+        public void RestorePrimary_DoesNotRotateCorruptPrimaryOverBackup()
+        {
+            _storage.Write(_location, "good");
+            _storage.Write(_location, "corrupt"); // "good" is now the backup
+
+            _storage.RestorePrimary(_location, "good");
+
+            Assert.IsTrue(_storage.TryReadPrimary(_location, out string primary));
+            Assert.AreEqual("good", primary);
+            Assert.IsTrue(_storage.TryReadBackup(_location, out string backup));
+            Assert.AreEqual("good", backup, "the known-good backup is kept");
+        }
+
+        [Test]
+        public void PreserveCorrupt_WritesDiagnosticCopy_AndDeleteRemovesIt()
+        {
+            _storage.Write(_location, "bad");
+            _storage.PreserveCorrupt(_location, "bad", primary: true);
+
+            Assert.IsTrue(File.Exists(_location.FullPath + ".corrupt"));
+            Assert.IsTrue(_storage.AnyDataExists(_location));
+
+            _storage.Delete(_location);
+            Assert.IsFalse(_storage.AnyDataExists(_location));
+        }
+
+        [Test]
         public void Delete_RemovesPrimaryTempAndBackup()
         {
             _storage.Write(_location, "v1");
@@ -114,8 +151,7 @@ namespace MyToolz.Tests.EditMode
         [TearDown]
         public void TearDown()
         {
-            PlayerPrefs.DeleteKey(_key);
-            PlayerPrefs.Save();
+            _storage.Delete(_location); // removes the primary, rolling backup and diagnostic keys
         }
 
         [Test]
@@ -132,6 +168,16 @@ namespace MyToolz.Tests.EditMode
         public void Exists_IsFalse_BeforeWrite()
         {
             Assert.IsFalse(_storage.Exists(_location));
+        }
+
+        [Test]
+        public void Overwrite_KeepsPreviousValueAsBackupKey()
+        {
+            _storage.Write(_location, "v1");
+            _storage.Write(_location, "v2");
+
+            Assert.IsTrue(_storage.TryReadBackup(_location, out string backup));
+            Assert.AreEqual("v1", backup);
         }
 
         [Test]

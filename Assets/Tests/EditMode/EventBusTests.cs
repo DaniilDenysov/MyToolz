@@ -191,6 +191,28 @@ namespace MyToolz.Tests.EditMode
         }
 
         [Test]
+        public void ThrowingSubscriber_IsReported_AndOthersStillReceiveTheEvent()
+        {
+            int received = 0;
+            var throwing = new EventBinding<SampleEvent>(_ => throw new System.InvalidOperationException("subscriber failed"));
+            var healthy = new EventBinding<SampleEvent>(_ => received++);
+            EventBus<SampleEvent>.Register(throwing);
+            EventBus<SampleEvent>.Register(healthy);
+            UnityEngine.TestTools.LogAssert.Expect(UnityEngine.LogType.Exception, new System.Text.RegularExpressions.Regex("subscriber failed"));
+
+            Assert.DoesNotThrow(() => EventBus<SampleEvent>.Raise(new SampleEvent()));
+            Assert.AreEqual(1, received);
+
+            // The bus is not left mid-dispatch: later requests are still processed.
+            UnityEngine.TestTools.LogAssert.Expect(UnityEngine.LogType.Exception, new System.Text.RegularExpressions.Regex("subscriber failed"));
+            EventBus<SampleEvent>.Raise(new SampleEvent());
+            Assert.AreEqual(2, received);
+
+            EventBus<SampleEvent>.Deregister(throwing);
+            EventBus<SampleEvent>.Deregister(healthy);
+        }
+
+        [Test]
         public void ClearAllBuses_RemovesAllBindings()
         {
             int calls = 0;

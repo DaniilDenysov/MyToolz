@@ -4,6 +4,7 @@ using MyToolz.DesignPatterns.Singleton;
 using MyToolz.Events;
 using MyToolz.Extensions;
 using MyToolz.Utilities.Debug;
+using System;
 using System.Threading;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -12,27 +13,53 @@ namespace MyToolz.SceneManagement
 {
     public class SceneLoader : PrivateSingleton<SceneLoader>, IEventListener
     {
+        [SerializeField, Min(0f), Tooltip("Minimum seconds (real time) the loading screen stays up before the scene activates.")]
+        private float minimalLoadingDuration = 0f;
+
         private EventBinding<LoadScene> onLoadSceneBinding;
+        private bool eventsRegistered;
+        private bool isLoading;
+        private CancellationTokenSource lifetime;
+
+        protected override void OnSingletonAwake()
+        {
+            lifetime = new CancellationTokenSource();
+        }
 
         private void Start()
         {
             RegisterEvents();
         }
 
-        public void OnDestroy()
+        protected override void OnSingletonDestroy()
         {
             UnregisterEvents();
+            lifetime?.Cancel();
+            lifetime?.Dispose();
+            lifetime = null;
         }
-            
+
         public void RegisterEvents()
         {
+            if (eventsRegistered)
+            {
+                return;
+            }
+
             onLoadSceneBinding = new EventBinding<LoadScene>(OnLoadSceneRequested);
             EventBus<LoadScene>.Register(onLoadSceneBinding);
+            eventsRegistered = true;
         }
 
         public void UnregisterEvents()
         {
+            if (!eventsRegistered)
+            {
+                return;
+            }
+
             EventBus<LoadScene>.Deregister(onLoadSceneBinding);
+            eventsRegistered = false;
         }
 
         private void OnLoadSceneRequested(LoadScene loadScene)
@@ -51,11 +78,19 @@ namespace MyToolz.SceneManagement
                 return;
             }
 
-            LoadSceneAsync(sceneName, loadScene.LoadSceneMode, destroyCancellationToken).Forget();
+            if (isLoading)
+            {
+                // A second async load would queue behind the parked activation of the first one.
+                DebugUtility.LogWarning(this, $"A scene is already loading; ignoring the request for '{sceneName}'.");
+                return;
+            }
+
+            LoadSceneAsync(sceneName, loadScene.LoadSceneMode, lifetime != null ? lifetime.Token : CancellationToken.None).Forget();
         }
 
         private async UniTaskVoid LoadSceneAsync(string sceneName, LoadSceneMode mode, CancellationToken token)
         {
+            float startedAt = Time.realtimeSinceStartup;
             AsyncOperation operation = SceneManager.LoadSceneAsync(sceneName, mode);
 
             if (operation == null)
@@ -64,6 +99,7 @@ namespace MyToolz.SceneManagement
                 return;
             }
 
+            isLoading = true;
             operation.allowSceneActivation = false;
 
             var progress = new LoadingProgress();
@@ -81,25 +117,50 @@ namespace MyToolz.SceneManagement
                 AsyncOperation = operation
             });
 
-            while (operation.progress < 0.9f)
+            bool activated = false;
+            try
             {
-                progress.Report(operation.progress / 0.9f);
-                await UniTask.Yield(PlayerLoopTiming.Update, token);
+                while (operation.progress < 0.9f)
+                {
+                    progress.Report(operation.progress / 0.9f);
+                    await UniTask.Yield(PlayerLoopTiming.Update, token);
+                }
+
+                progress.Report(1f);
+
+                float remaining = minimalLoadingDuration - (Time.realtimeSinceStartup - startedAt);
+                if (remaining > 0f)
+                {
+                    await UniTask.Delay(TimeSpan.FromSeconds(remaining), DelayType.Realtime, PlayerLoopTiming.Update, token);
+                }
+
+                operation.allowSceneActivation = true;
+                activated = true;
+
+                // Not cancellable: with LoadSceneMode.Single activation destroys this loader's scene
+                // (and this component) before the operation reports done.
+                await operation.ToUniTask();
+
+                EventBus<SceneLoaded>.Raise(new SceneLoaded
+                {
+                    SceneName = sceneName
+                });
             }
-
-            progress.Report(1f);
-            operation.allowSceneActivation = true;
-
-            await operation.ToUniTask(cancellationToken: token);
-
-            // Raise unified loading screen event
-            EventBus<LoadingScreenHide>.Raise(new LoadingScreenHide());
-
-            // Raise legacy event for backward compatibility
-            EventBus<SceneLoaded>.Raise(new SceneLoaded
+            catch (OperationCanceledException)
             {
-                SceneName = sceneName
-            });
+                DebugUtility.LogWarning(this, $"Loading of scene '{sceneName}' was cancelled.");
+            }
+            finally
+            {
+                // A parked operation (allowSceneActivation = false) blocks every later async load.
+                if (!activated)
+                {
+                    operation.allowSceneActivation = true;
+                }
+
+                isLoading = false;
+                EventBus<LoadingScreenHide>.Raise(new LoadingScreenHide());
+            }
         }
     }
 }

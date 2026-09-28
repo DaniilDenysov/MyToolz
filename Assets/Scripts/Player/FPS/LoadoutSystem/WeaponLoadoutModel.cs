@@ -1,4 +1,5 @@
 using Mirror;
+using MyToolz.Networking.Utilities;
 using System.Linq;
 using System.Collections.Generic;
 using UnityEngine;
@@ -122,14 +123,29 @@ namespace MyToolz.Player.FPS.LoadoutSystem.Model
             }
         }
 
-        [Command(requiresAuthority = false)]
+        private const float MaxDropDistance = 5f;
+        private static readonly ConnectionRateLimiter dropRateLimiter = new ConnectionRateLimiter(0.2f);
+
+        // Owner only: a client can drop weapons from its own loadout, never from another player's.
+        // Ammo and position are requests; the server clamps them to what the weapon and the
+        // character's position allow.
+        [Command]
         public void CmdDropWeapon(string currentWeaponGuid, int currentBullets,Vector3 position)
         {
+            if (!dropRateLimiter.TryAccept(connectionToClient)) return;
+            if (string.IsNullOrEmpty(currentWeaponGuid)) return;
             if (localLoadoutWeapons == null) return;
             if (!localLoadoutWeapons.TryGetValue(currentWeaponGuid, out var weaponModel)) return;
+            if (weaponModel == null) return;
+            if (!instanceToGuidMappings.ContainsKey(currentWeaponGuid)) return;
             PickableWeapon prefab = weaponModel.GetItemSO().PickUp.GetComponent<PickableWeapon>();
             if (prefab == null) return;
-            if (weaponModel == null) return;
+
+            currentBullets = Mathf.Clamp(currentBullets, 0, Mathf.Max(0, weaponModel.MaxBullets));
+            if (!NetworkInputValidation.IsNear(position, transform.position, MaxDropDistance))
+            {
+                position = transform.position;
+            }
             EventBus<PoolRequest<PickableWeapon>>.Raise(new PoolRequest<PickableWeapon>()
             {
                 Prefab = prefab,

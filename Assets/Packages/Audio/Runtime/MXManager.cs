@@ -10,12 +10,20 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using UnityEngine;
+#if MYTOOLZ_ADDRESSABLES
+using UnityEngine.AddressableAssets;
+#endif
 
 namespace MyToolz.Audio
 {
     public class MXManager : PrivateSingleton<MXManager>, IEventListener
     {
-        [FoldoutGroup("Pool"), SerializeField, Required] private AudioSourceWrapper audioSourcePrefab;
+        [FoldoutGroup("Pool"), SerializeField, Tooltip("Pooled prefab used for music layers. Leave empty when using an Addressable reference.")]
+        private AudioSourceWrapper audioSourcePrefab;
+#if MYTOOLZ_ADDRESSABLES
+        [FoldoutGroup("Pool"), SerializeField, Tooltip("Addressable music-layer prefab, served by an AddressableObjectPoolInstaller. Used when set.")]
+        private AssetReferenceGameObject audioSourceReference;
+#endif
 
         [FoldoutGroup("Playback"), SerializeField] private bool loopCurrentSong = true;
         [FoldoutGroup("Playback"), SerializeField] private bool playOnAwake = true;
@@ -37,6 +45,10 @@ namespace MyToolz.Audio
 
         public float Intensity => intensity;
 
+        // Music keeps playing when Time.timeScale is 0, so loop scheduling follows the audio clock
+        // rather than scaled game time.
+        private static double Now => AudioSettings.dspTime;
+
         public float ClipTimeRemaining
         {
             get
@@ -47,7 +59,7 @@ namespace MyToolz.Audio
                 }
 
                 LoopInstance last = activeLoopInstances[activeLoopInstances.Count - 1];
-                return (loopCurrentSong ? last.End : last.Tail) - Time.time;
+                return (float)((loopCurrentSong ? last.End : last.Tail) - Now);
             }
         }
 
@@ -69,6 +81,15 @@ namespace MyToolz.Audio
             UnregisterEvents();
             CancelTokenSource(ref lifetimeCts);
             CancelTokenSource(ref intensityFadeCts);
+
+            // The update loop that would retire these is cancelled: stop and return every layer now
+            // so pooled sources do not keep playing unowned.
+            for (int i = 0; i < activeLoopInstances.Count; i++)
+            {
+                activeLoopInstances[i].Dispose();
+            }
+            activeLoopInstances.Clear();
+            currentSong = null;
         }
 
         public void RegisterEvents()
@@ -158,7 +179,7 @@ namespace MyToolz.Audio
                     return;
                 }
 
-                elapsed += Time.deltaTime;
+                elapsed += Time.unscaledDeltaTime;
                 intensity = Mathf.Lerp(from, to, Mathf.Clamp01(elapsed / duration));
                 await UniTask.Yield(PlayerLoopTiming.Update, token);
             }
@@ -168,7 +189,7 @@ namespace MyToolz.Audio
 
         private async UniTaskVoid PlayOnAwakeAsync(CancellationToken token)
         {
-            await UniTask.Delay(TimeSpan.FromSeconds(0.25), cancellationToken: token);
+            await UniTask.Delay(TimeSpan.FromSeconds(0.25), DelayType.Realtime, cancellationToken: token);
 
             if (defaultSong != null)
             {
@@ -203,29 +224,56 @@ namespace MyToolz.Audio
 
                 for (int i = 0; i < pendingLoops.Count; i++)
                 {
-                    LoopInstance fresh = new LoopInstance(this, pendingLoops[i], 0f);
-                    fresh.SetFadeIn(0f);
+                    new LoopInstance(this, pendingLoops[i], 0f);
                 }
 
                 await UniTask.Yield(PlayerLoopTiming.Update, token);
             }
         }
 
+        private sealed class Acquisition
+        {
+            public AudioSourceWrapper Result;
+            public bool Abandoned;
+        }
+
         private AudioSourceWrapper AcquireFromPool(Transform parent)
         {
-            AudioSourceWrapper result = null;
-
-            EventBus<PoolRequest<AudioSourceWrapper>>.Raise(new PoolRequest<AudioSourceWrapper>
+            var acquisition = new Acquisition();
+            var request = new PoolRequest<AudioSourceWrapper>
             {
-                Prefab = audioSourcePrefab,
+                Parent = parent,
+                Position = parent != null ? parent.position : Vector3.zero,
+                Rotation = Quaternion.identity,
                 Callback = (wrapper) =>
                 {
-                    wrapper.transform.SetParent(parent);
-                    result = wrapper;
-                }
-            });
+                    if (acquisition.Abandoned)
+                    {
+                        // The pool answered after we gave up (it was still initializing): hand the
+                        // source straight back instead of leaking it.
+                        ReleaseToPool(wrapper);
+                        return;
+                    }
 
-            return result;
+                    acquisition.Result = wrapper;
+                }
+            };
+
+#if MYTOOLZ_ADDRESSABLES
+            if (audioSourceReference != null && audioSourceReference.RuntimeKeyIsValid())
+            {
+                request.Key = audioSourceReference.RuntimeKey;
+            }
+            else
+#endif
+            {
+                request.Prefab = audioSourcePrefab;
+            }
+
+            EventBus<PoolRequest<AudioSourceWrapper>>.Raise(request);
+
+            acquisition.Abandoned = acquisition.Result == null;
+            return acquisition.Result;
         }
 
         private void ReleaseToPool(AudioSourceWrapper wrapper)
@@ -254,52 +302,75 @@ namespace MyToolz.Audio
             private readonly SongSO song;
             private readonly AudioSourceWrapper[] wrappers;
             private readonly AudioSource[] sources;
-            private float fadeInStart;
-            private float fadeInEnd;
-            private float fadeOutStart;
-            private float fadeOutEnd;
+            private readonly float configuredVolume;
+            private double fadeInStart;
+            private double fadeInEnd;
+            private double fadeOutStart;
+            private double fadeOutEnd;
 
-            public float Tail { get; private set; }
-            public float End { get; private set; }
+            public double Tail { get; private set; }
+            public double End { get; private set; }
+            public bool IsValid => sources != null;
 
             public LoopInstance(MXManager manager, SongSO song, float startTime)
             {
                 this.manager = manager;
                 this.song = song;
+                configuredVolume = song.AudioSourceConfigSO == null
+                    ? 1f
+                    : song.AudioSourceConfigSO.RandomizeVolume
+                        ? song.AudioSourceConfigSO.GetRandomVolume()
+                        : song.AudioSourceConfigSO.Volume;
 
-                if (song.IntensityClips.Count == 0)
+                if (song.IntensityClips.Count == 0 || song.IntensityClips[0] == null)
                 {
-                    DebugUtility.LogError(this,$"Attempted to play a song with zero clips: {song.name}");
+                    DebugUtility.LogError(manager, $"Attempted to play a song with zero clips: {song.name}");
                     return;
                 }
 
                 int clipCount = song.IntensityClips.Count;
-                wrappers = new AudioSourceWrapper[clipCount];
-                sources = new AudioSource[clipCount];
+                var acquiredWrappers = new AudioSourceWrapper[clipCount];
+                var acquiredSources = new AudioSource[clipCount];
 
                 for (int i = 0; i < clipCount; i++)
                 {
                     AudioSourceWrapper wrapper = manager.AcquireFromPool(manager.transform);
+                    if (wrapper == null)
+                    {
+                        DebugUtility.LogWarning(manager, $"Audio pool not ready; aborting loop for song: {song.name}");
+                        for (int j = 0; j < i; j++)
+                        {
+                            manager.ReleaseToPool(acquiredWrappers[j]);
+                        }
+                        return;
+                    }
+
                     AudioSource source = wrapper.GetComponent<AudioSource>();
                     source.Configure(song.AudioSourceConfigSO);
+                    // The manager owns looping (loops are overlapped by the reverb tail), not the source.
+                    source.loop = false;
                     source.clip = song.IntensityClips[i];
                     source.volume = 0f;
                     source.Play();
-                    source.time = startTime;
+                    source.time = Mathf.Clamp(startTime, 0f, Mathf.Max(0f, source.clip != null ? source.clip.length - 0.01f : 0f));
 
-                    wrappers[i] = wrapper;
-                    sources[i] = source;
+                    acquiredWrappers[i] = wrapper;
+                    acquiredSources[i] = source;
                 }
 
-                fadeInStart = -1f;
-                fadeInEnd = -1f;
-                fadeOutStart = -1f;
-                fadeOutEnd = -1f;
+                wrappers = acquiredWrappers;
+                sources = acquiredSources;
 
-                float clipLength = song.IntensityClips[0].length;
-                End = Time.time + (clipLength - startTime);
+                fadeInStart = -1d;
+                fadeInEnd = -1d;
+                fadeOutStart = -1d;
+                fadeOutEnd = -1d;
 
-                float tailOffset = song.ReverbTail <= 0f ? 0.25f : song.ReverbTail;
+                float pitch = Mathf.Abs(sources[0].pitch) > 0.01f ? Mathf.Abs(sources[0].pitch) : 1f;
+                double clipLength = song.IntensityClips[0].length;
+                End = Now + (clipLength - startTime) / pitch;
+
+                double tailOffset = song.ReverbTail <= 0f ? 0.25d : song.ReverbTail;
                 Tail = End - tailOffset;
 
                 manager.activeLoopInstances.Add(this);
@@ -312,65 +383,66 @@ namespace MyToolz.Audio
                     return;
                 }
 
-                fadeInStart = Time.time;
-                fadeInEnd = Time.time + duration;
+                fadeInStart = Now;
+                fadeInEnd = Now + duration;
             }
 
             public void SetFadeOut(float duration)
             {
                 if (duration <= 0f)
                 {
-                    End = Time.time;
+                    End = Now;
                     return;
                 }
 
-                fadeOutStart = Time.time;
-                fadeOutEnd = Time.time + duration;
-                End = Time.time + duration;
-                Tail = -1f;
+                fadeOutStart = Now;
+                fadeOutEnd = Now + duration;
+                End = Now + duration;
+                Tail = -1d;
             }
 
             public bool Tick(List<SongSO> pendingLoops)
             {
-                if (Time.time > End)
+                double now = Now;
+                if (!IsValid || now > End)
                 {
                     return true;
                 }
 
-                float primaryVolume = manager.maxVolume;
+                float primaryVolume = manager.maxVolume * configuredVolume;
 
-                if (fadeInStart >= 0f && fadeInEnd >= 0f)
+                if (fadeInStart >= 0d && fadeInEnd >= 0d)
                 {
-                    if (Time.time > fadeInEnd)
+                    if (now > fadeInEnd)
                     {
-                        fadeInStart = -1f;
-                        fadeInEnd = -1f;
+                        fadeInStart = -1d;
+                        fadeInEnd = -1d;
                     }
                     else
                     {
-                        float t = (Time.time - fadeInStart) / (fadeInEnd - fadeInStart);
+                        float t = (float)((now - fadeInStart) / (fadeInEnd - fadeInStart));
                         primaryVolume = Mathf.Lerp(0f, primaryVolume, t);
                     }
                 }
 
-                if (fadeOutStart >= 0f && fadeOutEnd >= 0f)
+                if (fadeOutStart >= 0d && fadeOutEnd >= 0d)
                 {
-                    if (Time.time > fadeOutEnd)
+                    if (now > fadeOutEnd)
                     {
-                        fadeOutStart = -1f;
-                        fadeOutEnd = -1f;
+                        fadeOutStart = -1d;
+                        fadeOutEnd = -1d;
                     }
                     else
                     {
-                        float t = (Time.time - fadeOutStart) / (fadeOutEnd - fadeOutStart);
+                        float t = (float)((now - fadeOutStart) / (fadeOutEnd - fadeOutStart));
                         primaryVolume = Mathf.Lerp(primaryVolume, 0f, t);
                     }
                 }
 
-                if (Tail > 0f && Time.time > Tail)
+                if (Tail > 0d && now > Tail)
                 {
-                    Tail = -1f;
-                    if (manager.loopCurrentSong)
+                    Tail = -1d;
+                    if (manager.loopCurrentSong && manager.currentSong == song)
                     {
                         pendingLoops.Add(song);
                     }
@@ -382,9 +454,17 @@ namespace MyToolz.Audio
 
             public void Dispose()
             {
+                if (wrappers == null)
+                {
+                    return;
+                }
+
                 for (int i = 0; i < wrappers.Length; i++)
                 {
-                    manager.ReleaseToPool(wrappers[i]);
+                    if (wrappers[i] != null)
+                    {
+                        manager.ReleaseToPool(wrappers[i]);
+                    }
                 }
             }
 
@@ -392,31 +472,54 @@ namespace MyToolz.Audio
             {
                 for (int i = 0; i < sources.Length; i++)
                 {
-                    sources[i].volume = 0f;
+                    if (sources[i] != null) sources[i].volume = 0f;
                 }
 
-                float currentIntensity = manager.intensity;
-
-                if (currentIntensity <= 0f)
-                {
-                    sources[0].volume = primaryVolume;
-                    return;
-                }
-
-                if (currentIntensity >= 1f)
-                {
-                    sources[sources.Length - 1].volume = primaryVolume;
-                    return;
-                }
-
-                float scaled = currentIntensity * (sources.Length - 1);
-                int lower = Mathf.FloorToInt(scaled);
-                int upper = lower + 1;
-                float blend = scaled - lower;
-
-                sources[lower].volume = (1f - blend) * primaryVolume;
-                sources[upper].volume = blend * primaryVolume;
+                SetLayerVolumes(sources, manager.intensity, primaryVolume);
             }
         }
+
+        /// <summary>
+        /// Distributes <paramref name="volume"/> across intensity layers: intensity 0 plays the first
+        /// layer, 1 the last, values in between cross-fade the two neighbouring layers. A single
+        /// layer always plays at full volume.
+        /// </summary>
+        internal static void SetLayerVolumes(AudioSource[] layers, float intensity, float volume)
+        {
+            float[] weights = GetLayerWeights(layers.Length, intensity);
+            for (int i = 0; i < layers.Length; i++)
+            {
+                if (layers[i] != null) layers[i].volume = weights[i] * volume;
+            }
+        }
+
+        public static float[] GetLayerWeights(int layerCount, float intensity)
+        {
+            var weights = new float[Mathf.Max(0, layerCount)];
+            if (layerCount <= 0)
+            {
+                return weights;
+            }
+
+            if (layerCount == 1 || intensity <= 0f)
+            {
+                weights[0] = 1f;
+                return weights;
+            }
+
+            if (intensity >= 1f)
+            {
+                weights[layerCount - 1] = 1f;
+                return weights;
+            }
+
+            float scaled = intensity * (layerCount - 1);
+            int lower = Mathf.Min(Mathf.FloorToInt(scaled), layerCount - 2);
+            float blend = scaled - lower;
+            weights[lower] = 1f - blend;
+            weights[lower + 1] = blend;
+            return weights;
+        }
+
     }
 }

@@ -35,8 +35,17 @@ namespace MyToolz.DesignPatterns.EventBus
             {
                 foreach (var binding in bindings)
                 {
-                    binding.OnEvent.Invoke(@event);
-                    binding.OnEventNoArgs.Invoke();
+                    // A failing subscriber is reported and skipped; it must not stop delivery to
+                    // the others or leave the bus mid-dispatch.
+                    try
+                    {
+                        binding.OnEvent?.Invoke(@event);
+                        binding.OnEventNoArgs?.Invoke();
+                    }
+                    catch (Exception e)
+                    {
+                        UnityEngine.Debug.LogException(e);
+                    }
                 }
             });
             TryResolve();
@@ -69,4 +78,4 @@ namespace MyToolz.DesignPatterns.EventBus
             isResolving = false;
         }
     }
-}
+}

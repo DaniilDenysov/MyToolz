@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using UnityEngine.InputSystem;
 
 namespace MyToolz.DesignPatterns.Command
 {
@@ -11,6 +10,10 @@ namespace MyToolz.DesignPatterns.Command
         int CallStackSize { get; }
         void Enqueue(T command);
         void Update();
+
+        /// <summary>Releases the slot held by an executing command.</summary>
+        bool Complete(T command);
+
         void Clear();
     }
 }

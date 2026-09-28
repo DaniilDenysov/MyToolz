@@ -24,18 +24,46 @@ namespace MyToolz.InputManagement
         [SerializeField] private InputStateManager inputStateManager = new();
         [SerializeField, Required] private InputModeSO defaultInputModeSO;
         [SerializeField, Required] private InputActionAsset inputActions;
+        [SerializeField, Tooltip("Keep every action of the asset enabled regardless of the active input mode (1.x behaviour). " +
+            "Off: only the actions of the active InputModeSO are enabled.")]
+        private bool keepAllActionsEnabled;
+
+        private InputDeviceTracker deviceTracker;
+        private bool initialized;
 
         public override void InstallBindings()
         {
             Initialize();
             Container.Bind<InputActionAsset>().FromInstance(inputActions).AsSingle();
-            Container.Bind<IStateMachine<IPriorityState>>().FromInstance(inputStateManager as IStateMachine<IPriorityState>).AsSingle();
+            Container.Bind<IInputStateManager>().FromInstance(inputStateManager).AsSingle();
             Container.Bind<InputStateManager>().FromInstance(inputStateManager).AsSingle();
-            inputStateManager.ChangeState(defaultInputModeSO);
 
-            var deviceTracker = new InputDeviceTracker();
+            if (defaultInputModeSO != null)
+            {
+                inputStateManager.ChangeState(defaultInputModeSO);
+            }
+
+            deviceTracker?.Dispose();
+            deviceTracker = new InputDeviceTracker();
             deviceTracker.SubscribeToActionMap(inputActions);
             Container.Bind<InputDeviceTracker>().FromInstance(deviceTracker).AsSingle();
+        }
+
+        private void OnDestroy()
+        {
+            Teardown();
+        }
+
+        /// <summary>Exits the active mode, releases command subscriptions and the device tracker.</summary>
+        public void Teardown()
+        {
+            if (!initialized) return;
+            initialized = false;
+
+            inputStateManager.Clear();
+            UnregisterBindings();
+            deviceTracker?.Dispose();
+            deviceTracker = null;
         }
 
 #if UNITY_EDITOR
@@ -64,8 +92,20 @@ namespace MyToolz.InputManagement
                 DebugUtility.LogError(this, $"{nameof(inputActions)} is null!");
                 return;
             }
-            inputActions.Enable();
+
+            if (initialized)
+            {
+                return;
+            }
+
+            // Start from a known state: nothing enabled until the default mode enables its own actions.
+            if (keepAllActionsEnabled)
+                inputActions.Enable();
+            else
+                inputActions.Disable();
+
             RegisterBindings();
+            initialized = true;
         }
 
         public void RegisterBindings()
@@ -73,7 +113,7 @@ namespace MyToolz.InputManagement
             foreach (var cmd in inputCommands)
             {
                 if (cmd == null) continue;
-                cmd.Initialize(inputActions);
+                cmd.Initialize(inputActions, this);
                 cmd.Register();
             }
 
@@ -89,7 +129,7 @@ namespace MyToolz.InputManagement
             foreach (var cmd in inputCommands)
             {
                 if (cmd == null) continue;
-                cmd.Unregister();
+                cmd.Release(this);
             }
         }
     }

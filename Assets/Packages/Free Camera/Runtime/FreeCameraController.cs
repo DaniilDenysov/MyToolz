@@ -125,8 +125,11 @@ namespace MyToolz.FreeCamera
             targetPitch -= lookInput.y * settings.LookSensitivity * Time.unscaledDeltaTime;
             targetPitch = Mathf.Clamp(targetPitch, -89f, 89f);
 
-            yaw = Mathf.SmoothDampAngle(yaw, targetYaw, ref yawVelocity, settings.LookSmoothTime);
-            pitch = Mathf.SmoothDamp(pitch, targetPitch, ref pitchVelocity, settings.LookSmoothTime);
+            // Explicit unscaled delta: the default SmoothDamp overloads use scaled time and would freeze
+            // the debug camera while the game is paused.
+            float dt = Time.unscaledDeltaTime;
+            yaw = Mathf.SmoothDampAngle(yaw, targetYaw, ref yawVelocity, settings.LookSmoothTime, Mathf.Infinity, dt);
+            pitch = Mathf.SmoothDamp(pitch, targetPitch, ref pitchVelocity, settings.LookSmoothTime, Mathf.Infinity, dt);
 
             transform.rotation = Quaternion.Euler(pitch, yaw, 0f);
         }
@@ -146,7 +149,7 @@ namespace MyToolz.FreeCamera
             Vector3 worldMove = transform.TransformDirection(direction) * currentSpeed * Time.unscaledDeltaTime;
 
             targetPosition += worldMove;
-            transform.position = Vector3.SmoothDamp(transform.position, targetPosition, ref currentVelocity, settings.MoveSmoothTime);
+            transform.position = Vector3.SmoothDamp(transform.position, targetPosition, ref currentVelocity, settings.MoveSmoothTime, Mathf.Infinity, Time.unscaledDeltaTime);
         }
 
         private void OnTogglePerformed()

@@ -17,6 +17,10 @@ namespace MyToolz.Localization
                  "Pick it from the database's language columns. Defaults to the asset name.")]
         [SerializeField, LocalizationLanguage] private string code;
 
+        [Tooltip("Device languages that pick this language on a first launch, before the player has chosen one. " +
+                 "Leave empty to match the device language by Code, display name or asset name.")]
+        [SerializeField] private SystemLanguage[] deviceLanguages = new SystemLanguage[0];
+
         [Header("Presentation")]
         [SerializeField] private Sprite flag;
         [Tooltip("Optional font swapped in for this language (e.g. a CJK-capable font).")]
@@ -31,5 +35,24 @@ namespace MyToolz.Localization
         public Sprite Flag => flag;
 
         public TMP_FontAsset Font => font;
+
+        public bool Matches(SystemLanguage deviceLanguage)
+        {
+            if (deviceLanguage == SystemLanguage.Unknown)
+            {
+                return false;
+            }
+
+            if (deviceLanguages != null && deviceLanguages.Length > 0)
+            {
+                return System.Array.IndexOf(deviceLanguages, deviceLanguage) >= 0;
+            }
+
+            string device = deviceLanguage.ToString();
+
+            return string.Equals(Code, device, System.StringComparison.OrdinalIgnoreCase)
+                || string.Equals(DisplayName, device, System.StringComparison.OrdinalIgnoreCase)
+                || string.Equals(name, device, System.StringComparison.OrdinalIgnoreCase);
+        }
     }
 }

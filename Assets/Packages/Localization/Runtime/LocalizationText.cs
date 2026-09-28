@@ -13,6 +13,9 @@ namespace MyToolz.Localization
 
         private EventBinding<LanguageChanged> languageBinding;
         private object[] arguments;
+        // Font authored on this component, restored for languages that do not define their own font.
+        private TMP_FontAsset authoredFont;
+        private bool authoredFontCaptured;
 
         public LocalizationBindingSO Binding
         {
@@ -74,9 +77,21 @@ namespace MyToolz.Localization
                 return;
             }
 
-            if (applyLanguageFont && language.Font != null)
+            if (applyLanguageFont)
             {
-                font = language.Font;
+                if (!authoredFontCaptured)
+                {
+                    authoredFont = font;
+                    authoredFontCaptured = true;
+                }
+
+                // Without this, switching from a language with a custom font to one without keeps
+                // the previous language's font.
+                TMP_FontAsset target = language.Font != null ? language.Font : authoredFont;
+                if (target != null && font != target)
+                {
+                    font = target;
+                }
             }
 
             SetText(Format(binding.Resolve(language)));

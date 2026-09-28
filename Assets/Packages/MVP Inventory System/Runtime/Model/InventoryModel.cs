@@ -47,21 +47,30 @@ namespace MyToolz.InventorySystem.Models
 
         public virtual void Add(T inventoryItemSO, uint amount = 1)
         {
-            if (amount == 0) return; 
-            if (!inventoryItems.TryAdd(inventoryItemSO,amount))
+            if (inventoryItemSO == null)
             {
-                inventoryItems[inventoryItemSO] += amount;
+                DebugUtility.LogWarning(this, "Add called with a null item.");
+                return;
             }
-            OnItemUpdated?.Invoke(inventoryItemSO, inventoryItems[inventoryItemSO]);
+            if (amount == 0) return;
+
+            inventoryItems.TryGetValue(inventoryItemSO, out uint currentAmount);
+            // Saturate instead of wrapping around when a stack would exceed uint.MaxValue.
+            ulong sum = (ulong)currentAmount + amount;
+            uint newAmount = sum > uint.MaxValue ? uint.MaxValue : (uint)sum;
+            if (newAmount == currentAmount) return;
+
+            inventoryItems[inventoryItemSO] = newAmount;
+            OnItemUpdated?.Invoke(inventoryItemSO, newAmount);
         }
 
         public virtual void Remove(T inventoryItemSO, uint amount = 1)
         {
-            if (amount == 0 || !inventoryItems.TryGetValue(inventoryItemSO, out uint currentAmount))
+            if (inventoryItemSO == null || amount == 0 || !inventoryItems.TryGetValue(inventoryItemSO, out uint currentAmount))
                 return;
 
+            // Clamp before subtracting: unsigned subtraction past zero would wrap to a huge stack.
             uint newAmount = amount >= currentAmount ? 0u : currentAmount - amount;
-            DebugUtility.Log(this, $"{newAmount}");
             if (newAmount == 0)
             {
                 inventoryItems.Remove(inventoryItemSO);

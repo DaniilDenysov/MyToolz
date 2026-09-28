@@ -8,6 +8,13 @@ using UnityEngine.EventSystems;
 
 namespace MyToolz.Tweener.UI
 {
+    /// <summary>
+    /// Marks a component on the same GameObject that plays the <see cref="ActivationTrigger.OnClick"/>
+    /// sequence itself (e.g. UIStrongButton, which also defers its onClick until the animation ends).
+    /// UITweener then ignores the pointer click, so the click animation is not started twice.
+    /// </summary>
+    public interface IUITweenClickOwner { }
+
     [System.Serializable]
     public abstract class TweenStrategy : AbstractTweenStrategy
     {
@@ -85,6 +92,29 @@ namespace MyToolz.Tweener.UI
             CreateSequence(ActivationTrigger.Enable).Play();
         }
 
+        // A disabled UI element must not keep animating (and blocking its canvas group) in the background.
+        private void OnDisable()
+        {
+            CancelSequence();
+        }
+
+        private bool clickOwnerResolved;
+        private bool hasClickOwner;
+
+        private bool HasClickOwner
+        {
+            get
+            {
+                if (!clickOwnerResolved)
+                {
+                    hasClickOwner = GetComponent<IUITweenClickOwner>() != null;
+                    clickOwnerResolved = true;
+                }
+
+                return hasClickOwner;
+            }
+        }
+
         private void SetInteractable(bool state)
         {
             if (!blockInteractionDuringTween) return;
@@ -153,7 +183,7 @@ namespace MyToolz.Tweener.UI
                     SetInteractable(true);
                 });
                 ApplyTimeMode(sequence);
-                runningTweens.Add(sequence);
+                Track(sequence);
                 return sequence;
             }
             else
@@ -177,7 +207,7 @@ namespace MyToolz.Tweener.UI
                     SetInteractable(true);
                 });
                 ApplyTimeMode(sequence);
-                runningTweens.Add(sequence);
+                Track(sequence);
                 return sequence;
             }
         }
@@ -206,6 +236,9 @@ namespace MyToolz.Tweener.UI
 
         public void OnPointerClick(PointerEventData eventData)
         {
+            if (HasClickOwner)
+                return;
+
             CreateSequence(ActivationTrigger.OnClick).Play();
         }
     }

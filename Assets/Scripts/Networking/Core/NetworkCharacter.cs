@@ -16,10 +16,13 @@ namespace MyToolz.Networking.Core
             }
         }
 
-        [Command(requiresAuthority = false)]
-        public void CmdSetConnectionGuid(NetworkConnectionToClient conn = null)
+        // Only the character's owner may call this, and the value is derived on the server from the
+        // character's owning connection, so a client cannot bind someone else's character to itself.
+        [Command]
+        public void CmdSetConnectionGuid()
         {
-            ownerInstanceId = conn.identity.netId;
+            if (connectionToClient == null || connectionToClient.identity == null) return;
+            ownerInstanceId = connectionToClient.identity.netId;
         }
 
         private void OnConnectionGuidChanged(uint oldConn, uint newConn)

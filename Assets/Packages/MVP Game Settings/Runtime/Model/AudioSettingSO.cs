@@ -20,11 +20,22 @@ namespace MyToolz.ScriptableObjects.GameSettings
             ApplyCurrent();
         }
 
+        // Runs for this asset and every twin, so all loaded copies drive the mixer.
+        protected override void OnSetted()
+        {
+            ApplyCurrent();
+        }
+
+        // With no saved value, push the default so the mixer matches what the UI shows.
+        protected override void OnLoadFinished()
+        {
+            ApplyCurrent();
+        }
+
         public override void SetCurrentValue(double newValue)
         {
             newValue = Mathf.Clamp(newValue.ToFloat(), minValue.ToFloat(), maxValue.ToFloat());
             base.SetCurrentValue(newValue);
-            ApplyCurrent();
         }
 
         public void ApplyCurrent()
@@ -41,7 +52,8 @@ namespace MyToolz.ScriptableObjects.GameSettings
                 return;
             }
 
-            float linear = Mathf.Max(currentValue.ToFloat() / maxValue.ToFloat(), 0.0001f);
+            // CurrentValue (not the raw field) so an unset setting applies its default instead of 0.
+            float linear = Mathf.Max(CurrentValue.ToFloat() / maxValue.ToFloat(), 0.0001f);
 
             float db = Mathf.Log10(linear) * 20f;
             db = Mathf.Max(db, minDecibels);

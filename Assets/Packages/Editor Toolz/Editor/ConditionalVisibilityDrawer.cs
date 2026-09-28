@@ -135,11 +135,24 @@ namespace MyToolz.Editor
             if (value == null)
                 return false;
 
-            if (value.GetType().IsEnum)
-                return value.Equals(compareValue);
+            // [ShowIf("mode", "Advanced")]: compare a non-string member (typically an enum) by name.
+            if (compareValue is string text && !(value is string))
+                return string.Equals(value.ToString(), text, StringComparison.OrdinalIgnoreCase);
+
+            // [ShowIf("count", 3)] on a float/long/enum member: the attribute argument is boxed as
+            // int, so compare numerically instead of requiring identical boxed types.
+            if (IsNumeric(value) && IsNumeric(compareValue))
+                return Convert.ToDouble(value, CultureInfo.InvariantCulture) == Convert.ToDouble(compareValue, CultureInfo.InvariantCulture);
 
             return Equals(value, compareValue);
         }
+
+        private static bool IsNumeric(object value) => value is Enum || value is IConvertible convertible && convertible.GetTypeCode() switch
+        {
+            TypeCode.Byte or TypeCode.SByte or TypeCode.Int16 or TypeCode.UInt16 or TypeCode.Int32 or TypeCode.UInt32 or
+            TypeCode.Int64 or TypeCode.UInt64 or TypeCode.Single or TypeCode.Double or TypeCode.Decimal => true,
+            _ => false
+        };
 
         private static readonly HashSet<string> WarnedExpressions = new();
 

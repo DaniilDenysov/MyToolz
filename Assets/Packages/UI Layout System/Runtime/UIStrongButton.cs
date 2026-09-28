@@ -35,7 +35,7 @@ namespace MyToolz.UI.Layout
     /// </summary>
     [DisallowMultipleComponent]
     [AddComponentMenu("MyToolz/UI Layout/Strong Button")]
-    public class UIStrongButton : Button
+    public class UIStrongButton : Button, IUITweenClickOwner
     {
         [Tooltip("Treat a button with no working binding as broken. Disable only for buttons that are intentionally event-less.")]
         [SerializeField] private bool requireBinding = true;
@@ -61,6 +61,8 @@ namespace MyToolz.UI.Layout
 
         private UITweener tweener;
         private bool tweenerResolved;
+        // The click waiting for its animation. At most one; cancelled on disable/destroy.
+        private CancellationTokenSource pendingClick;
 
         /// <summary>Kept for callers written against the wrapper API; the strong button IS the button.</summary>
         public Button Button => this;
@@ -155,6 +157,7 @@ namespace MyToolz.UI.Layout
 
         protected override void OnDisable()
         {
+            CancelPendingClick();
             base.OnDisable();
             // Only a genuine in-game disable - edit time, scene unload and app quit all leave the scene unloaded.
             if (Application.isPlaying && gameObject.scene.isLoaded)
@@ -177,6 +180,10 @@ namespace MyToolz.UI.Layout
 
             PlayClip(clickClip);
 
+            // A click already waiting on its animation absorbs repeated clicks instead of queuing duplicates.
+            if (pendingClick != null)
+                return;
+
             Tween clickTween = Tweener != null ? Tweener.CreateSequence(ActivationTrigger.OnClick) : null;
             if (clickTween == null)
             {
@@ -184,16 +191,43 @@ namespace MyToolz.UI.Layout
                 return;
             }
 
-            InvokeAfter(clickTween.Duration(), this.GetCancellationTokenOnDestroy()).Forget();
+            clickTween.Play();
+            pendingClick = new CancellationTokenSource();
+            InvokeAfterTween(clickTween, pendingClick).Forget();
         }
 
-        private async UniTaskVoid InvokeAfter(float seconds, CancellationToken token)
+        /// <summary>
+        /// Fires onClick once the click animation stops - completed, or replaced by another tween of
+        /// the same UITweener - unless the button was disabled, destroyed or made non-interactable in
+        /// the meantime. The tween's own callbacks are left alone: DOTween keeps one OnKill/OnComplete
+        /// per tween and UITweener uses them to restore its canvas group.
+        /// </summary>
+        private async UniTaskVoid InvokeAfterTween(Tween clickTween, CancellationTokenSource operation)
         {
-            if (seconds > 0f)
-                await UniTask.Delay(TimeSpan.FromSeconds(seconds), DelayType.UnscaledDeltaTime, PlayerLoopTiming.Update, token);
+            bool cancelled = await UniTask.WaitWhile(
+                () => clickTween.IsActive() && !clickTween.IsComplete(),
+                PlayerLoopTiming.Update,
+                operation.Token).SuppressCancellationThrow();
 
-            if (this != null)
-                onClick.Invoke();
+            if (pendingClick == operation)
+            {
+                pendingClick = null;
+            }
+            operation.Dispose();
+
+            if (cancelled || this == null || !IsActive() || !interactable)
+                return;
+
+            onClick.Invoke();
+        }
+
+        private void CancelPendingClick()
+        {
+            if (pendingClick == null)
+                return;
+
+            pendingClick.Cancel();
+            pendingClick = null;
         }
 
         /// <summary>Runs the audit, logs errors (clickable, with hierarchy path) and applies disableWhenBroken.</summary>

@@ -308,4 +308,31 @@ namespace MyToolz.Tests.EditMode
             Assert.AreEqual("speed must be positive", result.Messages[0].Message);
         }
     }
+
+    /// <summary>Value matching behind [ShowIf]/[HideIf] (the drawer lives in the editor assembly).</summary>
+    public class ConditionalVisibilityCompareTests
+    {
+        private enum Mode { Simple, Advanced }
+
+        private static bool Compare(object value, object compareValue)
+        {
+            var drawer = System.Type.GetType("MyToolz.Editor.ConditionalVisibilityDrawer, MyToolz.EditorToolz.Editor");
+            Assert.NotNull(drawer, "ConditionalVisibilityDrawer not found — was it renamed or moved?");
+            var method = drawer.GetMethod("Compare", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+            return (bool)method.Invoke(null, new[] { value, compareValue });
+        }
+
+        [Test] public void Enum_MatchesSameEnumValue() => Assert.IsTrue(Compare(Mode.Advanced, Mode.Advanced));
+        [Test] public void Enum_MatchesItsNameAsString() => Assert.IsTrue(Compare(Mode.Advanced, "advanced"));
+        [Test] public void Enum_DoesNotMatchOtherName() => Assert.IsFalse(Compare(Mode.Simple, "Advanced"));
+        [Test] public void Float_MatchesIntArgument() => Assert.IsTrue(Compare(3f, 3));
+        [Test] public void Enum_MatchesUnderlyingIntArgument() => Assert.IsTrue(Compare(Mode.Advanced, 1));
+        [Test] public void String_ComparesExactly() => Assert.IsFalse(Compare("abc", "ABC"));
+        [Test] public void NullCompareValue_UsesBoolOrNonNull()
+        {
+            Assert.IsTrue(Compare(true, null));
+            Assert.IsFalse(Compare(false, null));
+            Assert.IsTrue(Compare(new object(), null));
+        }
+    }
 }

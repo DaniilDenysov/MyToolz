@@ -20,12 +20,16 @@ namespace MyToolz.SceneManagement
 #endif
         [SerializeField] private string scenePath;
         [SerializeField] private string sceneName;
+        [SerializeField] private string sceneGuid;
 
         /// <summary>Project-relative asset path, e.g. "Assets/Scenes/Main.unity".</summary>
         public string Path => scenePath;
 
         /// <summary>Scene name without extension, e.g. "Main".</summary>
         public string Name => sceneName;
+
+        /// <summary>Asset GUID of the scene; the Addressables runtime key when loading through Addressables.</summary>
+        public string Guid => sceneGuid;
 
         /// <summary>True when a scene has been assigned.</summary>
         public bool IsAssigned => !string.IsNullOrEmpty(scenePath);
@@ -37,11 +41,13 @@ namespace MyToolz.SceneManagement
             {
                 scenePath = AssetDatabase.GetAssetPath(sceneAsset);
                 sceneName = System.IO.Path.GetFileNameWithoutExtension(scenePath);
+                sceneGuid = AssetDatabase.AssetPathToGUID(scenePath);
             }
             else
             {
                 scenePath = string.Empty;
                 sceneName = string.Empty;
+                sceneGuid = string.Empty;
             }
 #endif
         }

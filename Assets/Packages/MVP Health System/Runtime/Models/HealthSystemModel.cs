@@ -24,6 +24,7 @@ namespace MyToolz.HealthSystem.Model
         [SerializeField] protected bool isInvincible;
 
         protected readonly Dictionary<Type, DamageType> active = new Dictionary<Type, DamageType>();
+        private readonly List<Type> activeKeysBuffer = new List<Type>();
         protected bool IsDead => currentHealth <= minHealth;
 
         public bool IsInvincible
@@ -37,27 +38,44 @@ namespace MyToolz.HealthSystem.Model
             HealthChanged?.Invoke((currentHealth, minHealth, maxHealth), old);
         }
 
+        /// <summary>True for a usable amount: finite and not negative.</summary>
+        protected static bool IsValidAmount(float amount) => !float.IsNaN(amount) && !float.IsInfinity(amount) && amount >= 0f;
+
         public virtual void DoDamage(IDamageArgs damageArgs)
         {
-            if (IsDead || IsInvincible) return;
+            if (damageArgs == null || IsDead || IsInvincible) return;
+
+            float amount = damageArgs.Damage;
+            if (!IsValidAmount(amount))
+            {
+                // A negative amount would heal and NaN would corrupt the health value.
+                DebugUtility.LogWarning(this, $"Ignored invalid damage amount: {amount}");
+                return;
+            }
+            if (amount == 0f) return;
+
             float old = currentHealth;
-            currentHealth = Mathf.Max(currentHealth - damageArgs.Damage, minHealth);
+            currentHealth = Mathf.Max(currentHealth - amount, minHealth);
             HealthChangedDiff?.Invoke(new(old, currentHealth));
             UpdateHealth(old);
             if (IsDead) Died?.Invoke();
         }
 
-        public virtual void Update()
+        public virtual void Update() => Update(Time.deltaTime);
+
+        /// <summary>Advances active damage-over-time effects by <paramref name="deltaTime"/> seconds.</summary>
+        public virtual void Update(float deltaTime)
         {
             if (active.Count == 0) return;
 
-            var keys = new List<Type>(active.Keys);
-            for (int i = 0; i < keys.Count; i++)
+            activeKeysBuffer.Clear();
+            activeKeysBuffer.AddRange(active.Keys);
+            for (int i = 0; i < activeKeysBuffer.Count; i++)
             {
-                var k = keys[i];
+                var k = activeKeysBuffer[i];
                 if (!active.TryGetValue(k, out var e)) continue;
 
-                var keep = e.DoDamage(this);
+                var keep = e.Tick(this, deltaTime);
                 if (!keep)
                 {
                     active.Remove(k);
@@ -114,20 +132,33 @@ namespace MyToolz.HealthSystem.Model
             if (IsDead) return;
             var old = currentHealth;
             currentHealth = minHealth;
+            HealthChangedDiff?.Invoke(new(old, currentHealth));
             UpdateHealth(old);
             if (IsDead) Died?.Invoke();
         }
 
+        /// <summary>Normalizes serialized limits: max is never below min and current health lies between them.</summary>
         public void Initialize()
         {
+            if (maxHealth < minHealth)
+            {
+                DebugUtility.LogWarning(this, $"Max health ({maxHealth}) is below min health ({minHealth}); using min as max.");
+                maxHealth = minHealth;
+            }
 
+            if (float.IsNaN(currentHealth))
+            {
+                currentHealth = maxHealth;
+            }
+
+            currentHealth = Mathf.Clamp(currentHealth, minHealth, maxHealth);
         }
 
 
         public void DoHeal(float amount)
         {
             if (IsDead) return;
-            if (amount < 0) return;
+            if (!IsValidAmount(amount)) return;
             var old = currentHealth;
             currentHealth = Mathf.Clamp(currentHealth + amount, minHealth, maxHealth);
             UpdateHealth(old);

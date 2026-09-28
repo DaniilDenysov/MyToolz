@@ -11,7 +11,19 @@
         "MyToolz.InputManagement",
         "MyToolz.SceneManagement",
         "MyToolz.MVPLoadingScreen",
-        "MyToolz.Audio.Runtime"
+        "MyToolz.Audio.Runtime",
+        "Zenject",
+        "MyToolz.MVPInventorySystem",
+        "MyToolz.MVPGameSettings",
+        "MyToolz.Localization",
+        "Unity.TextMeshPro",
+        "MyToolz.CommandPipeline",
+        "MyToolz.MVPHealthSystem",
+        "MyToolz.MVPClock",
+        "MyToolz.Prototype",
+        "MyToolz.MVP",
+        "MyToolz.MVPNotifications",
+        "MyToolz.AStar"
     ],
     "optionalUnityReferences": [
         "TestAssemblies"

@@ -16,6 +16,7 @@ namespace MyToolz.InputManagement.Commands
         private InputActionAsset runtimeAsset;
         private InputAction resolvedAction;
         private bool registered;
+        private object owner;
 
         public InputPhase InputActionPhase => inputActionPhase;
         public string InputName => inputName;
@@ -34,11 +35,47 @@ namespace MyToolz.InputManagement.Commands
         public event Action<InputCommandSO> OnInputStarted;
         public event Action OnStarted;
 
-        public void Initialize(InputActionAsset sharedAsset)
+        public void Initialize(InputActionAsset sharedAsset) => Initialize(sharedAsset, null);
+
+        /// <summary>
+        /// Binds this command to <paramref name="sharedAsset"/> on behalf of <paramref name="context"/>.
+        /// Subscriptions on a previously resolved action are released first, so re-initializing (a new
+        /// scene, a second context, domain-reload-free play mode) never leaves stale callbacks behind.
+        /// </summary>
+        public void Initialize(InputActionAsset sharedAsset, object context)
         {
+            if (registered)
+            {
+                Unregister();
+            }
+
+            if (IsAlive(owner) && context != null && !ReferenceEquals(owner, context))
+            {
+                DebugUtility.LogWarning(this, $"{inputName} is being re-bound by another input context; the previous context no longer receives it.");
+            }
+
+            owner = context;
             runtimeAsset = sharedAsset;
             resolvedAction = null;
             registered = false;
+        }
+
+        // A destroyed Unity owner (e.g. the installer of an unloaded scene) no longer holds the command.
+        private static bool IsAlive(object candidate) =>
+            candidate is UnityEngine.Object unityObject ? unityObject != null : candidate != null;
+
+        /// <summary>Unregisters and forgets the asset, if <paramref name="context"/> still owns this command.</summary>
+        public void Release(object context)
+        {
+            if (IsAlive(owner) && context != null && !ReferenceEquals(owner, context))
+            {
+                return;
+            }
+
+            Unregister();
+            owner = null;
+            runtimeAsset = null;
+            resolvedAction = null;
         }
 
         public bool IsActionEnabled()

@@ -9,9 +9,14 @@ namespace MyToolz.DesignPatterns.ObjectPool
     {
         public override void InitializePools()
         {
+            if (poolObjects == null)
+            {
+                return;
+            }
+
             foreach (var poolObj in poolObjects)
             {
-                if (poolObj.Prefab == null)
+                if (poolObj?.Prefab == null)
                 {
                     DebugUtility.LogWarning(this,"Prefab is null in PoolObject configuration.");
                     continue;

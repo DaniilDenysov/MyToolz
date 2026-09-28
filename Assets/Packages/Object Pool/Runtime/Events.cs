@@ -7,6 +7,7 @@ namespace MyToolz.Events
     public struct PoolRequest<T> : IEvent
     {
         public T Prefab;
+        public object Key;
         public Vector3 Position;
         public Quaternion Rotation;
         public Transform Parent;

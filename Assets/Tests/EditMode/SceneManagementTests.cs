@@ -17,9 +17,12 @@ namespace MyToolz.Tests.EditMode
             return reference;
         }
 
-        public static SceneData Data(SceneType type, uint priority, string name) => new SceneData
+        public static SceneData Data(SceneType type, uint priority, string name) =>
+            Data(type, priority, name, $"Assets/Scenes/{name}.unity");
+
+        public static SceneData Data(SceneType type, uint priority, string name, string path) => new SceneData
         {
-            Reference = Reference($"Assets/Scenes/{name}.unity", name),
+            Reference = Reference(path, name),
             SceneType = type,
             Priority = priority
         };
@@ -118,6 +121,91 @@ namespace MyToolz.Tests.EditMode
             Assert.AreEqual(1u, batches[0][0].Priority, "batches are ordered ascending by priority");
             Assert.AreEqual(2u, batches[1][0].Priority);
             Assert.AreEqual(3u, batches[2][0].Priority);
+        }
+    }
+
+    public class SceneLoadPlanTests : SilentLogTest
+    {
+        private readonly List<SceneGroupSO> _groups = new();
+
+        [TearDown]
+        public void Cleanup()
+        {
+            foreach (var group in _groups)
+                if (group != null) Object.DestroyImmediate(group);
+            _groups.Clear();
+        }
+
+        private SceneGroupSO Group(params SceneData[] scenes)
+        {
+            var group = SceneTestFactory.Group(scenes);
+            _groups.Add(group);
+            return group;
+        }
+
+        [Test]
+        public void AlreadyLoadedScene_IsSkipped_AndCountedOnce()
+        {
+            var group = Group(
+                SceneTestFactory.Data(SceneType.UserInterface, 0, "UI"),
+                SceneTestFactory.Data(SceneType.Gameplay, 1, "Level"));
+            var loaded = new List<(string, string)> { ("Assets/Scenes/UI.unity", "UI") };
+
+            SceneLoadPlan plan = SceneGroupManager.CreatePlan(group, loaded, reloadDupScenes: false);
+
+            Assert.AreEqual(2, plan.TotalScenes);
+            Assert.AreEqual(1, plan.SkippedScenes, "skipped scenes count toward progress exactly once");
+            Assert.AreEqual(1, plan.Batches.Count, "a batch with nothing left to load is dropped");
+            Assert.AreEqual("Level", plan.Batches[0][0].Name);
+        }
+
+        [Test]
+        public void SameNameInAnotherFolder_IsNotTreatedAsLoaded()
+        {
+            var group = Group(SceneTestFactory.Data(SceneType.Gameplay, 0, "Level", "Assets/Scenes/B/Level.unity"));
+            var loaded = new List<(string, string)> { ("Assets/Scenes/A/Level.unity", "Level") };
+
+            SceneLoadPlan plan = SceneGroupManager.CreatePlan(group, loaded, reloadDupScenes: false);
+
+            Assert.AreEqual(0, plan.SkippedScenes, "scenes are identified by path, not by name");
+            Assert.AreEqual(1, plan.Batches.Count);
+        }
+
+        [Test]
+        public void ReloadDuplicates_LoadsAlreadyLoadedScenesAgain()
+        {
+            var group = Group(SceneTestFactory.Data(SceneType.Gameplay, 0, "Level"));
+            var loaded = new List<(string, string)> { ("Assets/Scenes/Level.unity", "Level") };
+
+            SceneLoadPlan plan = SceneGroupManager.CreatePlan(group, loaded, reloadDupScenes: true);
+
+            Assert.AreEqual(0, plan.SkippedScenes);
+            Assert.AreEqual(1, plan.Batches.Count);
+        }
+
+        [Test]
+        public void DeferredScene_IsTheLastSceneThatActuallyLoads()
+        {
+            var group = Group(
+                SceneTestFactory.Data(SceneType.Environment, 0, "Env"),
+                SceneTestFactory.Data(SceneType.Gameplay, 1, "Level"),
+                SceneTestFactory.Data(SceneType.HUD, 2, "Hud"));
+            var loaded = new List<(string, string)> { ("Assets/Scenes/Hud.unity", "Hud") };
+
+            SceneLoadPlan plan = SceneGroupManager.CreatePlan(group, loaded, reloadDupScenes: false);
+
+            Assert.AreEqual("Level", plan.DeferredScene.Name, "an already-loaded scene is never the one held for activation");
+        }
+
+        [Test]
+        public void AddressablesSource_SkipsScenesWithoutGuid()
+        {
+            var group = Group(SceneTestFactory.Data(SceneType.Gameplay, 0, "Level"));
+
+            SceneLoadPlan plan = SceneGroupManager.CreatePlan(group, null, false, SceneLoadSource.Addressables);
+
+            Assert.AreEqual(1, plan.SkippedScenes);
+            Assert.IsNull(plan.DeferredScene);
         }
     }
 

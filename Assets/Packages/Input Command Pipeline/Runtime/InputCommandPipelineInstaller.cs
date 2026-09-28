@@ -28,5 +28,11 @@ namespace MyToolz.InputManagement.Commands.Pipeline
                 .AsSingle()
                 .IfNotBound();
         }
+
+        private void OnDestroy()
+        {
+            // Releases command subscriptions and the device tracker created by Initialize.
+            commandPipeline.Dispose();
+        }
     }
 }

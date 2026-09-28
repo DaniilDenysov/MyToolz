@@ -34,12 +34,20 @@ namespace MyToolz.UI.Notifications.Model
         public string Key;
     }
 
+    /// <summary>
+    /// Active notifications (at most <see cref="MaxActive"/>) plus a priority-ordered pending queue (at
+    /// most <see cref="MaxPending"/>). Keys are counted per entry, so several notifications may share a
+    /// key under <see cref="DedupePolicy.None"/> and removing one does not hide the others from dedupe.
+    /// </summary>
     public class NotificationQueueModel : ModelBase<NotificationQueueModel>
     {
+        public const int DefaultMaxPending = 32;
+
         private readonly int maxActive;
+        private readonly int maxPending;
         private readonly List<ActiveEntry> active = new();
         private readonly List<PendingEntry> pending = new();
-        private readonly Dictionary<string, KeyPresence> keyPresence = new();
+        private readonly Dictionary<string, int> keyCounts = new();
         private int nextId;
 
         public IReadOnlyList<ActiveEntry> Active => active;
@@ -47,26 +55,31 @@ namespace MyToolz.UI.Notifications.Model
         public int ActiveCount => active.Count;
         public int PendingCount => pending.Count;
         public int MaxActive => maxActive;
+        public int MaxPending => maxPending;
 
-        public NotificationQueueModel(int maxActive)
+        public NotificationQueueModel(int maxActive) : this(maxActive, DefaultMaxPending) { }
+
+        public NotificationQueueModel(int maxActive, int maxPending)
         {
-            this.maxActive = maxActive;
+            this.maxActive = Math.Max(1, maxActive);
+            this.maxPending = Math.Max(0, maxPending);
         }
 
-        public bool HasKey(string key) => keyPresence.ContainsKey(key);
+        /// <summary>True while any active or pending notification uses <paramref name="key"/>.</summary>
+        public bool HasKey(string key) => key != null && keyCounts.ContainsKey(key);
 
         public bool HasActiveCapacity() => active.Count < maxActive;
 
         public string ResolveKey(NotificationData data)
         {
-            return string.IsNullOrEmpty(data.Key) ? data.MessageType.FullName : data.Key;
+            return string.IsNullOrEmpty(data.Key) ? data.MessageType?.FullName ?? string.Empty : data.Key;
         }
 
         public AddOutcome TryAdd(NotificationData data)
         {
             var key = ResolveKey(data);
 
-            if (data.Dedupe != DedupePolicy.None && keyPresence.ContainsKey(key))
+            if (data.Dedupe != DedupePolicy.None && HasKey(key))
             {
                 if (data.Dedupe == DedupePolicy.IgnoreIfSameKeyExists)
                     return new AddOutcome { Result = AddResult.Dropped, Key = key };
@@ -86,6 +99,13 @@ namespace MyToolz.UI.Notifications.Model
                             ReplacedId = replacedId,
                             Key = key
                         };
+                    }
+
+                    // The existing entry is still waiting: replace it in the queue instead of adding a second one.
+                    if (TryReplacePending(data, key))
+                    {
+                        NotifyChanged();
+                        return new AddOutcome { Result = AddResult.Enqueued, Key = key };
                     }
                 }
             }
@@ -110,6 +130,12 @@ namespace MyToolz.UI.Notifications.Model
                 return result;
             }
 
+            // Nothing active ranks below the new notification, so it is the lowest priority one.
+            if (data.Overflow == OverflowPolicy.DropLowestPriority)
+            {
+                return new AddOutcome { Result = AddResult.Dropped, Key = key };
+            }
+
             if (data.Overflow == OverflowPolicy.ReplaceSameKeyOrDropNew)
             {
                 if (TryReplacePending(data, key))
@@ -125,7 +151,11 @@ namespace MyToolz.UI.Notifications.Model
                 return new AddOutcome { Result = AddResult.Dropped, Key = key };
             }
 
-            EnqueuePending(data, key);
+            if (!EnqueuePending(data, key))
+            {
+                return new AddOutcome { Result = AddResult.Dropped, Key = key };
+            }
+
             NotifyChanged();
             return new AddOutcome { Result = AddResult.Enqueued, Key = key };
         }
@@ -138,11 +168,10 @@ namespace MyToolz.UI.Notifications.Model
                     if (active.Count == 0) return -1;
                     var oldest = active[0];
                     RemoveActiveAt(0);
-                    keyPresence.Remove(oldest.Key);
                     return oldest.Id;
 
                 case OverflowPolicy.DropLowestPriority:
-                    return EvictLowestPriority();
+                    return EvictLowestPriority(data.Priority);
 
                 case OverflowPolicy.ReplaceSameKeyOrDropNew:
                     return EvictActiveByKey(key, null);
@@ -152,7 +181,8 @@ namespace MyToolz.UI.Notifications.Model
             }
         }
 
-        private int EvictLowestPriority()
+        // Only evicts an entry of strictly lower priority than the incoming one.
+        private int EvictLowestPriority(NotificationPriority incoming)
         {
             if (active.Count == 0) return -1;
 
@@ -169,9 +199,10 @@ namespace MyToolz.UI.Notifications.Model
                 }
             }
 
+            if (lowestPriority >= (int)incoming) return -1;
+
             var entry = active[lowestIndex];
             RemoveActiveAt(lowestIndex);
-            keyPresence.Remove(entry.Key);
             return entry.Id;
         }
 
@@ -183,7 +214,6 @@ namespace MyToolz.UI.Notifications.Model
                 if (messageType != null && active[i].MessageType != messageType) continue;
                 var entry = active[i];
                 RemoveActiveAt(i);
-                keyPresence.Remove(key);
                 return entry.Id;
             }
 
@@ -195,7 +225,8 @@ namespace MyToolz.UI.Notifications.Model
             for (int i = 0; i < pending.Count; i++)
             {
                 if (pending[i].Key != key) continue;
-                pending[i] = new PendingEntry { Request = data, Key = key };
+                pending.RemoveAt(i);
+                InsertPending(new PendingEntry { Request = data, Key = key });
                 return true;
             }
             return false;
@@ -207,8 +238,7 @@ namespace MyToolz.UI.Notifications.Model
             {
                 if (pending[i].Key != key) continue;
                 if (messageType != null && pending[i].Request.MessageType != messageType) continue;
-                pending.RemoveAt(i);
-                keyPresence.Remove(key);
+                RemovePendingAt(i);
                 NotifyChanged();
                 return -1;
             }
@@ -231,7 +261,6 @@ namespace MyToolz.UI.Notifications.Model
                 {
                     removed = active[i];
                     RemoveActiveAt(i);
-                    keyPresence.Remove(removed.Key);
                     NotifyChanged();
                     return true;
                 }
@@ -244,9 +273,25 @@ namespace MyToolz.UI.Notifications.Model
         {
             if (pending.Count == 0) return null;
             var next = pending[0];
-            pending.RemoveAt(0);
-            keyPresence.Remove(next.Key);
+            RemovePendingAt(0);
             return next;
+        }
+
+        /// <summary>
+        /// Moves the highest-priority pending notification into the active set without re-running
+        /// dedupe or overflow rules (it already passed them when it was queued).
+        /// </summary>
+        public bool TryPromotePending(out PendingEntry promoted, out AddOutcome outcome)
+        {
+            promoted = default;
+            outcome = default;
+            if (pending.Count == 0 || active.Count >= maxActive) return false;
+
+            promoted = pending[0];
+            RemovePendingAt(0);
+            outcome = SpawnNew(promoted.Request, promoted.Key);
+            NotifyChanged();
+            return true;
         }
 
         public List<int> GetSortedActiveIds()
@@ -261,14 +306,14 @@ namespace MyToolz.UI.Notifications.Model
 
         public override NotificationQueueModel Clone()
         {
-            return new NotificationQueueModel(maxActive);
+            return new NotificationQueueModel(maxActive, maxPending);
         }
 
         public override void Reset()
         {
             active.Clear();
             pending.Clear();
-            keyPresence.Clear();
+            keyCounts.Clear();
             nextId = 0;
             NotifyChanged();
         }
@@ -276,7 +321,7 @@ namespace MyToolz.UI.Notifications.Model
         private AddOutcome SpawnNew(NotificationData data, string key)
         {
             int id = GenerateId();
-            keyPresence[key] = KeyPresence.Active;
+            AddKey(key);
             active.Add(new ActiveEntry
             {
                 Id = id,
@@ -287,11 +332,27 @@ namespace MyToolz.UI.Notifications.Model
             return new AddOutcome { Result = AddResult.Spawned, SpawnedId = id, Key = key };
         }
 
-        private void EnqueuePending(NotificationData data, string key)
+        private bool EnqueuePending(NotificationData data, string key)
         {
-            keyPresence[key] = KeyPresence.Pending;
-            int index = pending.FindIndex(p => (int)p.Request.Priority < (int)data.Priority);
-            var entry = new PendingEntry { Request = data, Key = key };
+            if (maxPending == 0) return false;
+
+            if (pending.Count >= maxPending)
+            {
+                // Full: make room only by dropping a strictly lower-priority entry (the last one).
+                var last = pending[pending.Count - 1];
+                if ((int)last.Request.Priority >= (int)data.Priority) return false;
+                RemovePendingAt(pending.Count - 1);
+            }
+
+            InsertPending(new PendingEntry { Request = data, Key = key });
+            return true;
+        }
+
+        // Keeps pending ordered by priority (highest first), FIFO within one priority.
+        private void InsertPending(PendingEntry entry)
+        {
+            AddKey(entry.Key);
+            int index = pending.FindIndex(p => (int)p.Request.Priority < (int)entry.Request.Priority);
             if (index < 0) pending.Add(entry);
             else pending.Insert(index, entry);
         }
@@ -312,6 +373,11 @@ namespace MyToolz.UI.Notifications.Model
             for (int i = 0; i < active.Count; i++)
             {
                 if (active[i].Id != oldId) continue;
+                if (active[i].Key != key)
+                {
+                    RemoveKey(active[i].Key);
+                    AddKey(key);
+                }
                 active[i] = new ActiveEntry
                 {
                     Id = newId,
@@ -325,11 +391,30 @@ namespace MyToolz.UI.Notifications.Model
 
         private void RemoveActiveAt(int index)
         {
+            RemoveKey(active[index].Key);
             active.RemoveAt(index);
         }
 
-        private int GenerateId() => nextId++;
+        private void RemovePendingAt(int index)
+        {
+            RemoveKey(pending[index].Key);
+            pending.RemoveAt(index);
+        }
 
-        private enum KeyPresence : byte { Pending, Active }
+        private void AddKey(string key)
+        {
+            if (key == null) return;
+            keyCounts.TryGetValue(key, out int count);
+            keyCounts[key] = count + 1;
+        }
+
+        private void RemoveKey(string key)
+        {
+            if (key == null || !keyCounts.TryGetValue(key, out int count)) return;
+            if (count <= 1) keyCounts.Remove(key);
+            else keyCounts[key] = count - 1;
+        }
+
+        private int GenerateId() => nextId++;
     }
 }

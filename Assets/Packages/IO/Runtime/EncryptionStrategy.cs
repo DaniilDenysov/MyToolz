@@ -28,7 +28,7 @@ namespace MyToolz.IO
         public override string Encrypt(string raw)
         {
             byte[] data = Encoding.UTF8.GetBytes(raw);
-            byte[] keyBytes = Encoding.UTF8.GetBytes(key);
+            byte[] keyBytes = GetKeyBytes();
 
             for (int i = 0; i < data.Length; i++)
                 data[i] ^= keyBytes[i % keyBytes.Length];
@@ -39,12 +39,22 @@ namespace MyToolz.IO
         public override string Decrypt(string encrypted)
         {
             byte[] data = Convert.FromBase64String(encrypted);
-            byte[] keyBytes = Encoding.UTF8.GetBytes(key);
+            byte[] keyBytes = GetKeyBytes();
 
             for (int i = 0; i < data.Length; i++)
                 data[i] ^= keyBytes[i % keyBytes.Length];
 
             return Encoding.UTF8.GetString(data);
+        }
+
+        private byte[] GetKeyBytes()
+        {
+            if (string.IsNullOrEmpty(key))
+            {
+                throw new InvalidOperationException("XOR encryption requires a non-empty key.");
+            }
+
+            return Encoding.UTF8.GetBytes(key);
         }
     }
 

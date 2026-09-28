@@ -14,11 +14,15 @@ namespace MyToolz.SceneManagement
         public SceneData[] Scenes => scenes;
 
         public string FindSceneByType(SceneType SceneType) =>
-            scenes.FirstOrDefault(s => s.SceneType == SceneType)?.Reference.Name ?? "";
+            FindSceneDataByType(SceneType)?.Reference.Name ?? "";
+
+        public SceneData FindSceneDataByType(SceneType sceneType) =>
+            scenes?.FirstOrDefault(s => s != null && s.SceneType == sceneType);
 
         public List<SceneData[]> GetBatchedByPriority()
         {
-            return scenes
+            return (scenes ?? Array.Empty<SceneData>())
+                .Where(s => s != null)
                 .OrderBy(s => s.Priority)
                 .GroupBy(s => s.Priority)
                 .Select(g => g.ToArray())

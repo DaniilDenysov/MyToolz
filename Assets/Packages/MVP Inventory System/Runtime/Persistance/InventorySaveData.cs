@@ -11,6 +11,8 @@ namespace MyToolz.InventorySystem.Persistance
         [Serializable]
         public class ItemEntry
         {
+            /// <summary>Stable id (ItemSO GUID). Absent in 1.x saves, which resolve by <see cref="itemName"/>.</summary>
+            public string itemId;
             public string itemName;
             public uint amount;
             public int gridIndex;
