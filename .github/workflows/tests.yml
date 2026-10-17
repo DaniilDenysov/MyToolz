@@ -1,0 +1,118 @@
+# Runs the MyToolz test suites with GameCI (Unity Test Framework):
+#   • EditMode – the EditMode, EditMode.Tweener and EditMode.UI assemblies (package logic, IO, MVP, UI Kit)
+#   • PlayMode – the PlayMode assembly (Object Pool, Singleton, UI cover focus)
+# Only these assemblies run, so tests shipped inside third-party assets (MackySoft) stay out of the gate.
+# The Unity jobs need the same UNITY_LICENSE (or UNITY_SERIAL) / UNITY_EMAIL / UNITY_PASSWORD secrets as
+# the export workflow; until they are added they are skipped with a notice instead of failing.
+
+name: Tests
+
+on:
+  push:
+    branches-ignore: [main]
+  pull_request:
+  workflow_dispatch:
+  workflow_call:
+    outputs:
+      unity_ready:
+        description: "'true' when the Unity license secrets are set, so callers can gate their Unity jobs on it"
+        value: ${{ jobs.license.outputs.unity_ready }}
+
+permissions:
+  contents: read
+  checks: write
+
+concurrency:
+  group: mytoolz-tests-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  UNITY_VERSION: 6000.3.16f1
+
+jobs:
+  license:
+    name: Unity license
+    runs-on: ubuntu-latest
+    outputs:
+      unity_ready: ${{ steps.license.outputs.ready }}
+    steps:
+      # Cozy Check runs this check inside its dotnet job to dodge the self-hosted CI queue. MyToolz has no
+      # engine-free suite and runs on GitHub's runners, where a job of its own costs a few seconds.
+      - name: Check the Unity license secrets
+        id: license
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_SERIAL: ${{ secrets.UNITY_SERIAL }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+        run: |
+          if { [ -n "$UNITY_LICENSE" ] || [ -n "$UNITY_SERIAL" ]; } && [ -n "$UNITY_EMAIL" ] && [ -n "$UNITY_PASSWORD" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::notice title=Unity tests and exports skipped::Add the UNITY_EMAIL, UNITY_PASSWORD and UNITY_LICENSE (or UNITY_SERIAL) repository secrets to run the Unity tests and the package export. See README, 'CI/CD'."
+          fi
+
+  tests:
+    name: ${{ matrix.mode }}
+    needs: license
+    if: needs.license.outputs.unity_ready == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - mode: editmode
+            testMode: editmode
+            assemblies: "EditMode;EditMode.Tweener;EditMode.UI"
+          - mode: playmode
+            testMode: playmode
+            assemblies: "PlayMode"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Free up disk space
+        # Only on GitHub's throwaway VMs. On a self-hosted runner this would delete system folders.
+        if: runner.environment == 'github-hosted'
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/.ghcup \
+            /usr/local/share/powershell /usr/share/swift /opt/hostedtoolcache/CodeQL || true
+          df -h /
+
+      - uses: actions/cache@v4
+        with:
+          path: Library
+          # No restore-keys fallback: restoring a Library imported against another package set leaves a
+          # domain reload queued, and a key miss should import cleanly instead.
+          key: Library-Tests-${{ matrix.mode }}-${{ hashFiles('Assets/**', 'Packages/**', 'ProjectSettings/**') }}
+
+      - name: Run ${{ matrix.mode }} tests
+        id: run
+        uses: game-ci/unity-test-runner@32e57712352b500e17974b245a6dce9e11a73213 # v4
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_SERIAL: ${{ secrets.UNITY_SERIAL }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+        with:
+          unityVersion: ${{ env.UNITY_VERSION }}
+          # Pinned so parallel jobs don't race GitHub's unauthenticated "latest release" lookup
+          # (the same CLI version the FindMe and Cozy Check pipelines run on).
+          cliVersion: v0.1.65
+          testMode: ${{ matrix.testMode }}
+          artifactsPath: artifacts-${{ matrix.mode }}
+          githubToken: ${{ secrets.GITHUB_TOKEN }}
+          checkName: ${{ matrix.mode }} results
+          # Stop Unity's API/assembly updater from rewriting the precompiled plugins (DOTween, Zenject).
+          customParameters: -disable-assembly-updater -assemblyNames ${{ matrix.assemblies }}
+
+      - name: Upload ${{ matrix.mode }} results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ matrix.mode }}
+          # The action cannot publish outputs when setup fails before Unity starts, but this path
+          # is already fixed by artifactsPath above.
+          path: artifacts-${{ matrix.mode }}
+          if-no-files-found: warn
+          retention-days: 14
