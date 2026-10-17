@@ -49,6 +49,9 @@ public class WorldTweener : Tweener<AbstractTweenStrategy> { }
   tweens keep playing through `Time.timeScale` changes (pause, slow-mo). Toggle at runtime with
   **`SetIgnoreTimeScale(bool)`** — it re-applies to sequences already running.
 - **`CancelSequence()`** (protected) — kills every tracked running tween and clears the list.
+- **Destroy-safe** — tracked tweens are linked to the GameObject (`SetLink(..., KillOnDestroy)`) and
+  `OnDestroy` cancels them, so an object unloaded mid-transition is never animated afterwards.
+  Subclasses that override `OnDestroy` must call `base.OnDestroy()`.
 
 ## Do / Don't
 

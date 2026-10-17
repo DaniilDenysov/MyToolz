@@ -23,7 +23,11 @@ to the `EventBus` — so you talk to them through events, not a static `Instance
 
 - **`AudioSourceConfigSO`** (`MyToolz/AudioSystem/AudioSourceConfig`) — *how* a source plays:
   mixer group, `isGlobal` (forces 2D — `spatialBlend` 0), volume (+ optional randomized range),
-  `spatialBlend`, `playOnAwake`, `loop`, `pitch` (+ optional randomized range), `bypassEffects`.
+  `spatialBlend`, `playOnAwake`, `loop`, `pitch` (+ optional randomized range), `bypassEffects`,
+  and an optional `channel`.
+- **`AudioChannelSO`** (`MyToolz/AudioSystem/AudioChannel`) — a mixer-free volume bus (WebGL ignores
+  mixer groups). `Configure` multiplies a source's volume by the config's channel and `MXManager`
+  applies it to songs every frame; drive it with `SetVolume(0..1)` from a volume setting.
 - **`AudioClipSO`** (`MyToolz/AudioSystem/AudioClipSO`) — *what* to play: a single clip, or
   `randomize` over an array, or `useAudioConfigPerClip` for a per-clip clip+config list. Carries
   a `minimalInterval` cooldown and an optional `globalSoundConfig`. `GetClipAndConfig()` picks
