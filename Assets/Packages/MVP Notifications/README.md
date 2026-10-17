@@ -156,6 +156,15 @@ public class BounceNotification : TimedNotification
 
 Create a prefab with the new component, add it to the `PlayerNotificationView` prefabs array, and reference `typeof(BounceNotification)` in requests.
 
+## Pooling and canvas scale
+
+Notifications are pooled outside the canvas and reparented into the container when shown. `PlayerNotificationView`
+resets each instance to unit local scale, identity rotation and z = 0 when it arrives, so on a canvas that scales
+down (phones, small web pages) a notification is not blown up by the inverse of the canvas scale. A
+`TimedNotification` reads its resting `sizeDelta` once per instance, so a pooled notification replayed before its
+pop-in finished does not grow a little with every reuse. A prefab whose size should change at runtime needs to
+reset that size itself.
+
 ## Notification Lifecycle
 
 ```
