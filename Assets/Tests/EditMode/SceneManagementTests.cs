@@ -201,6 +201,7 @@ namespace MyToolz.Tests.EditMode
         public void AddressablesSource_SkipsScenesWithoutGuid()
         {
             var group = Group(SceneTestFactory.Data(SceneType.Gameplay, 0, "Level"));
+            UnityEngine.TestTools.LogAssert.Expect(LogType.Error, new System.Text.RegularExpressions.Regex("Scene 'Level' has no asset GUID"));
 
             SceneLoadPlan plan = SceneGroupManager.CreatePlan(group, null, false, SceneLoadSource.Addressables);
 
@@ -257,5 +258,77 @@ namespace MyToolz.Tests.EditMode
 
             Assert.AreEqual(0.25f, reported, 1e-4, "no further updates should be forwarded after Dispose");
         }
+    }
+
+    public class MultiSceneLoaderStartGroupTests : SilentLogTest
+    {
+        private const string TempFolder = "Assets/MyToolzBootOverrideTest";
+
+        private GameObject go;
+        private MultiSceneLoader loader;
+        private SceneGroupSO configured;
+
+        [SetUp]
+        public void SetUp()
+        {
+            UnityEditor.SessionState.EraseString(MultiSceneLoader.EditorSceneGroupOverrideKey);
+            configured = SceneTestFactory.Group();
+            go = new GameObject("Loader");
+            loader = go.AddComponent<MultiSceneLoader>();
+            typeof(MultiSceneLoader).GetField("sceneGroups", BindingFlags.Instance | BindingFlags.NonPublic)
+                .SetValue(loader, new[] { configured });
+        }
+
+        [TearDown]
+        public void TearDown()
+        {
+            UnityEditor.SessionState.EraseString(MultiSceneLoader.EditorSceneGroupOverrideKey);
+            Object.DestroyImmediate(go);
+            Object.DestroyImmediate(configured);
+            if (UnityEditor.AssetDatabase.IsValidFolder(TempFolder))
+            {
+                UnityEditor.AssetDatabase.DeleteAsset(TempFolder);
+            }
+        }
+
+        [Test]
+        public void WithoutOverride_StartsWithTheFirstConfiguredGroup()
+        {
+            Assert.That(InitialGroup(), Is.SameAs(configured));
+        }
+
+        [Test]
+        public void EditorOverride_StartsWithThatGroup_AndIsConsumed()
+        {
+            UnityEditor.AssetDatabase.CreateFolder("Assets", "MyToolzBootOverrideTest");
+            SceneGroupSO booted = SceneTestFactory.Group();
+            string path = TempFolder + "/Booted.asset";
+            UnityEditor.AssetDatabase.CreateAsset(booted, path);
+            UnityEditor.SessionState.SetString(MultiSceneLoader.EditorSceneGroupOverrideKey, path);
+
+            Assert.That(InitialGroup(), Is.SameAs(booted));
+            Assert.That(UnityEditor.SessionState.GetString(MultiSceneLoader.EditorSceneGroupOverrideKey, string.Empty), Is.Empty,
+                "the override applies to one boot only");
+            Assert.That(InitialGroup(), Is.SameAs(configured));
+        }
+
+        [Test]
+        public void MissingOverrideAsset_FallsBackToTheFirstConfiguredGroup()
+        {
+            UnityEditor.SessionState.SetString(MultiSceneLoader.EditorSceneGroupOverrideKey, TempFolder + "/Missing.asset");
+            UnityEngine.TestTools.LogAssert.ignoreFailingMessages = true;
+            try
+            {
+                Assert.That(InitialGroup(), Is.SameAs(configured));
+            }
+            finally
+            {
+                UnityEngine.TestTools.LogAssert.ignoreFailingMessages = false;
+            }
+        }
+
+        private SceneGroupSO InitialGroup() =>
+            (SceneGroupSO)typeof(MultiSceneLoader).GetMethod("GetInitialSceneGroup", BindingFlags.Instance | BindingFlags.NonPublic)
+                .Invoke(loader, null);
     }
 }

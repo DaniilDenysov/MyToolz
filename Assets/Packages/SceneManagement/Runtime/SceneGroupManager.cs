@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Threading;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using MyToolz.Utilities.Debug;
 #if MYTOOLZ_ADDRESSABLES
 using UnityEngine.AddressableAssets;
 using UnityEngine.ResourceManagement.AsyncOperations;
@@ -121,7 +122,7 @@ namespace MyToolz.SceneManagement
                         if (operation.Failed)
                         {
                             success = false;
-                            Debug.LogError($"[SceneGroupManager] Failed to load scene '{operation.Scene.Name}'. {operation.Error}");
+                            DebugUtility.LogError(this, $"Failed to load scene '{operation.Scene.Name}'. {operation.Error}");
                             operation.ReleaseIfFailed();
                         }
                     }
@@ -243,14 +244,14 @@ namespace MyToolz.SceneManagement
 
                     if (sceneData.Reference == null || (!sceneData.Reference.IsAssigned && string.IsNullOrEmpty(sceneData.Name)))
                     {
-                        Debug.LogError($"[SceneGroupManager] Group '{group.GroupName}' contains an unassigned scene.");
+                        DebugUtility.LogError($"Group '{group.GroupName}' contains an unassigned scene.");
                         plan.SkippedScenes++;
                         continue;
                     }
 
                     if (source == SceneLoadSource.Addressables && string.IsNullOrEmpty(sceneData.Reference.Guid))
                     {
-                        Debug.LogError($"[SceneGroupManager] Scene '{sceneData.Name}' has no asset GUID. Re-save its SceneGroupSO so the SceneReference caches it.");
+                        DebugUtility.LogError($"Scene '{sceneData.Name}' has no asset GUID. Re-save its SceneGroupSO so the SceneReference caches it.");
                         plan.SkippedScenes++;
                         continue;
                     }
@@ -325,7 +326,7 @@ namespace MyToolz.SceneManagement
 #else
             if (loadSource == SceneLoadSource.Addressables)
             {
-                Debug.LogError("[SceneGroupManager] Load Source is Addressables but the com.unity.addressables package is not installed.");
+                DebugUtility.LogError(this, "Load Source is Addressables but the com.unity.addressables package is not installed.");
                 return default;
             }
 #endif
@@ -339,7 +340,7 @@ namespace MyToolz.SceneManagement
             AsyncOperation operation = SceneManager.LoadSceneAsync(key, LoadSceneMode.Additive);
             if (operation == null)
             {
-                Debug.LogError($"[SceneGroupManager] Could not load scene '{sceneData.Name}'. " +
+                DebugUtility.LogError(this, $"Could not load scene '{sceneData.Name}'. " +
                     "It is not registered in the active Build Profile / build list. Check Build Profiles > Scene List.");
                 return default;
             }

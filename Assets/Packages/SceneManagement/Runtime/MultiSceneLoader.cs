@@ -19,6 +19,10 @@ namespace MyToolz.SceneManagement
             "The last scene of a group is activated only after this, so it never pops in under the loading screen.")]
         private float minimalLoadingDuration = 0f;
 
+        [SerializeField, Min(0f), Tooltip("Seconds (unscaled) the loading screen takes to hide the game when it opens, e.g. its fade-in. " +
+            "The current scenes are unloaded only after this, so they stay drawn behind it. 0 = unload at once.")]
+        private float loadingScreenShowDuration = 0f;
+
         private EventBinding<LoadSceneGroup> onLoadSceneBinding;
         private EventBinding<ReloadCurrentSceneGroup> onReloadCurrentSceneBinding;
         private SceneGroupSO currentSceneGroup;
@@ -30,6 +34,12 @@ namespace MyToolz.SceneManagement
         private SceneGroupSO queuedGroup;
         private List<AsyncLoadStep> queuedSteps;
         private CancellationTokenSource lifetime;
+
+        /// <summary>
+        /// Editor only: <c>SessionState</c> key holding the asset path of a <see cref="SceneGroupSO"/> to load on start
+        /// instead of the first configured group. The Bootstrap package's Boot Scene button sets it; it is cleared once read.
+        /// </summary>
+        public const string EditorSceneGroupOverrideKey = "MyToolz.SceneManagement.SceneGroupOverride";
 
         public SceneGroupSO CurrentSceneGroup => currentSceneGroup;
         public bool IsLoading => isLoading;
@@ -43,13 +53,34 @@ namespace MyToolz.SceneManagement
         {
             RegisterEvents();
 
-            if (sceneGroups == null || sceneGroups.Length == 0)
+            SceneGroupSO initialGroup = GetInitialSceneGroup();
+            if (initialGroup == null)
             {
                 DebugUtility.LogWarning(this, "No scene groups configured, skipping initial load.");
                 return;
             }
 
-            await LoadSceneGroup(sceneGroups[0], null);
+            await LoadSceneGroup(initialGroup, null);
+        }
+
+        private SceneGroupSO GetInitialSceneGroup()
+        {
+#if UNITY_EDITOR
+            string overridePath = UnityEditor.SessionState.GetString(EditorSceneGroupOverrideKey, string.Empty);
+            if (!string.IsNullOrEmpty(overridePath))
+            {
+                UnityEditor.SessionState.EraseString(EditorSceneGroupOverrideKey);
+                SceneGroupSO overrideGroup = UnityEditor.AssetDatabase.LoadAssetAtPath<SceneGroupSO>(overridePath);
+                if (overrideGroup != null)
+                {
+                    DebugUtility.Log(this, $"Booting scene group '{overrideGroup.GroupName}' requested from the editor.");
+                    return overrideGroup;
+                }
+
+                DebugUtility.LogError(this, $"Scene group override '{overridePath}' could not be loaded. Falling back to the first configured group.");
+            }
+#endif
+            return sceneGroups != null && sceneGroups.Length > 0 ? sceneGroups[0] : null;
         }
 
         /// <summary>
@@ -106,7 +137,7 @@ namespace MyToolz.SceneManagement
                 async progress => scenesLoaded = await sceneGroupManager.LoadScenes(
                     sceneGroupSO,
                     progress,
-                    () => WaitForMinimalDuration(startedAt, token),
+                    () => WaitSince(startedAt, minimalLoadingDuration, token),
                     token: token)
             };
 
@@ -135,12 +166,15 @@ namespace MyToolz.SceneManagement
 
             try
             {
+                // Loading starts by unloading the current scenes: leave them drawn until the loading screen hides them.
+                await WaitSince(startedAt, loadingScreenShowDuration, token);
+
                 for (int i = 0; i < pipeline.Count; i++)
                 {
                     await pipeline[i](childProgresses[i]);
                 }
 
-                await WaitForMinimalDuration(startedAt, token);
+                await WaitSince(startedAt, minimalLoadingDuration, token);
 
                 if (!scenesLoaded)
                 {
@@ -181,9 +215,9 @@ namespace MyToolz.SceneManagement
             });
         }
 
-        private UniTask WaitForMinimalDuration(float startedAt, CancellationToken token)
+        private static UniTask WaitSince(float startedAt, float duration, CancellationToken token)
         {
-            float remaining = minimalLoadingDuration - (Time.realtimeSinceStartup - startedAt);
+            float remaining = duration - (Time.realtimeSinceStartup - startedAt);
 
             if (remaining <= 0f)
             {

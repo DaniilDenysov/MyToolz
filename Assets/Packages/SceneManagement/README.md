@@ -65,6 +65,18 @@ as that load finishes; if several arrive, only the latest is kept.
 
 `minimalLoadingDuration` defaults to 0 (activate as soon as the group is ready).
 
+`MultiSceneLoader.loadingScreenShowDuration` (unscaled seconds, default 0) is how long the loading screen takes to
+hide the game when it opens, e.g. its fade-in. A load starts by unloading the current scenes; with this set they are
+unloaded only after that time, so they stay drawn behind the loading screen instead of vanishing before it covers
+them.
+
+### Starting group in the editor
+
+In the editor, `MultiSceneLoader` loads the group whose asset path is stored in `SessionState` under
+`MultiSceneLoader.EditorSceneGroupOverrideKey` instead of the first configured group, once, and clears the key.
+The Bootstrap package's **Boot Scene** toolbar button uses it to boot the scene you are editing through the real
+entry point. Players always start with the first group.
+
 ### Where scenes load from
 
 `SceneGroupManager.backend` picks how each scene is loaded:
