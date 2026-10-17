@@ -48,6 +48,13 @@ The indeterminate loading ring that came with this kit lives in the MVP Loading 
   first centred card and `Busy` to block input while something else is running. `Select`/`SnapTo` move it from code.
   Assign the optional `chooseButton` (a Play button, say) to choose the centred card from outside the row as well;
   it calls `ChooseCurrent()`, which you can also call from code.
+- Override `IsShown(TCard)` to hide cards (a disabled game mode, say). Hidden cards' slots and dots are switched
+  off and skipped by swipe, snap and selection, and the dots hide when one card is left. Visibility is read on
+  `OnEnable`; call `Refresh()` when it changes while the carousel is enabled. `ShownCount`, `IsCardShown(index)`
+  and `TryChooseOnlyCard()` (chooses the only shown card, if there is exactly one) help with flows that skip the
+  carousel when there is nothing to pick.
+- `ArcLayout` exposes `Radius`, `SpanDegrees` and `SideScale`; after setting the last two from code (to widen or
+  narrow a fan of cards), call `Apply()` to lay the children out again.
 - `SwitchButton` needs a `SwitchButtonStrategy` subclass (choose it in the inspector). A strategy exposes the
   icons to cycle, the current index, `Select(index)`, and change notifications; the optional `IntSettingSO`
   persists the choice through MVP Game Settings.

@@ -44,6 +44,7 @@ namespace MyToolz.UI.Kit
 
         private CanvasGroup[] groups;
         private UnityAction[] clicks;
+        private int[] shown = Array.Empty<int>();
         private Canvas canvas;
         private Tween snap;
         private float position;
@@ -52,6 +53,8 @@ namespace MyToolz.UI.Kit
         private int current;
 
         public int Count => modes.Length;
+
+        public int ShownCount => shown.Length;
 
         public int Current => current;
 
@@ -64,6 +67,48 @@ namespace MyToolz.UI.Kit
         protected virtual int StartIndex => 0;
 
         protected abstract void Choose(int index);
+
+        protected virtual bool IsShown(TCard card) => true;
+
+        public bool IsCardShown(int index) => index >= 0 && index < modes.Length && IsShown(modes[index]);
+
+        public bool TryChooseOnlyCard()
+        {
+            int only = -1;
+
+            for (int i = 0; i < modes.Length; i++)
+            {
+                if (!IsCardShown(i))
+                {
+                    continue;
+                }
+
+                if (only >= 0)
+                {
+                    return false;
+                }
+
+                only = i;
+            }
+
+            if (only < 0 || Busy)
+            {
+                return false;
+            }
+
+            Choose(only);
+            return true;
+        }
+
+        /// <summary>
+        /// Re-reads <see cref="IsShown"/> for every card, for when what decides it changed while the carousel is
+        /// enabled, and snaps to the nearest shown card.
+        /// </summary>
+        public void Refresh()
+        {
+            RefreshShown();
+            SnapTo(current);
+        }
 
         protected virtual void Awake()
         {
@@ -96,8 +141,9 @@ namespace MyToolz.UI.Kit
 
         protected virtual void OnEnable()
         {
-            current = Mathf.Clamp(StartIndex, 0, Mathf.Max(0, modes.Length - 1));
-            position = current;
+            RefreshShown();
+            current = Nearest(StartIndex);
+            position = Rank(current);
             Apply();
             RefreshDots();
         }
@@ -126,7 +172,7 @@ namespace MyToolz.UI.Kit
 
         public void Select(int index)
         {
-            if (Busy || index < 0 || index >= modes.Length)
+            if (Busy || !IsCardShown(index))
             {
                 return;
             }
@@ -147,24 +193,26 @@ namespace MyToolz.UI.Kit
 
         public void SnapTo(int index)
         {
-            if (modes.Length == 0)
+            if (shown.Length == 0)
             {
                 return;
             }
 
-            current = Mathf.Clamp(index, 0, modes.Length - 1);
+            current = Nearest(index);
             RefreshDots();
 
             snap?.Kill();
 
+            float target = Rank(current);
+
             if (snapDuration <= 0f || !isActiveAndEnabled)
             {
-                position = current;
+                position = target;
                 Apply();
                 return;
             }
 
-            snap = DOTween.To(() => position, value => { position = value; Apply(); }, current, snapDuration)
+            snap = DOTween.To(() => position, value => { position = value; Apply(); }, target, snapDuration)
                 .SetEase(snapEase)
                 .SetUpdate(true)
                 .SetLink(gameObject)
@@ -180,7 +228,7 @@ namespace MyToolz.UI.Kit
 
         public void OnDrag(PointerEventData eventData)
         {
-            if (Busy || modes.Length == 0)
+            if (Busy || shown.Length == 0)
             {
                 return;
             }
@@ -197,25 +245,30 @@ namespace MyToolz.UI.Kit
                 return;
             }
 
-            int target = current;
+            if (shown.Length == 0)
+            {
+                return;
+            }
+
+            int target = Rank(current);
 
             if (dragDistance <= -swipeThreshold)
             {
-                target = current + 1;
+                target++;
             }
             else if (dragDistance >= swipeThreshold)
             {
-                target = current - 1;
+                target--;
             }
 
-            SnapTo(target);
+            SnapTo(shown[Mathf.Clamp(target, 0, shown.Length - 1)]);
         }
 
         private float ScaleFactor => canvas != null && canvas.rootCanvas.scaleFactor > 0f ? canvas.rootCanvas.scaleFactor : 1f;
 
         private float Resist(float value)
         {
-            float last = modes.Length - 1;
+            float last = Mathf.Max(0, shown.Length - 1);
 
             if (value < 0f)
             {
@@ -230,12 +283,76 @@ namespace MyToolz.UI.Kit
             return value;
         }
 
-        private void Apply()
+        private void RefreshShown()
         {
-            int nearest = Mathf.Clamp(Mathf.RoundToInt(position), 0, Mathf.Max(0, modes.Length - 1));
+            int count = 0;
 
             for (int i = 0; i < modes.Length; i++)
             {
+                if (IsCardShown(i))
+                {
+                    count++;
+                }
+            }
+
+            shown = new int[count];
+            count = 0;
+
+            for (int i = 0; i < modes.Length; i++)
+            {
+                bool visible = IsCardShown(i);
+
+                if (visible)
+                {
+                    shown[count++] = i;
+                }
+
+                if (modes[i].Slot != null)
+                {
+                    modes[i].Slot.gameObject.SetActive(visible);
+                }
+
+                if (modes[i].Dot != null)
+                {
+                    modes[i].Dot.gameObject.SetActive(visible && shown.Length > 1);
+                }
+            }
+        }
+
+        private int Rank(int index) => Mathf.Max(0, Array.IndexOf(shown, index));
+
+        private int Nearest(int index)
+        {
+            if (shown.Length == 0)
+            {
+                return Mathf.Clamp(index, 0, Mathf.Max(0, modes.Length - 1));
+            }
+
+            int best = shown[0];
+
+            foreach (int candidate in shown)
+            {
+                if (Mathf.Abs(candidate - index) < Mathf.Abs(best - index))
+                {
+                    best = candidate;
+                }
+            }
+
+            return best;
+        }
+
+        private void Apply()
+        {
+            if (shown.Length == 0)
+            {
+                return;
+            }
+
+            int nearest = shown[Mathf.Clamp(Mathf.RoundToInt(position), 0, shown.Length - 1)];
+
+            for (int rank = 0; rank < shown.Length; rank++)
+            {
+                int i = shown[rank];
                 RectTransform slot = modes[i].Slot;
 
                 if (slot == null)
@@ -243,7 +360,7 @@ namespace MyToolz.UI.Kit
                     continue;
                 }
 
-                float offset = i - position;
+                float offset = rank - position;
                 float away = Mathf.Clamp01(Mathf.Abs(offset));
 
                 slot.anchoredPosition = new Vector2(offset * spacing, slot.anchoredPosition.y);
@@ -255,7 +372,7 @@ namespace MyToolz.UI.Kit
                 }
             }
 
-            RectTransform front = modes.Length > 0 ? modes[nearest].Slot : null;
+            RectTransform front = modes[nearest].Slot;
 
             if (front != null && front.GetSiblingIndex() != front.parent.childCount - 1)
             {

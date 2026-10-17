@@ -29,6 +29,22 @@ namespace MyToolz.UI.Kit
 
         private readonly List<RectTransform> items = new List<RectTransform>();
 
+        public float Radius => radius;
+
+        /// <summary>Total angle the children are spread across; call <see cref="Apply"/> to lay them out again.</summary>
+        public float SpanDegrees
+        {
+            get => spanDegrees;
+            set => spanDegrees = Mathf.Clamp(value, 0f, 180f);
+        }
+
+        /// <summary>Scale of the children at the ends of the arch; call <see cref="Apply"/> to lay them out again.</summary>
+        public float SideScale
+        {
+            get => sideScale;
+            set => sideScale = Mathf.Max(0.01f, value);
+        }
+
         private void OnEnable() => Apply();
 
         private void OnTransformChildrenChanged() => Apply();
