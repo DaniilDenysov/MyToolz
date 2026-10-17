@@ -316,9 +316,10 @@ namespace MyToolz.Tests.EditMode
 
         private static bool Compare(object value, object compareValue)
         {
-            var drawer = System.Type.GetType("MyToolz.Editor.ConditionalVisibilityDrawer, MyToolz.EditorToolz.Editor");
-            Assert.NotNull(drawer, "ConditionalVisibilityDrawer not found — was it renamed or moved?");
+            var drawer = System.Type.GetType("MyToolz.Editor.ConditionalVisibility, MyToolz.EditorToolz.Editor");
+            Assert.NotNull(drawer, "ConditionalVisibility not found — was it renamed or moved?");
             var method = drawer.GetMethod("Compare", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+            Assert.NotNull(method, "ConditionalVisibility.Compare not found — was it renamed?");
             return (bool)method.Invoke(null, new[] { value, compareValue });
         }
 
