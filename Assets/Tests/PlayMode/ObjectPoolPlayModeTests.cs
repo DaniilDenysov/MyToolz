@@ -53,6 +53,25 @@ namespace MyToolz.Tests.PlayMode
         public int SpawnedCount => spawned.Count;
     }
 
+    /// <summary>Item type of <see cref="FailingPegPool"/>; its own type keeps that pool's singleton apart from TestPegPool's.</summary>
+    public class FailingPeg : MonoBehaviour
+    {
+    }
+
+    /// <summary>Pool installer whose initialization throws, as a pool with a broken prefab setup would.</summary>
+    public class FailingPegPool : DefaultObjectPoolInstaller<FailingPeg>
+    {
+        public override void InitializePools()
+        {
+            throw new System.InvalidOperationException("prefab setup is broken");
+        }
+
+        public int PendingRequestCount =>
+            ((System.Collections.Generic.Queue<System.Action>)typeof(ObjectPoolInstaller<FailingPeg, Pool<FailingPeg>>)
+                .GetField("pendingRequests", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                .GetValue(this)).Count;
+    }
+
     public class ObjectPoolPlayModeTests
     {
         private GameObject _prefabGO;
@@ -311,6 +330,33 @@ namespace MyToolz.Tests.PlayMode
 
             Assert.DoesNotThrow(() => _installer.ReleaseAll());
             Assert.AreEqual(0, _installer.SpawnedCount, "ownership records of destroyed objects are pruned");
+        }
+
+        [UnityTest]
+        public IEnumerator FailedInitialization_RaisesPoolInitializationFailed_AndRefusesLaterRequests()
+        {
+            PoolInitializationFailed? raised = null;
+            EventBinding<PoolInitializationFailed> binding = new EventBinding<PoolInitializationFailed>(e => raised = e);
+            EventBus<PoolInitializationFailed>.Register(binding);
+
+            _installerGO = new GameObject("FailingPool");
+            FailingPegPool installer = _installerGO.AddComponent<FailingPegPool>();
+            yield return null;
+            new DiContainer().Inject(installer);
+
+            Assert.IsTrue(raised.HasValue, "a failed initialization is announced, not only logged");
+            Assert.AreEqual(typeof(FailingPeg), raised.Value.ItemType);
+            StringAssert.Contains("prefab setup is broken", raised.Value.Reason);
+            Assert.IsTrue(installer.HasFailed);
+            Assert.IsFalse(installer.IsReady);
+            Assert.IsTrue(installer.Ready.IsCompleted && !installer.Ready.Result);
+
+            bool served = false;
+            EventBus<PoolRequest<FailingPeg>>.Raise(new PoolRequest<FailingPeg> { Callback = _ => served = true });
+
+            Assert.IsFalse(served);
+            Assert.AreEqual(0, installer.PendingRequestCount, "a pool that failed never serves, so requests are refused, not queued");
+            EventBus<PoolInitializationFailed>.Deregister(binding);
         }
     }
 }

@@ -66,14 +66,14 @@ namespace MyToolz.DesignPatterns.ObjectPool
 
                     if (handle.Status != AsyncOperationStatus.Succeeded || handle.Result == null)
                     {
-                        DebugUtility.LogError(this, $"Failed to load addressable asset: {poolObj.AssetReference.RuntimeKey} {handle.OperationException}");
+                        ReportFailure($"Failed to load addressable asset {poolObj.AssetReference.RuntimeKey}: {handle.OperationException?.Message ?? "unknown error"}");
                         continue;
                     }
 
                     var prefabComponent = handle.Result.GetComponent<T>();
                     if (prefabComponent == null)
                     {
-                        DebugUtility.LogError(this, $"Loaded asset does not contain component {typeof(T).Name}: {poolObj.AssetReference.RuntimeKey}");
+                        ReportFailure($"Loaded asset does not contain component {typeof(T).Name}: {poolObj.AssetReference.RuntimeKey}");
                         continue;
                     }
 
@@ -108,7 +108,7 @@ namespace MyToolz.DesignPatterns.ObjectPool
                 }
                 catch (Exception e)
                 {
-                    DebugUtility.LogError(this, $"Failed to create pool for {poolObj.AssetReference.RuntimeKey}: {e}");
+                    ReportFailure($"Failed to create pool for {poolObj.AssetReference.RuntimeKey}: {e}");
                 }
                 finally
                 {

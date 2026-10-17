@@ -66,4 +66,5 @@ Notes:
   serve them once ready instead (only when callers do not rely on the callback running inside `Raise`).
 - If initialization fails - an Addressable load fails, or building a pool throws - the error is logged and
   `PoolInitializationFailed` (`ItemType`, `Reason`) is raised. Listen for it to show an error instead of
-  leaving the game waiting on objects that will never arrive. `IsReady` / `HasFailed` expose the state.
+  leaving the game waiting on objects that will never arrive. After a failed initialization requests are refused
+  with an error. `IsReady`, `HasFailed` and the `Ready` task expose the state.

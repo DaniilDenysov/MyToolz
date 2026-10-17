@@ -71,6 +71,7 @@ namespace MyToolz.DesignPatterns.ObjectPool
         private bool singletonReady;
         private bool initialized;
         private bool initializing;
+        private bool failed;
         private bool registered;
 
         // Requests that arrive while pools are still being created (Addressables load asynchronously)
@@ -92,6 +93,9 @@ namespace MyToolz.DesignPatterns.ObjectPool
         /// Completes with true when the pools are ready, or false if initialization failed.
         /// </summary>
         public Task<bool> Ready => readySource.Task;
+
+        /// <summary>True when initialization threw; requests are refused with an error instead of queued forever.</summary>
+        public bool HasFailed => failed;
 
         [Serializable]
         public class PoolObject
@@ -118,7 +122,7 @@ namespace MyToolz.DesignPatterns.ObjectPool
 
         private async void TryInitialize()
         {
-            if (initialized || initializing || !singletonReady)
+            if (initialized || initializing || failed || !singletonReady)
             {
                 return;
             }
@@ -146,7 +150,8 @@ namespace MyToolz.DesignPatterns.ObjectPool
             }
             catch (Exception e)
             {
-                DebugUtility.LogError(this, $"Pool initialization failed: {e}");
+                failed = true;
+                ReportFailure($"Pool initialization threw: {e}");
             }
             finally
             {
@@ -175,6 +180,20 @@ namespace MyToolz.DesignPatterns.ObjectPool
             readySource.TrySetResult(true);
             RegisterIfActive();
             DrainPendingRequests();
+        }
+
+        /// <summary>
+        /// Logs the failure and raises <see cref="PoolInitializationFailed"/> so the game can tell the
+        /// player instead of freezing silently.
+        /// </summary>
+        protected void ReportFailure(string reason)
+        {
+            DebugUtility.LogError(this, $"{typeof(T).Name} pool: {reason}");
+            EventBus<PoolInitializationFailed>.Raise(new PoolInitializationFailed
+            {
+                ItemType = typeof(T),
+                Reason = reason
+            });
         }
 
         private void RegisterCapacityMetadata()
@@ -243,6 +262,19 @@ namespace MyToolz.DesignPatterns.ObjectPool
             EventBus<PoolAllRequest<T>>.Deregister(releaseAllBinding);
         }
 
+        // Before the pools exist a request waits in the queue; after a failed initialization it never
+        // would be served, so it is refused instead.
+        private void Defer(Action request)
+        {
+            if (failed)
+            {
+                DebugUtility.LogError(this, $"{typeof(T).Name} pool failed to initialize; request refused.");
+                return;
+            }
+
+            pendingRequests.Enqueue(request);
+        }
+
         private void DrainPendingRequests()
         {
             while (pendingRequests.Count > 0 && initialized)
@@ -255,7 +287,7 @@ namespace MyToolz.DesignPatterns.ObjectPool
         {
             if (!initialized)
             {
-                pendingRequests.Enqueue(() => HandlePoolRequest(request));
+                Defer(() => HandlePoolRequest(request));
                 return;
             }
 
@@ -303,7 +335,7 @@ namespace MyToolz.DesignPatterns.ObjectPool
         {
             if (!initialized)
             {
-                pendingRequests.Enqueue(() => HandleReleaseRequest(request));
+                Defer(() => HandleReleaseRequest(request));
                 return;
             }
 
@@ -328,7 +360,7 @@ namespace MyToolz.DesignPatterns.ObjectPool
         {
             if (!initialized)
             {
-                pendingRequests.Enqueue(() => HandlePoolAllRequest(request));
+                Defer(() => HandlePoolAllRequest(request));
                 return;
             }
 
