@@ -167,7 +167,7 @@ instance, `container.Inject(...)`, etc.).
 - Cross-feature signals still go through `EventBus<T>` (see [event-bus.md](event-bus.md)); MVP
   events are for the Model↔View link within one feature.
 - Notable feature to study: `MVP UI ManagementSystem` — `UILayerStateManager` manages a stack
-  of `IUILayer` screens with activation modes `Override` / `Additive` / `Blend`.
+  of `IUILayer` screens with activation modes `Override` / `Additive` / `Blend` / `Cover`.
 
 ## Do / Don't
 

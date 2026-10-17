@@ -6,7 +6,11 @@
         "MyToolz.EventBus",
         "MyToolz.DebugUtility",
         "MyToolz.Singleton",
-        "Zenject"
+        "Zenject",
+        "MyToolz.MVPUIManagementSystem",
+        "MyToolz.EditorToolz",
+        "MyToolz.InputManagement",
+        "UnityEngine.UI"
     ],
     "optionalUnityReferences": [
         "TestAssemblies"

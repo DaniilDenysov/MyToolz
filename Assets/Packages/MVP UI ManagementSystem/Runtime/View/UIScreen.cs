@@ -2,6 +2,7 @@ using MyToolz.EditorToolz;
 using MyToolz.InputManagement;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
 using Zenject;
 
@@ -84,6 +85,33 @@ namespace MyToolz.UI.Management
             {
                 defaultScreen.Open();
             }
+
+            if (isRoot && layer != null && layer.ActivationMode == ActivationMode.Cover)
+            {
+                ReleaseFocusUnderCover();
+            }
+        }
+
+        /// <summary>
+        /// The screens a cover opens over stay drawn until their scene unloads: take the focus off them, so a
+        /// key press cannot click one. A selection the cover (or its default screen) just made stays.
+        /// </summary>
+        private void ReleaseFocusUnderCover()
+        {
+            EventSystem eventSystem = EventSystem.current;
+            if (eventSystem == null)
+            {
+                return;
+            }
+
+            GameObject selected = eventSystem.currentSelectedGameObject;
+            if (selected == null || selected.transform.IsChildOf(transform)
+                || (defaultScreen != null && selected.transform.IsChildOf(defaultScreen.transform)))
+            {
+                return;
+            }
+
+            eventSystem.SetSelectedGameObject(null);
         }
 
         public override void Close()
@@ -91,7 +119,7 @@ namespace MyToolz.UI.Management
             localUIStateManager.ClearStack();
             if (isRoot && layerStateManager != null)
             {
-                layerStateManager.ExitState();
+                layerStateManager.ExitState(this);
             }
             else
             {

@@ -27,6 +27,7 @@ implements `IUILayer` (adds `Layer`).
 | `Override` | Clears the entire layer stack (everything exits), then enters this layer. Use for full-screen states (main menu, gameplay HUD). |
 | `Additive` | Deactivates the current layer's screens and pushes this layer on top. Use for a menu that hides the HUD but sits above it. |
 | `Blend` | Pushes this layer on top **without** exiting the layer below — both stay visible. Use for popups/overlays over a live screen. |
+| `Cover` | For loading screens. Clears the stack like `Override` but is never pushed, so the screens the next scene opens under it never close it — only its own `Close()` does. The screens it covers stay drawn behind it until their scene unloads, a screen opens under it, or it closes. It takes the focus off the covered screens but keeps a selection it made itself (`firstSelected`, or its default screen's). |
 
 ## Screen types
 
@@ -66,7 +67,8 @@ second). A root registers itself with the layer manager on inject and unregister
 Call `Open()` / `Close()` on the screen (e.g. from a `[Button]` or a UI button's `onClick`):
 
 - **Root `UIScreen`** → `Open()` calls `layerStateManager.ChangeState(this)` (applies the
-  layer's activation mode); `Close()` calls `layerStateManager.ExitState()`.
+  layer's activation mode); `Close()` calls `layerStateManager.ExitState(this)` (a cover closes
+  only itself; any other layer closes the top of the stack, like `ExitState()`).
 - **Child `UIScreen` / `UISubScreen`** → routes through the parent's *local* `UIStateManager`
   (an internal per-screen stack), so sub-screens swap within their parent without touching the
   global layer stack.
