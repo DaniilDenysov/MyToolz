@@ -104,7 +104,7 @@ Unity registry dependencies (Input System, TextMeshPro, Newtonsoft JSON) are res
 2. Install the required external dependencies listed above.
 3. Unity will detect the `package.json` files and resolve inner dependencies automatically.
 
-Each package can also be referenced individually by downloading a .zip file with all the packages available as .unitypackage files.
+Each package can also be installed on its own from [Releases](https://github.com/DaniilDenysov/MyToolz/releases): every version has a `.zip` with all the packages as `.unitypackage` files, plus each `.unitypackage` separately.
 
 ---
 
@@ -115,11 +115,13 @@ GitHub Actions with [GameCI](https://game.ci), on GitHub's Ubuntu runners:
 | Workflow | Runs on | Does |
 |---|---|---|
 | **Tests** (`tests.yml`) | Pushes to branches other than `main`, pull requests, manual runs | Runs the EditMode (`EditMode`, `EditMode.Tweener`, `EditMode.UI`) and PlayMode (`PlayMode`) test assemblies |
-| **Export MyToolz UnityPackages** (`export-mytoolz-unitypackages.yml`) | Pushes to `main`, manual runs | Tests → next version → one `.unitypackage` per package → tags the commit `v<version>` |
+| **Export MyToolz UnityPackages** (`export-mytoolz-unitypackages.yml`) | Pushes to `main`, manual runs | Tests → next version → one `.unitypackage` per package → tags the commit `v<version>` → publishes its release |
 
-**Versions.** Every push to `main` that passes the tests is tagged with the latest `vMAJOR.MINOR.PATCH` tag, patch bumped (`v2.0.0`, `v2.0.1`, …), never below the Player Settings version (*Project Settings > Player > Version*). To start a new minor or major line, raise that version (for example to `2.1.0`). The packages of each version are kept as the `MyToolz-<version>-unitypackages` artifact of its run for 90 days.
+**Versions.** Every push to `main` that passes the tests is tagged with the latest `vMAJOR.MINOR.PATCH` tag, patch bumped (`v2.0.0`, `v2.0.1`, …), never below the Player Settings version (*Project Settings > Player > Version*). To start a new minor or major line, raise that version (for example to `2.1.0`).
 
-**Secrets** (*Settings > Secrets and variables > Actions*): `UNITY_LICENSE` (the `.ulf` of a Personal license) or `UNITY_SERIAL` (Plus/Pro), plus `UNITY_EMAIL` and `UNITY_PASSWORD`. Without them the Unity jobs are skipped with a notice, and nothing is exported or tagged.
+**Releases.** Each tag gets the GitHub Release `MyToolz v<version>` with `mytoolz-unitypackages-v<version>.zip` (every package) and each `.unitypackage` on its own. Its notes are GitHub's generated list of changes; edit them on GitHub to add highlights.
+
+**Secrets** (*Settings > Secrets and variables > Actions*): `UNITY_LICENSE` (the `.ulf` of a Personal license) or `UNITY_SERIAL` (Plus/Pro), plus `UNITY_EMAIL` and `UNITY_PASSWORD`. Without them the Unity jobs are skipped with a notice, and nothing is exported, tagged or released.
 
 ---
 
