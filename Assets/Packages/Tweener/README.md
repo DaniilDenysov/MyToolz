@@ -22,7 +22,11 @@ Runtime/
 Subclass `AbstractTweenStrategy` to produce a `Tween`, then subclass `Tweener<T>` to compose strategies:
 
 - `CreateSequence(strategies)` builds a single DOTween `Sequence` from the strategies — appended one after another, or joined to run in parallel when `paralelExecution` is enabled. Null strategies and null tweens are skipped.
-- Created sequences are tracked in `runningTweens`; `CancelSequence()` kills every active tracked tween.
+- Created sequences are tracked in `runningTweens` through `Track(tween)`; `CancelSequence()` kills every active tracked tween.
+- Tracked tweens are linked to the GameObject (`SetLink(gameObject, LinkBehaviour.KillOnDestroy)`) and `OnDestroy` cancels them,
+  so an object unloaded mid-transition is never animated, or deactivated by a completion callback, after it is gone.
+  Finished tweens are dropped from the list the next time one is tracked. Subclasses that override `OnDestroy` must call
+  `base.OnDestroy()`.
 
 ## Time scale
 
