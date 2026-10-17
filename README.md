@@ -108,6 +108,21 @@ Each package can also be referenced individually by downloading a .zip file with
 
 ---
 
+## CI/CD
+
+GitHub Actions with [GameCI](https://game.ci), on GitHub's Ubuntu runners:
+
+| Workflow | Runs on | Does |
+|---|---|---|
+| **Tests** (`tests.yml`) | Pushes to branches other than `main`, pull requests, manual runs | Runs the EditMode (`EditMode`, `EditMode.Tweener`, `EditMode.UI`) and PlayMode (`PlayMode`) test assemblies |
+| **Export MyToolz UnityPackages** (`export-mytoolz-unitypackages.yml`) | Pushes to `main`, manual runs | Tests → next version → one `.unitypackage` per package → tags the commit `v<version>` |
+
+**Versions.** Every push to `main` that passes the tests is tagged with the latest `vMAJOR.MINOR.PATCH` tag, patch bumped (`v2.0.0`, `v2.0.1`, …), never below the Player Settings version (*Project Settings > Player > Version*). To start a new minor or major line, raise that version (for example to `2.1.0`). The packages of each version are kept as the `MyToolz-<version>-unitypackages` artifact of its run for 90 days.
+
+**Secrets** (*Settings > Secrets and variables > Actions*): `UNITY_LICENSE` (the `.ulf` of a Personal license) or `UNITY_SERIAL` (Plus/Pro), plus `UNITY_EMAIL` and `UNITY_PASSWORD`. Without them the Unity jobs are skipped with a notice, and nothing is exported or tagged.
+
+---
+
 ## License
 
 MIT — free to use in personal, commercial, and open-source projects with no royalties or licensing fees.
