@@ -2,7 +2,8 @@
   "name": "MyToolz.Bootstrap.Editor",
   "rootNamespace": "MyToolz.Bootstrap.Editor",
   "references": [
-    "GUID:ef3655572d73418e94a90219655f325b"
+    "GUID:ef3655572d73418e94a90219655f325b",
+    "GUID:59501f2b70f04a208d37589c54349d1b"
   ],
   "includePlatforms": [
     "Editor"
