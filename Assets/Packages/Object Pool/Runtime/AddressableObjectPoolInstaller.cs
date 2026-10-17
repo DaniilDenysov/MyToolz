@@ -1,3 +1,4 @@
+#if MYTOOLZ_ADDRESSABLES
 using MyToolz.Utilities.Debug;
 using System;
 using System.Collections.Generic;
@@ -6,15 +7,11 @@ using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.AddressableAssets;
 using UnityEngine.ResourceManagement.AsyncOperations;
+using Zenject;
 
 namespace MyToolz.DesignPatterns.ObjectPool
 {
-    /// <summary>
-    /// Pools Addressable prefabs (requested with <c>PoolRequest.Key = reference.RuntimeKey</c>) and,
-    /// like <see cref="DefaultObjectPoolInstaller{T}"/>, any directly referenced prefabs in
-    /// <c>poolObjects</c> (requested with <c>PoolRequest.Prefab</c>).
-    /// </summary>
-    public class AddressableObjectPoolInstaller<T> : DefaultObjectPoolInstaller<T>
+    public class AddressableObjectPoolInstaller<T> : ObjectPoolInstaller<T, Pool<T>>
         where T : MonoBehaviour
     {
         [Serializable]
@@ -31,67 +28,96 @@ namespace MyToolz.DesignPatterns.ObjectPool
         private readonly Dictionary<int, AsyncOperationHandle<GameObject>> loadedHandles = new();
         private CancellationTokenSource cancellationTokenSource;
 
+        public override void InitializePools()
+        {
+        }
+
         protected override async Task InitializePoolsAsync()
         {
-            InitializePools();
+            cancellationTokenSource = new CancellationTokenSource();
+            var token = cancellationTokenSource.Token;
 
             if (addressablePoolObjects == null)
             {
                 return;
             }
 
-            cancellationTokenSource = new CancellationTokenSource();
-            var token = cancellationTokenSource.Token;
-
             foreach (var poolObj in addressablePoolObjects)
             {
                 if (token.IsCancellationRequested) return;
 
-                if (poolObj.AssetReference == null || !poolObj.AssetReference.RuntimeKeyIsValid())
+                if (poolObj?.AssetReference == null || !poolObj.AssetReference.RuntimeKeyIsValid())
                 {
                     DebugUtility.LogWarning(this, "Invalid AssetReference in AddressablePoolObject configuration.");
                     continue;
                 }
 
-                var handle = Addressables.LoadAssetAsync<GameObject>(poolObj.AssetReference);
-                await handle.Task;
-
-                if (token.IsCancellationRequested)
+                AsyncOperationHandle<GameObject> handle = default;
+                bool keepHandle = false;
+                try
                 {
-                    if (handle.IsValid()) Addressables.Release(handle);
-                    return;
-                }
+                    handle = Addressables.LoadAssetAsync<GameObject>(poolObj.AssetReference);
+                    await handle.Task;
 
-                if (handle.Status != AsyncOperationStatus.Succeeded)
+                    if (token.IsCancellationRequested)
+                    {
+                        return;
+                    }
+
+                    if (handle.Status != AsyncOperationStatus.Succeeded || handle.Result == null)
+                    {
+                        DebugUtility.LogError(this, $"Failed to load addressable asset: {poolObj.AssetReference.RuntimeKey} {handle.OperationException}");
+                        continue;
+                    }
+
+                    var prefabComponent = handle.Result.GetComponent<T>();
+                    if (prefabComponent == null)
+                    {
+                        DebugUtility.LogError(this, $"Loaded asset does not contain component {typeof(T).Name}: {poolObj.AssetReference.RuntimeKey}");
+                        continue;
+                    }
+
+                    int prefabId = prefabComponent.GetInstanceID();
+
+                    RegisterMetadata(poolObj, prefabId);
+
+                    if (container.HasBindingId<Pool<T>>(prefabId))
+                    {
+                        // Another installer already owns a pool (and a handle) for this asset.
+                        mappings[prefabId] = container.ResolveId<Pool<T>>(prefabId);
+                        continue;
+                    }
+
+                    container.BindMemoryPool<T, Pool<T>>()
+                        .WithId(prefabId)
+                        .WithInitialSize(poolObj.DefaultCapacity)
+                        .WithMaxSize(poolObj.MaxCapacity)
+                        .WithFactoryArguments<Action<Pool<T>>, int, Action<T>, Action<int, T>, Action<T>>(
+                            (pool) => mappings.Add(prefabId, pool),
+                            prefabId,
+                            OnSpawned,
+                            OnCreated,
+                            OnDespawned)
+                        .FromComponentInNewPrefab(prefabComponent)
+                        .UnderTransformGroup($"{typeof(T).Name} Pool");
+
+                    container.ResolveId<Pool<T>>(prefabId);
+
+                    loadedHandles[prefabId] = handle;
+                    keepHandle = true;
+                }
+                catch (Exception e)
                 {
-                    ReportFailure($"Failed to load addressable asset {poolObj.AssetReference.RuntimeKey}: {handle.OperationException?.Message ?? "unknown error"}");
-                    if (handle.IsValid()) Addressables.Release(handle);
-                    continue;
+                    DebugUtility.LogError(this, $"Failed to create pool for {poolObj.AssetReference.RuntimeKey}: {e}");
                 }
-
-                var loadedPrefab = handle.Result;
-                var prefabComponent = loadedPrefab.GetComponent<T>();
-
-                if (prefabComponent == null)
+                finally
                 {
-                    ReportFailure($"Loaded asset does not contain component {typeof(T).Name}: {poolObj.AssetReference.RuntimeKey}");
-                    Addressables.Release(handle);
-                    continue;
+                    // Every exit that does not hand the handle to loadedHandles releases it.
+                    if (!keepHandle && handle.IsValid())
+                    {
+                        Addressables.Release(handle);
+                    }
                 }
-
-                int prefabId = prefabComponent.GetInstanceID();
-
-                RegisterMetadata(poolObj, prefabId);
-
-                if (container.HasBindingId<Pool<T>>(prefabId))
-                {
-                    mappings[prefabId] = container.ResolveId<Pool<T>>(prefabId);
-                    Addressables.Release(handle);
-                    continue;
-                }
-
-                loadedHandles[prefabId] = handle;
-                BindPrefabPool(prefabComponent, poolObj.DefaultCapacity, poolObj.MaxCapacity);
             }
         }
 
@@ -106,7 +132,6 @@ namespace MyToolz.DesignPatterns.ObjectPool
         {
             cancellationTokenSource?.Cancel();
             cancellationTokenSource?.Dispose();
-            cancellationTokenSource = null;
 
             foreach (var handle in loadedHandles.Values)
             {
@@ -116,3 +141,4 @@ namespace MyToolz.DesignPatterns.ObjectPool
         }
     }
 }
+#endif

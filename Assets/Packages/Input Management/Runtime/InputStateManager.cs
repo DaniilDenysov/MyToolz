@@ -3,7 +3,14 @@ using System;
 
 namespace MyToolz.InputManagement
 {
-    public class InputStateManager
+    public interface IInputStateManager
+    {
+        IPlayerInputState CurrentState { get; }
+        event Action<IPlayerInputState, IPlayerInputState> OnStateChanged;
+        void ChangeState(IPlayerInputState newState);
+    }
+
+    public class InputStateManager : IInputStateManager
     {
         private IPlayerInputState currentState;
 
@@ -26,6 +33,17 @@ namespace MyToolz.InputManagement
             currentState = newState;
             currentState.OnEnter();
             OnStateChanged?.Invoke(previousState, currentState);
+        }
+
+        /// <summary>Exits the current state (disabling its actions) and leaves no state active.</summary>
+        public void Clear()
+        {
+            if (currentState == null) return;
+
+            var previousState = currentState;
+            currentState = null;
+            previousState.OnExit();
+            OnStateChanged?.Invoke(previousState, null);
         }
     }
 }

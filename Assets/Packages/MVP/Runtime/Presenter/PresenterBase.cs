@@ -9,6 +9,11 @@ namespace MyToolz.DesignPatterns.MVP.Presenter
 
         private bool isEnabled;
         private bool isDisposed;
+        private bool isInitialized;
+
+        public bool IsInitialized => isInitialized;
+        public bool IsEnabled => isEnabled;
+        public bool IsDisposed => isDisposed;
 
         protected PresenterBase(TModel model, TView view)
         {
@@ -16,9 +21,21 @@ namespace MyToolz.DesignPatterns.MVP.Presenter
             View = view;
         }
 
+        /// <summary>
+        /// Runs <see cref="OnInitialize"/> once, then enables the presenter. Repeated calls (e.g. both
+        /// Zenject's IInitializable and a manual call) only re-enable; a disposed presenter stays disposed.
+        /// </summary>
         public virtual void Initialize()
         {
-            OnInitialize();
+            if (isDisposed)
+                return;
+
+            if (!isInitialized)
+            {
+                isInitialized = true;
+                OnInitialize();
+            }
+
             Enable();
         }
 

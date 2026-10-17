@@ -21,18 +21,35 @@ namespace MyToolz.UI.Layout
         [SerializeField] private bool overrideAlignment;
         [SerializeField] private FlexAlign alignSelf = FlexAlign.Stretch;
 
-        public float Grow => grow;
-        public float Shrink => shrink;
-        public float Basis => basis;
-        public Margins Margins => margins;
-        public bool OverridesAlignment => overrideAlignment;
-        public FlexAlign AlignSelf => alignSelf;
+        public float Grow { get => grow; set { grow = value; MarkParentDirty(); } }
+        public float Shrink { get => shrink; set { shrink = value; MarkParentDirty(); } }
+        public float Basis { get => basis; set { basis = value; MarkParentDirty(); } }
+        public Margins Margins { get => margins; set { margins = value; MarkParentDirty(); } }
+        public bool OverridesAlignment { get => overrideAlignment; set { overrideAlignment = value; MarkParentDirty(); } }
+        public FlexAlign AlignSelf { get => alignSelf; set { alignSelf = value; MarkParentDirty(); } }
 
         public void Configure(float grow, float shrink, Margins margins)
         {
             this.grow = grow;
             this.shrink = shrink;
             this.margins = margins;
+            MarkParentDirty();
+        }
+
+        private void OnEnable() => MarkParentDirty();
+        private void OnDisable() => MarkParentDirty();
+
+#if UNITY_EDITOR
+        private void OnValidate() => MarkParentDirty();
+#endif
+
+        // The settings live on the child but are read by the parent group, so the parent must rebuild.
+        private void MarkParentDirty()
+        {
+            if (transform.parent is RectTransform parent)
+            {
+                LayoutRebuilder.MarkLayoutForRebuild(parent);
+            }
         }
     }
 
@@ -40,8 +57,9 @@ namespace MyToolz.UI.Layout
     /// A CSS-flexbox-inspired layout group: direction, wrap, justify-content, align-items, gap, and
     /// per-child grow/shrink/basis/margins via <see cref="FlexChild"/>. Lives in UILS (not a MyToolz
     /// package change) and only recalculates when the layout system marks it dirty, like any built-in
-    /// group. v1 simplifications: no align-content (wrapped lines stack from the start edge), and the
-    /// reported preferred size assumes a single line.
+    /// group. With wrap enabled the reported cross-axis size covers every wrapped line (so a
+    /// ContentSizeFitter grows with the content); there is no align-content (lines stack from the
+    /// start edge).
     /// </summary>
     [DisallowMultipleComponent]
     public class FlexLayoutGroup : LayoutGroup
@@ -73,6 +91,16 @@ namespace MyToolz.UI.Layout
             public float mainSize;   // resolved main-axis size
         }
 
+        private struct Line
+        {
+            public int start;
+            public int count;
+        }
+
+        // Reused between passes; layout runs often and should not allocate.
+        private readonly List<Item> items = new List<Item>();
+        private readonly List<Line> lines = new List<Line>();
+
         public override void CalculateLayoutInputHorizontal()
         {
             base.CalculateLayoutInputHorizontal();
@@ -85,13 +113,37 @@ namespace MyToolz.UI.Layout
 
         public override void SetLayoutVertical() => DoLayout(applyAxis: 1);
 
-        /// <summary>Reports this group's own min/preferred size along an axis (single-line estimate).</summary>
+        private float Padding(int axis) => axis == 0 ? padding.horizontal : padding.vertical;
+
+        /// <summary>
+        /// Reports this group's own min/preferred size along an axis. The main axis reports a single
+        /// line (min is the widest single item when wrapping). The cross axis reports the stacked
+        /// lines produced for the current main-axis size.
+        /// </summary>
         private void SetInputsForAxis(int axis)
         {
-            float pad = axis == 0 ? padding.horizontal : padding.vertical;
-            float totalMin = pad, totalPreferred = pad;
+            float pad = Padding(axis);
+            int mainAxis = MainAxis;
 
-            bool axisIsMain = axis == MainAxis;
+            if (axis != mainAxis && wrap)
+            {
+                float innerMain = rectTransform.rect.size[mainAxis] - Padding(mainAxis);
+                MeasureItems(mainAxis, 1 - mainAxis);
+                BreakIntoLines(innerMain, mainAxis);
+
+                float stacked = 0f;
+                for (int li = 0; li < lines.Count; li++)
+                {
+                    stacked += LineCrossSize(lines[li], 1 - mainAxis);
+                    if (li > 0) stacked += gap.y;
+                }
+
+                SetLayoutInputForAxis(stacked + pad, stacked + pad, -1, axis);
+                return;
+            }
+
+            float totalMin = pad, totalPreferred = pad;
+            bool axisIsMain = axis == mainAxis;
             for (int i = 0; i < rectChildren.Count; i++)
             {
                 var child = rectChildren[i];
@@ -102,9 +154,19 @@ namespace MyToolz.UI.Layout
 
                 if (axisIsMain)
                 {
-                    totalMin += min;
+                    if (wrap)
+                    {
+                        // Items can move to their own line, so the minimum is the largest item.
+                        totalMin = Mathf.Max(totalMin, min + pad);
+                    }
+                    else
+                    {
+                        totalMin += min;
+                        if (i > 0) totalMin += gap.x;
+                    }
+
                     totalPreferred += pref;
-                    if (i > 0) { totalMin += gap.x; totalPreferred += gap.x; }
+                    if (i > 0) totalPreferred += gap.x;
                 }
                 else
                 {
@@ -116,18 +178,9 @@ namespace MyToolz.UI.Layout
             SetLayoutInputForAxis(totalMin, totalPreferred, -1, axis);
         }
 
-        private void DoLayout(int applyAxis)
+        private void MeasureItems(int mainAxis, int crossAxis)
         {
-            int mainAxis = MainAxis;
-            int crossAxis = 1 - mainAxis;
-
-            float innerMain = rectTransform.rect.size[mainAxis] - (mainAxis == 0 ? padding.horizontal : padding.vertical);
-            float innerCross = rectTransform.rect.size[crossAxis] - (crossAxis == 0 ? padding.horizontal : padding.vertical);
-            float mainStart = mainAxis == 0 ? padding.left : padding.top;
-            float crossStart = crossAxis == 0 ? padding.left : padding.top;
-
-            // Measure.
-            var items = new List<Item>(rectChildren.Count);
+            items.Clear();
             foreach (var child in rectChildren)
             {
                 var flex = child.GetComponent<FlexChild>();
@@ -147,47 +200,73 @@ namespace MyToolz.UI.Layout
                     mainSize = 0f
                 });
             }
+        }
 
-            // Break into lines.
-            var lines = new List<List<int>>();
-            var line = new List<int>();
+        private void BreakIntoLines(float innerMain, int mainAxis)
+        {
+            lines.Clear();
+            var line = new Line { start = 0, count = 0 };
             float lineUsed = 0f;
             for (int i = 0; i < items.Count; i++)
             {
                 float itemMain = items[i].basis + MarginSum(items[i].margins, mainAxis);
-                float withGap = line.Count > 0 ? gap.x + itemMain : itemMain;
-                if (wrap && line.Count > 0 && lineUsed + withGap > innerMain)
+                float withGap = line.count > 0 ? gap.x + itemMain : itemMain;
+                if (wrap && line.count > 0 && lineUsed + withGap > innerMain)
                 {
                     lines.Add(line);
-                    line = new List<int>();
+                    line = new Line { start = i, count = 0 };
                     lineUsed = itemMain;
                 }
                 else
                 {
                     lineUsed += withGap;
                 }
-                line.Add(i);
+                line.count++;
             }
-            if (line.Count > 0) lines.Add(line);
+            if (line.count > 0) lines.Add(line);
+        }
+
+        private float LineCrossSize(Line line, int crossAxis)
+        {
+            float lineCross = 0f;
+            for (int i = line.start; i < line.start + line.count; i++)
+                lineCross = Mathf.Max(lineCross, items[i].crossPref + MarginSum(items[i].margins, crossAxis));
+            return lineCross;
+        }
+
+        private void DoLayout(int applyAxis)
+        {
+            int mainAxis = MainAxis;
+            int crossAxis = 1 - mainAxis;
+
+            float innerMain = rectTransform.rect.size[mainAxis] - Padding(mainAxis);
+            float innerCross = rectTransform.rect.size[crossAxis] - Padding(crossAxis);
+            float mainStart = mainAxis == 0 ? padding.left : padding.top;
+            float crossStart = crossAxis == 0 ? padding.left : padding.top;
+
+            MeasureItems(mainAxis, crossAxis);
+            BreakIntoLines(innerMain, mainAxis);
 
             // Resolve sizes & positions line by line.
             float lineCrossPos = crossStart;
             for (int li = 0; li < lines.Count; li++)
             {
-                var indices = lines[li];
+                Line currentLine = lines[li];
+                int first = currentLine.start;
+                int last = currentLine.start + currentLine.count;
 
                 // Grow / shrink along the main axis.
                 float used = 0f, growSum = 0f, shrinkWeight = 0f;
-                foreach (int i in indices)
+                for (int i = first; i < last; i++)
                 {
                     used += items[i].basis + MarginSum(items[i].margins, mainAxis);
                     growSum += items[i].grow;
                     shrinkWeight += items[i].shrink * items[i].basis;
                 }
-                used += gap.x * (indices.Count - 1);
+                used += gap.x * (currentLine.count - 1);
                 float free = innerMain - used;
 
-                foreach (int i in indices)
+                for (int i = first; i < last; i++)
                 {
                     var item = items[i];
                     if (free > 0f && growSum > 0f)
@@ -200,27 +279,19 @@ namespace MyToolz.UI.Layout
                 }
 
                 // Leftover after growth (for justification).
-                float usedAfter = gap.x * (indices.Count - 1);
-                foreach (int i in indices)
+                float usedAfter = gap.x * (currentLine.count - 1);
+                for (int i = first; i < last; i++)
                     usedAfter += items[i].mainSize + MarginSum(items[i].margins, mainAxis);
                 float leftover = Mathf.Max(0f, innerMain - usedAfter);
 
-                GetJustification(leftover, indices.Count, out float offset, out float extraGap);
+                GetJustification(leftover, currentLine.count, out float offset, out float extraGap);
 
                 // Line cross size: single un-wrapped line fills the container; wrapped lines fit content.
-                float lineCross;
-                if (lines.Count == 1 && !wrap)
-                    lineCross = innerCross;
-                else
-                {
-                    lineCross = 0f;
-                    foreach (int i in indices)
-                        lineCross = Mathf.Max(lineCross, items[i].crossPref + MarginSum(items[i].margins, crossAxis));
-                }
+                float lineCross = lines.Count == 1 && !wrap ? innerCross : LineCrossSize(currentLine, crossAxis);
 
                 // Place.
                 float mainPos = mainStart + offset;
-                foreach (int i in indices)
+                for (int i = first; i < last; i++)
                 {
                     var item = items[i];
                     float marginLead = MarginLeading(item.margins, mainAxis);

@@ -212,10 +212,26 @@ namespace MyToolz.Animations
             DebugUtility.Log(this, $"Animator switched to {state.GetType().Name}");
         }
 
+        /// <summary>
+        /// Position within the current loop of the base-layer state, in [0, 1). For a looping clip this
+        /// is the phase of the current cycle; a finished non-looping clip wraps back to 0, so use
+        /// <see cref="GetCurrentAnimationProgress"/> to detect completion.
+        /// </summary>
         public float GetCurrentAnimationNormalizedTime()
         {
             AnimatorStateInfo animState = animator.GetCurrentAnimatorStateInfo(0);
             return animState.normalizedTime % 1f;
+        }
+
+        /// <summary>
+        /// Progress of the current base-layer state clamped to [0, 1]: reaches and stays at 1 when a
+        /// non-looping clip has finished. Advances with the Animator's update mode (scaled time unless
+        /// the Animator uses Unscaled Time).
+        /// </summary>
+        public float GetCurrentAnimationProgress()
+        {
+            AnimatorStateInfo animState = animator.GetCurrentAnimatorStateInfo(0);
+            return Mathf.Clamp01(animState.normalizedTime);
         }
     }
 }

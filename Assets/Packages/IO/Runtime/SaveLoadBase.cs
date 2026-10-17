@@ -14,6 +14,26 @@ using Zenject;
 
 namespace MyToolz.IO
 {
+    /// <summary>Outcome of the most recent storage load attempt.</summary>
+    public enum LoadStatus
+    {
+        NotAttempted,
+        LoadedPrimary,
+        RecoveredPending,
+        RecoveredBackup,
+        Missing,
+        Unreadable
+    }
+
+    public static class LoadStatusExtensions
+    {
+        /// <summary>True when stored data was decoded (primary, pending temp, or backup).</summary>
+        public static bool IsLoaded(this LoadStatus status) =>
+            status == LoadStatus.LoadedPrimary ||
+            status == LoadStatus.RecoveredPending ||
+            status == LoadStatus.RecoveredBackup;
+    }
+
     public interface ISaver<T>
     {
         void Save();
@@ -26,7 +46,20 @@ namespace MyToolz.IO
         Task<bool> SaveAsync(T obj);
     }
 
-    public abstract class SaveLoadBase<T> : MonoInstaller, ISaver<T>, IAsyncSaver<T> where T : class, new()
+    /// <summary>
+    /// Saver that can tell callers why a load produced the data it did. Use it to tell a
+    /// first run (<see cref="LoadStatus.Missing"/>) apart from a save that exists but could
+    /// not be decoded (<see cref="LoadStatus.Unreadable"/>).
+    /// </summary>
+    public interface IRecoverableSaver<T> : ISaver<T>
+    {
+        LoadStatus LastLoadStatus { get; }
+
+        /// <summary>Returns true only when stored data was decoded. Missing and unreadable both return false.</summary>
+        bool TryLoad(out T data, out LoadStatus status);
+    }
+
+    public abstract class SaveLoadBase<T> : MonoInstaller, IRecoverableSaver<T>, IAsyncSaver<T> where T : class, new()
     {
         public enum SaveRoot
         {
@@ -34,17 +67,6 @@ namespace MyToolz.IO
             DataPath,
             StreamingAssetsPath,
             TemporaryCachePath
-        }
-
-        /// <summary>Outcome of the most recent storage load attempt.</summary>
-        public enum LoadStatus
-        {
-            NotAttempted,
-            LoadedPrimary,
-            RecoveredPending,
-            RecoveredBackup,
-            Missing,
-            Unreadable
         }
 
         private enum SlotLoadOutcome
@@ -76,7 +98,9 @@ namespace MyToolz.IO
         [FoldoutGroup("Persistance Settings"), SerializeField]
         private bool useCache = false;
 
-        [FoldoutGroup("Persistance Settings"), SerializeField, SubclassSelector]
+        // SerializeReference (not SerializeField): the field type is abstract, so only a managed
+        // reference can persist the concrete strategy chosen in the inspector.
+        [FoldoutGroup("Persistance Settings"), SerializeReference, SubclassSelector]
         private SerializationStrategy<T> serializationStrategy = new NewtonsoftJsonStrategy<T>();
 
         [FoldoutGroup("Persistance Settings"), SerializeReference, SubclassSelector]
@@ -108,6 +132,10 @@ namespace MyToolz.IO
         private bool blockAutomaticSaveAfterUnreadableLoad;
         private Task<bool> lastSaveTask = Task.FromResult(true);
         private Task lastRecoveryTask = Task.CompletedTask;
+
+        // Hash of the serialized state last known to be on storage. Automatic (parameterless)
+        // saves skip the write when the cache still serializes to the same content.
+        private string lastPersistedStateHash;
 
         public LoadStatus LastLoadStatus { get; private set; } = LoadStatus.NotAttempted;
 
@@ -250,12 +278,14 @@ namespace MyToolz.IO
             LastLoadStatus = LoadStatus.Missing;
             blockAutomaticSaveAfterUnreadableLoad = false;
             lastRecoveryTask = Task.CompletedTask;
+            lastPersistedStateHash = null;
         }
 
         public override void InstallBindings()
         {
             EnsureInitialized();
             Container.Bind<ISaver<T>>().FromInstance(this).AsSingle();
+            Container.Bind<IRecoverableSaver<T>>().FromInstance(this).AsSingle();
             Container.Bind<IAsyncSaver<T>>().FromInstance(this).AsSingle();
         }
 
@@ -314,13 +344,6 @@ namespace MyToolz.IO
         {
             if (encryptionStrategy != null)
             {
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-                string warning = encryptionStrategy.ConfigurationWarning;
-                if (!string.IsNullOrEmpty(warning))
-                {
-                    DebugUtility.LogWarning(this, warning);
-                }
-#endif
                 return;
             }
 
@@ -501,12 +524,14 @@ namespace MyToolz.IO
 
         private Color FileExistsColor() => FileExists() ? new Color(0.5f, 0.9f, 0.5f) : new Color(0.9f, 0.6f, 0.4f);
 
-        private bool TryPreparePayload(T data, out string processed)
+        private bool TryPreparePayload(T data, out string processed, out string stateHash)
         {
             processed = null;
+            stateHash = null;
             try
             {
                 string raw = serializationStrategy.Serialize(data);
+                stateHash = ComputeSha256Hex(raw);
                 string encrypted = encryptionStrategy.Encrypt(raw);
                 processed = AddIntegrityEnvelope(encrypted);
                 return true;
@@ -565,12 +590,13 @@ namespace MyToolz.IO
             return builder.ToString();
         }
 
-        private bool PersistProcessedSynchronous(string processed)
+        private bool PersistProcessedSynchronous(string processed, string stateHash)
         {
             try
             {
                 StorageLocation location = BuildLocation();
                 storageStrategy.Write(location, processed);
+                lastPersistedStateHash = stateHash;
 
                 DebugUtility.Log(this,
                     $"Saved using {storageStrategy.ActiveStrategyName}: {location.Key} ({Encoding.UTF8.GetByteCount(processed ?? string.Empty)} bytes)");
@@ -592,6 +618,7 @@ namespace MyToolz.IO
         {
             EnsureInitialized();
             StorageLocation location = BuildLocation();
+            lastPersistedStateHash = null;
 
             SlotLoadOutcome primaryOutcome = TryLoadSlot(location, LoadSlot.Primary, out T primary, out _);
             if (primaryOutcome == SlotLoadOutcome.Loaded)
@@ -619,8 +646,10 @@ namespace MyToolz.IO
                 return backup;
             }
 
+            // An unreadable .tmp is an interrupted write, not evidence worth protecting: the
+            // integrity envelope already proved it incomplete. Only primary/backup decide
+            // between "nothing saved yet" and "a save exists but cannot be decoded".
             status = primaryOutcome == SlotLoadOutcome.Missing &&
-                     pendingOutcome == SlotLoadOutcome.Missing &&
                      backupOutcome == SlotLoadOutcome.Missing
                 ? LoadStatus.Missing
                 : LoadStatus.Unreadable;
@@ -654,6 +683,13 @@ namespace MyToolz.IO
 
                 if (result != null)
                 {
+                    if (slot == LoadSlot.Primary)
+                    {
+                        // Only the primary is known to be on storage as-is; recovered slots are
+                        // still being repaired, so the next automatic save must not be skipped.
+                        lastPersistedStateHash = ComputeSha256Hex(decrypted);
+                    }
+
                     string message = slot switch
                     {
                         LoadSlot.Primary => "Loaded!",
@@ -682,9 +718,18 @@ namespace MyToolz.IO
                     _ => "save slot"
                 };
 
-                DebugUtility.LogError(this,
-                    $"Failed to load {slotName} data using {storageStrategy.ActiveStrategyName}. " +
-                    $"The unreadable payload was preserved when the backend supports it. Reason: {e.Message}");
+                if (slot == LoadSlot.Pending)
+                {
+                    DebugUtility.LogWarning(this,
+                        $"Ignoring incomplete {slotName} data using {storageStrategy.ActiveStrategyName} (interrupted write). Reason: {e.Message}");
+                }
+                else
+                {
+                    DebugUtility.LogError(this,
+                        $"Failed to load {slotName} data using {storageStrategy.ActiveStrategyName}. " +
+                        $"The unreadable payload was preserved when the backend supports it. Reason: {e.Message}");
+                }
+
                 result = null;
                 return SlotLoadOutcome.Unreadable;
             }
@@ -773,7 +818,7 @@ namespace MyToolz.IO
         {
             // Serialize before waiting for an earlier mutation so this request captures
             // the object's state at the time Save/SaveAsync was called.
-            if (!TryPreparePayload(data, out string processed))
+            if (!TryPreparePayload(data, out string processed, out string stateHash))
             {
                 return false;
             }
@@ -781,12 +826,12 @@ namespace MyToolz.IO
 #if UNITY_WEBGL && !UNITY_EDITOR
             // WebGL strategies serialize their complete authoritative mutation +
             // IndexedDB flush in WebGlFileSync without SemaphoreSlim/System.Threading.
-            return await PersistProcessedAsync(processed);
+            return await PersistProcessedAsync(processed, stateHash);
 #else
             await mutationGate.WaitAsync();
             try
             {
-                return await PersistProcessedAsync(processed);
+                return await PersistProcessedAsync(processed, stateHash);
             }
             finally
             {
@@ -796,12 +841,12 @@ namespace MyToolz.IO
         }
 
 #if !UNITY_WEBGL || UNITY_EDITOR
-        private async Task<bool> PersistPreparedQueuedAsync(string processed)
+        private async Task<bool> PersistPreparedQueuedAsync(string processed, string stateHash)
         {
             await mutationGate.WaitAsync();
             try
             {
-                return await PersistProcessedAsync(processed);
+                return await PersistProcessedAsync(processed, stateHash);
             }
             finally
             {
@@ -810,12 +855,13 @@ namespace MyToolz.IO
         }
 #endif
 
-        private async Task<bool> PersistProcessedAsync(string processed)
+        private async Task<bool> PersistProcessedAsync(string processed, string stateHash)
         {
             try
             {
                 StorageLocation location = BuildLocation();
                 await storageStrategy.WriteAsync(location, processed);
+                lastPersistedStateHash = stateHash;
 
                 DebugUtility.Log(this,
                     $"Saved using {storageStrategy.ActiveStrategyName}: {location.Key} ({Encoding.UTF8.GetByteCount(processed ?? string.Empty)} bytes)");
@@ -882,22 +928,27 @@ namespace MyToolz.IO
                 return;
             }
 
-            if (!TryPreparePayload(obj, out string processed))
+            if (!TryPreparePayload(obj, out string processed, out string stateHash))
             {
                 lastSaveTask = Task.FromResult(false);
                 return;
             }
 
+            PersistPrepared(processed, stateHash);
+        }
+
+        private void PersistPrepared(string processed, string stateHash)
+        {
 #if UNITY_WEBGL && !UNITY_EDITOR
             // Only relevant to a custom synchronous WebGL storage strategy.
-            lastSaveTask = Task.FromResult(PersistProcessedSynchronous(processed));
+            lastSaveTask = Task.FromResult(PersistProcessedSynchronous(processed, stateHash));
 #else
             if (mutationGate.Wait(0))
             {
                 bool saved;
                 try
                 {
-                    saved = PersistProcessedSynchronous(processed);
+                    saved = PersistProcessedSynchronous(processed, stateHash);
                 }
                 finally
                 {
@@ -910,7 +961,7 @@ namespace MyToolz.IO
             {
                 // Never block Unity's main thread waiting for an async save continuation.
                 // Queue this captured payload behind the current mutation instead.
-                lastSaveTask = PersistPreparedQueuedAsync(processed);
+                lastSaveTask = PersistPreparedQueuedAsync(processed, stateHash);
                 DebugUtility.LogWarning(this,
                     "Save queued behind an in-progress save/recovery/delete operation; no concurrent access to the same temp/backup files will occur.");
             }
@@ -1010,14 +1061,72 @@ namespace MyToolz.IO
                 return;
             }
 
+            SaveAutomatic(cache);
+        }
+
+        /// <summary>
+        /// True after a load found stored data it could not decode. Automatic saves are refused
+        /// until an explicit <see cref="Save(T)"/> / <see cref="SaveAsync(T)"/> confirms replacement state.
+        /// </summary>
+        public bool IsAutomaticSaveBlocked => blockAutomaticSaveAfterUnreadableLoad;
+
+        /// <summary>
+        /// Saves state on the framework's behalf (lifecycle hooks, model-change autosaves). Unlike
+        /// <see cref="Save(T)"/> it never replaces unreadable data and skips the write when
+        /// <paramref name="data"/> serializes to exactly what storage already holds.
+        /// Returns false when the save was refused or could not be prepared.
+        /// </summary>
+        protected bool SaveAutomatic(T data)
+        {
+            if (data == null)
+            {
+                return false;
+            }
+
             if (blockAutomaticSaveAfterUnreadableLoad)
             {
                 DebugUtility.LogError(this,
-                    "Automatic cache save skipped because the last load was unreadable. Call Save(data) or SaveAsync(data) explicitly after the game has decided to reset/recover the state. This prevents a blank new T() from overwriting recoverable evidence.");
-                return;
+                    "Automatic save skipped because the last load was unreadable. Call Save(data) or SaveAsync(data) explicitly after the game has decided to reset/recover the state. This prevents a blank new T() from overwriting recoverable evidence.");
+                return false;
             }
 
-            Save(cache);
+            EnsureInitialized();
+            if (useCache)
+            {
+                cache = data;
+            }
+
+            if (!TryPreparePayload(data, out string processed, out string stateHash))
+            {
+                lastSaveTask = Task.FromResult(false);
+                return false;
+            }
+
+            // Pause, focus loss, quit and destroy can all fire back to back. Skip the write when
+            // the state is byte-for-byte what was last loaded from or written to storage.
+            if (stateHash == lastPersistedStateHash)
+            {
+                lastSaveTask = Task.FromResult(true);
+                return true;
+            }
+
+            if (storageStrategy.RequiresAsyncPersistence)
+            {
+                lastSaveTask = PersistPreparedAsync(processed, stateHash);
+                return true;
+            }
+
+            PersistPrepared(processed, stateHash);
+            return true;
+        }
+
+        private Task<bool> PersistPreparedAsync(string processed, string stateHash)
+        {
+#if UNITY_WEBGL && !UNITY_EDITOR
+            return PersistProcessedAsync(processed, stateHash);
+#else
+            return PersistPreparedQueuedAsync(processed, stateHash);
+#endif
         }
 
         protected virtual void OnEnable()

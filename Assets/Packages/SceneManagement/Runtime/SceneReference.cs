@@ -28,6 +28,7 @@ namespace MyToolz.SceneManagement
         /// <summary>Scene name without extension, e.g. "Main".</summary>
         public string Name => sceneName;
 
+        /// <summary>Asset GUID of the scene; the Addressables runtime key when loading through Addressables.</summary>
         public string Guid => sceneGuid;
 
         /// <summary>True when a scene has been assigned.</summary>

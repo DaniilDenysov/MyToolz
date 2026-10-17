@@ -1,216 +1,163 @@
 using Cysharp.Threading.Tasks;
-using MyToolz.Extensions;
 using System;
 using System.Collections.Generic;
-using System.Linq;
+using System.Threading;
 using UnityEngine;
+using UnityEngine.SceneManagement;
+#if MYTOOLZ_ADDRESSABLES
 using UnityEngine.AddressableAssets;
 using UnityEngine.ResourceManagement.AsyncOperations;
 using UnityEngine.ResourceManagement.ResourceProviders;
-using UnityEngine.SceneManagement;
+#endif
 
 namespace MyToolz.SceneManagement
 {
-    /// <summary>How a <see cref="SceneGroupManager"/> loads the scenes of a group.</summary>
-    public enum SceneLoadBackend
+    public enum SceneLoadSource
     {
-        /// <summary>Scenes marked Addressable load through Addressables; the rest from the build scene list.</summary>
-        Auto,
-        /// <summary>Every scene loads through Addressables by its GUID.</summary>
-        Addressables,
-        /// <summary>Every scene loads by name from the build scene list.</summary>
-        BuildSettings
+        /// <summary>Scenes in the Build Profile / build list, loaded through SceneManager.</summary>
+        BuildSettings,
+        /// <summary>Addressable scenes, loaded by asset GUID. Requires com.unity.addressables.</summary>
+        Addressables
     }
 
-    /// <summary>Thrown when one or more scenes of a group could not be loaded.</summary>
-    public sealed class SceneGroupLoadException : Exception
+    /// <summary>Scenes of a group that still need loading, in batch order, with the scene whose activation is deferred.</summary>
+    public sealed class SceneLoadPlan
     {
-        public IReadOnlyList<string> FailedScenes { get; }
-
-        public SceneGroupLoadException(IReadOnlyList<string> failedScenes, string message)
-            : base(message)
-        {
-            FailedScenes = failedScenes;
-        }
+        public readonly List<List<SceneData>> Batches = new();
+        /// <summary>Last scene to load; it is activated only after the optional before-activation step.</summary>
+        public SceneData DeferredScene;
+        public int TotalScenes;
+        public int SkippedScenes;
     }
 
     [Serializable]
     public class SceneGroupManager
     {
         [SerializeField] private List<string> blacklist = new();
+        [SerializeField, Tooltip("Where scenes are loaded from. Addressables needs the com.unity.addressables package and the scenes marked Addressable.")]
+        private SceneLoadSource loadSource = SceneLoadSource.BuildSettings;
 
-        [Tooltip("Auto loads scenes marked Addressable through Addressables and every other scene from the build scene list.")]
-        [SerializeField] private SceneLoadBackend backend = SceneLoadBackend.Auto;
+#if MYTOOLZ_ADDRESSABLES
+        // Addressable scenes this manager loaded, so they are unloaded (and their handles released)
+        // through Addressables rather than SceneManager.
+        private readonly List<AsyncOperationHandle<SceneInstance>> addressableScenes = new();
+#endif
 
-        private SceneGroupSO ActiveSceneGroup;
-        private readonly Dictionary<string, AsyncOperationHandle<SceneInstance>> loadedSceneHandles = new();
-        private readonly HashSet<string> buildListScenes = new();
-
-        public SceneLoadBackend Backend
+        public SceneLoadSource LoadSource
         {
-            get => backend;
-            set => backend = value;
+            get => loadSource;
+            set => loadSource = value;
         }
 
-        /// <summary>One scene being loaded, through either backend.</summary>
-        private sealed class PendingLoad
-        {
-            public SceneData Scene;
-            public AsyncOperationHandle<SceneInstance> Handle;
-            public AsyncOperation Operation;
-            public bool Addressable;
-            public bool HoldActivation;
-
-            public bool IsDone
-            {
-                get
-                {
-                    if (Addressable)
-                    {
-                        return !Handle.IsValid() || Handle.IsDone;
-                    }
-
-                    // A held build-list load stops at 0.9 and never reports done until activated.
-                    return Operation == null || Operation.isDone || (HoldActivation && Operation.progress >= 0.9f);
-                }
-            }
-
-            public float Progress
-            {
-                get
-                {
-                    if (Addressable)
-                    {
-                        return Handle.IsValid() ? Handle.PercentComplete : 1f;
-                    }
-
-                    return Operation == null ? 1f : Mathf.Clamp01(Operation.progress / 0.9f);
-                }
-            }
-
-            public bool Failed => Addressable
-                ? !Handle.IsValid() || Handle.Status == AsyncOperationStatus.Failed
-                : Operation == null;
-
-            public string FailureReason => Addressable
-                ? (Handle.IsValid() ? Handle.OperationException?.Message : null) ?? "the Addressables operation failed"
-                : "it is not in the build scene list";
-        }
-
-        public async UniTask LoadScenes(
+        /// <summary>
+        /// Unloads the previous group, then loads <paramref name="sceneGroupSO"/> additively in priority batches.
+        /// Returns false when any scene failed to load. Cancellation throws <see cref="OperationCanceledException"/>
+        /// after making sure no scene is left waiting for activation.
+        /// </summary>
+        public async UniTask<bool> LoadScenes(
             SceneGroupSO sceneGroupSO,
             IProgress<float> progress,
             Func<UniTask> beforeActivation = null,
-            bool reloadDupScenes = false)
+            bool reloadDupScenes = false,
+            CancellationToken token = default)
         {
-            ActiveSceneGroup = sceneGroupSO;
-            var loadedScenes = new List<string>();
-            var failures = new List<string>();
-
-            await UnloadScenes();
-
-            int sceneCount = SceneManager.sceneCount;
-
-            for (var i = 0; i < sceneCount; i++)
+            if (sceneGroupSO == null)
             {
-                loadedScenes.Add(SceneManager.GetSceneAt(i).name);
+                throw new ArgumentNullException(nameof(sceneGroupSO));
             }
 
-            var batches = ActiveSceneGroup.GetBatchedByPriority();
-            int totalScenes = Mathf.Max(1, ActiveSceneGroup.Scenes.Length);
-            int scenesLoaded = 0;
+            await UnloadScenes(token);
 
-            // Decide each scene's backend up front so the one held back for activation is known.
-            var routes = new Dictionary<SceneData, bool>();
-            foreach (var batch in batches)
+            SceneLoadPlan plan = CreatePlan(sceneGroupSO, GetLoadedScenes(), reloadDupScenes, loadSource);
+            int total = Mathf.Max(1, plan.TotalScenes);
+            int completed = plan.SkippedScenes;
+            bool success = true;
+            PendingScene deferred = default;
+
+            try
             {
-                foreach (var sceneData in batch)
+                foreach (List<SceneData> batch in plan.Batches)
                 {
-                    if (!reloadDupScenes && loadedScenes.Contains(sceneData.Name))
+                    var operations = new List<PendingScene>(batch.Count);
+                    SceneData deferredData = null;
+                    foreach (SceneData sceneData in batch)
                     {
-                        continue;
+                        if (sceneData == plan.DeferredScene)
+                        {
+                            // Started only after the rest of its batch: a scene parked before activation
+                            // stalls every async operation queued behind it.
+                            deferredData = sceneData;
+                            continue;
+                        }
+
+                        PendingScene pending = StartLoad(sceneData, activateOnLoad: true);
+                        if (!pending.IsValid)
+                        {
+                            success = false;
+                            continue;
+                        }
+
+                        operations.Add(pending);
                     }
 
-                    bool? addressable = await ResolveRoute(sceneData);
-                    if (addressable == null)
+                    await WaitUntilReady(operations, progress, completed, batch.Count, total, token);
+
+                    if (deferredData != null)
                     {
-                        failures.Add(sceneData.Name);
-                        continue;
+                        deferred = StartLoad(deferredData, activateOnLoad: false);
+                        if (deferred.IsValid)
+                        {
+                            operations.Add(deferred);
+                            await WaitUntilReady(operations, progress, completed, batch.Count, total, token);
+                        }
+                        else
+                        {
+                            success = false;
+                        }
                     }
 
-                    routes[sceneData] = addressable.Value;
-                }
-            }
-
-            SceneData deferredScene = FindLastSceneToLoad(batches, routes);
-            PendingLoad deferred = null;
-
-            for (int b = 0; b < batches.Count; b++)
-            {
-                var batch = batches[b];
-                var pending = new List<PendingLoad>(batch.Length);
-                bool batchHoldsDeferredScene = false;
-
-                for (var i = 0; i < batch.Length; i++)
-                {
-                    var sceneData = batch[i];
-                    if (!routes.TryGetValue(sceneData, out bool addressable))
+                    foreach (PendingScene operation in operations)
                     {
-                        continue;
+                        if (operation.Failed)
+                        {
+                            success = false;
+                            Debug.LogError($"[SceneGroupManager] Failed to load scene '{operation.Scene.Name}'. {operation.Error}");
+                            operation.ReleaseIfFailed();
+                        }
                     }
 
-                    if (sceneData == deferredScene)
+                    completed += batch.Count;
+                    progress?.Report(Mathf.Clamp01((float)completed / total));
+                }
+
+                if (deferred.IsValid && !deferred.Failed)
+                {
+                    if (beforeActivation != null)
                     {
-                        batchHoldsDeferredScene = true;
-                        continue;
+                        await beforeActivation();
                     }
 
-                    pending.Add(StartLoad(sceneData, addressable, holdActivation: false));
+                    PendingScene toActivate = deferred;
+                    deferred = default;
+                    await Activate(toActivate, token);
                 }
-
-                await WaitFor(pending, progress, scenesLoaded, batch.Length, totalScenes);
-
-                if (batchHoldsDeferredScene)
-                {
-                    deferred = StartLoad(deferredScene, routes[deferredScene], holdActivation: true);
-                    pending.Add(deferred);
-                    await WaitFor(pending, progress, scenesLoaded, batch.Length, totalScenes);
-                }
-
-                CollectFailures(pending, failures);
-
-                scenesLoaded += batch.Length;
-                progress?.Report(Mathf.Clamp01((float)scenesLoaded / totalScenes));
             }
-
-            if (deferred != null && !deferred.Failed)
+            finally
             {
-                if (beforeActivation != null)
+                // Cancelled or failed while the last scene waited for activation: never leave it
+                // parked. A SceneManager operation with allowSceneActivation=false blocks every later
+                // async load, and an Addressables scene would stay half-loaded.
+                if (deferred.IsValid)
                 {
-                    await beforeActivation();
-                }
-
-                await Activate(deferred);
-            }
-
-            string activeSceneName = ActiveSceneGroup.FindSceneByType(SceneType.ActiveScene);
-            if (!string.IsNullOrEmpty(activeSceneName))
-            {
-                Scene activeScene = SceneManager.GetSceneByName(activeSceneName);
-                if (activeScene.IsValid() && activeScene.isLoaded)
-                {
-                    SceneManager.SetActiveScene(activeScene);
+                    deferred.ActivateAndForget();
                 }
             }
 
-            if (failures.Count > 0)
-            {
-                throw new SceneGroupLoadException(failures,
-                    $"Scene group '{sceneGroupSO.name}' could not load: {string.Join(", ", failures)}.");
-            }
+            SetActiveScene(sceneGroupSO);
+            return success;
         }
 
-        public async UniTask UnloadScenes()
+        public async UniTask UnloadScenes(CancellationToken token = default)
         {
             Scene bootstrapperScene = SceneManager.GetSceneAt(0);
             if (bootstrapperScene.IsValid() && bootstrapperScene.isLoaded)
@@ -218,247 +165,367 @@ namespace MyToolz.SceneManagement
                 SceneManager.SetActiveScene(bootstrapperScene);
             }
 
-            var activeScene = SceneManager.GetActiveScene().name;
-            var handles = new List<AsyncOperationHandle<SceneInstance>>();
+            Scene activeScene = SceneManager.GetActiveScene();
             var operations = new List<AsyncOperation>();
+#if MYTOOLZ_ADDRESSABLES
+            var addressableUnloads = new List<AsyncOperationHandle<SceneInstance>>();
+#endif
 
-            foreach (var sceneName in loadedSceneHandles.Keys.ToList())
+            // Collect Scene handles (not names) so two loaded scenes sharing a name are both handled.
+            var toUnload = new List<Scene>();
+            for (int i = SceneManager.sceneCount - 1; i > 0; i--)
             {
-                if (sceneName.Equals(activeScene) || blacklist.Contains(sceneName))
+                Scene scene = SceneManager.GetSceneAt(i);
+                if (!scene.IsValid() || !scene.isLoaded || scene == activeScene || blacklist.Contains(scene.name))
                 {
                     continue;
                 }
 
-                var handle = loadedSceneHandles[sceneName];
-                loadedSceneHandles.Remove(sceneName);
-
-                if (!handle.IsValid())
-                {
-                    continue;
-                }
-
-                handles.Add(Addressables.UnloadSceneAsync(handle));
+                toUnload.Add(scene);
             }
 
-            // Build-list scenes: everything loaded that is in the build list, not the active scene,
-            // not blacklisted and not owned by an Addressables handle above.
-            for (var i = SceneManager.sceneCount - 1; i > 0; i--)
+            foreach (Scene scene in toUnload)
             {
-                Scene sceneAt = SceneManager.GetSceneAt(i);
-                if (!sceneAt.isLoaded)
+#if MYTOOLZ_ADDRESSABLES
+                int index = addressableScenes.FindIndex(h => h.IsValid() && h.Status == AsyncOperationStatus.Succeeded && h.Result.Scene == scene);
+                if (index >= 0)
                 {
+                    addressableUnloads.Add(Addressables.UnloadSceneAsync(addressableScenes[index]));
+                    addressableScenes.RemoveAt(index);
                     continue;
                 }
-
-                string sceneName = sceneAt.name;
-                if (sceneName.Equals(activeScene) || blacklist.Contains(sceneName) || loadedSceneHandles.ContainsKey(sceneName))
-                {
-                    continue;
-                }
-
-                if (!buildListScenes.Contains(sceneName) && !SceneExtensions.IsSceneValid(sceneName))
-                {
-                    continue;
-                }
-
-                AsyncOperation operation = SceneManager.UnloadSceneAsync(sceneAt);
+#endif
+                AsyncOperation operation = SceneManager.UnloadSceneAsync(scene);
                 if (operation != null)
                 {
                     operations.Add(operation);
                 }
-
-                buildListScenes.Remove(sceneName);
             }
 
-            while (!handles.All(h => h.IsDone) || !operations.All(o => o.isDone))
+            // Frame-based polling keeps working while Time.timeScale is 0 (paused game).
+            while (!operations.TrueForAll(o => o.isDone)
+#if MYTOOLZ_ADDRESSABLES
+                   || !addressableUnloads.TrueForAll(h => !h.IsValid() || h.IsDone)
+#endif
+                   )
             {
-                await UniTask.Delay(100, DelayType.UnscaledDeltaTime);
+                await UniTask.Yield(PlayerLoopTiming.Update, token);
             }
 
-            await Resources.UnloadUnusedAssets();
+            await Resources.UnloadUnusedAssets().ToUniTask(cancellationToken: token);
         }
 
-        /// <summary>True: Addressables, false: build list, null: this scene cannot be loaded at all.</summary>
-        private async UniTask<bool?> ResolveRoute(SceneData sceneData)
+        /// <summary>
+        /// Decides which scenes of a group still need loading. Scenes are identified by path when
+        /// known (names can collide across folders) and by name otherwise.
+        /// </summary>
+        public static SceneLoadPlan CreatePlan(SceneGroupSO group, IReadOnlyCollection<(string path, string name)> loadedScenes,
+            bool reloadDupScenes, SceneLoadSource source = SceneLoadSource.BuildSettings)
         {
-            string guid = sceneData.Reference != null ? sceneData.Reference.Guid : null;
-
-            switch (backend)
+            var plan = new SceneLoadPlan();
+            var loadedPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var loadedNames = new HashSet<string>(StringComparer.Ordinal);
+            if (loadedScenes != null)
             {
-                case SceneLoadBackend.Addressables:
-                    if (string.IsNullOrEmpty(guid))
+                foreach (var (path, name) in loadedScenes)
+                {
+                    if (!string.IsNullOrEmpty(path)) loadedPaths.Add(path);
+                    if (!string.IsNullOrEmpty(name)) loadedNames.Add(name);
+                }
+            }
+
+            foreach (SceneData[] batch in group.GetBatchedByPriority())
+            {
+                var pending = new List<SceneData>(batch.Length);
+                foreach (SceneData sceneData in batch)
+                {
+                    plan.TotalScenes++;
+
+                    if (sceneData.Reference == null || (!sceneData.Reference.IsAssigned && string.IsNullOrEmpty(sceneData.Name)))
                     {
-                        Debug.LogError($"[SceneGroupManager] Scene '{sceneData.Name}' has no GUID. " +
-                            "Re-save its SceneGroupSO so the SceneReference caches the GUID.");
-                        return null;
+                        Debug.LogError($"[SceneGroupManager] Group '{group.GroupName}' contains an unassigned scene.");
+                        plan.SkippedScenes++;
+                        continue;
                     }
 
-                    return true;
-
-                case SceneLoadBackend.BuildSettings:
-                    return BuildListRoute(sceneData);
-
-                default:
-                    if (await IsAddressable(guid))
+                    if (source == SceneLoadSource.Addressables && string.IsNullOrEmpty(sceneData.Reference.Guid))
                     {
-                        return true;
+                        Debug.LogError($"[SceneGroupManager] Scene '{sceneData.Name}' has no asset GUID. Re-save its SceneGroupSO so the SceneReference caches it.");
+                        plan.SkippedScenes++;
+                        continue;
                     }
 
-                    return BuildListRoute(sceneData);
-            }
-        }
+                    bool alreadyLoaded = !string.IsNullOrEmpty(sceneData.Reference.Path)
+                        ? loadedPaths.Contains(sceneData.Reference.Path)
+                        : loadedNames.Contains(sceneData.Name);
 
-        private static bool? BuildListRoute(SceneData sceneData)
-        {
-            if (SceneExtensions.IsSceneValid(sceneData.Name))
-            {
-                return false;
-            }
-
-            Debug.LogError($"[SceneGroupManager] Scene '{sceneData.Name}' is neither Addressable nor in the build scene list. " +
-                "Mark it Addressable or add it to Build Profiles > Scene List.");
-            return null;
-        }
-
-        private static async UniTask<bool> IsAddressable(string guid)
-        {
-            if (string.IsNullOrEmpty(guid))
-            {
-                return false;
-            }
-
-            AsyncOperationHandle<IList<UnityEngine.ResourceManagement.ResourceLocations.IResourceLocation>> handle;
-            try
-            {
-                handle = Addressables.LoadResourceLocationsAsync(guid, typeof(SceneInstance));
-            }
-            catch (Exception)
-            {
-                return false;
-            }
-
-            while (!handle.IsDone)
-            {
-                await UniTask.Yield();
-            }
-
-            bool found = handle.Status == AsyncOperationStatus.Succeeded && handle.Result != null && handle.Result.Count > 0;
-            Addressables.Release(handle);
-            return found;
-        }
-
-        private PendingLoad StartLoad(SceneData sceneData, bool addressable, bool holdActivation)
-        {
-            var load = new PendingLoad
-            {
-                Scene = sceneData,
-                Addressable = addressable,
-                HoldActivation = holdActivation
-            };
-
-            if (addressable)
-            {
-                load.Handle = Addressables.LoadSceneAsync(sceneData.Reference.Guid, LoadSceneMode.Additive, !holdActivation);
-                loadedSceneHandles[sceneData.Name] = load.Handle;
-            }
-            else
-            {
-                // Load by name (not path): scene names survive asset moves, whereas a cached path can
-                // go stale until the SceneReference is re-serialized.
-                load.Operation = SceneManager.LoadSceneAsync(sceneData.Name, LoadSceneMode.Additive);
-                if (load.Operation != null)
-                {
-                    load.Operation.allowSceneActivation = !holdActivation;
-                    buildListScenes.Add(sceneData.Name);
-                }
-            }
-
-            return load;
-        }
-
-        private void CollectFailures(List<PendingLoad> loads, List<string> failures)
-        {
-            foreach (var load in loads)
-            {
-                if (!load.Failed)
-                {
-                    continue;
-                }
-
-                failures.Add(load.Scene.Name);
-                Debug.LogError($"[SceneGroupManager] Scene '{load.Scene.Name}' failed to load: {load.FailureReason}");
-
-                if (load.Addressable)
-                {
-                    loadedSceneHandles.Remove(load.Scene.Name);
-                    if (load.Handle.IsValid())
+                    if (alreadyLoaded && !reloadDupScenes)
                     {
-                        Addressables.Release(load.Handle);
+                        plan.SkippedScenes++;
+                        continue;
                     }
+
+                    pending.Add(sceneData);
+                    plan.DeferredScene = sceneData;
                 }
-                else
+
+                if (pending.Count > 0)
                 {
-                    buildListScenes.Remove(load.Scene.Name);
+                    plan.Batches.Add(pending);
                 }
+            }
+
+            // Progress counts skipped scenes as done once, in SkippedScenes; batches only hold real work.
+            return plan;
+        }
+
+        private static List<(string path, string name)> GetLoadedScenes()
+        {
+            var loaded = new List<(string path, string name)>(SceneManager.sceneCount);
+            for (int i = 0; i < SceneManager.sceneCount; i++)
+            {
+                Scene scene = SceneManager.GetSceneAt(i);
+                loaded.Add((scene.path, scene.name));
+            }
+            return loaded;
+        }
+
+        private static void SetActiveScene(SceneGroupSO group)
+        {
+            SceneData activeData = group.FindSceneDataByType(SceneType.ActiveScene);
+            if (activeData == null)
+            {
+                return;
+            }
+
+            Scene scene = !string.IsNullOrEmpty(activeData.Reference.Path)
+                ? SceneManager.GetSceneByPath(activeData.Reference.Path)
+                : default;
+            if (!scene.IsValid())
+            {
+                scene = SceneManager.GetSceneByName(activeData.Name);
+            }
+
+            if (scene.IsValid() && scene.isLoaded)
+            {
+                SceneManager.SetActiveScene(scene);
             }
         }
 
-        private static SceneData FindLastSceneToLoad(List<SceneData[]> batches, Dictionary<SceneData, bool> routes)
+        private PendingScene StartLoad(SceneData sceneData, bool activateOnLoad)
         {
-            SceneData last = null;
-
-            foreach (var batch in batches)
+#if MYTOOLZ_ADDRESSABLES
+            if (loadSource == SceneLoadSource.Addressables)
             {
-                foreach (var sceneData in batch)
+                AsyncOperationHandle<SceneInstance> handle =
+                    Addressables.LoadSceneAsync(sceneData.Reference.Guid, LoadSceneMode.Additive, activateOnLoad);
+                addressableScenes.Add(handle);
+                return PendingScene.ForAddressable(sceneData, handle, this);
+            }
+#else
+            if (loadSource == SceneLoadSource.Addressables)
+            {
+                Debug.LogError("[SceneGroupManager] Load Source is Addressables but the com.unity.addressables package is not installed.");
+                return default;
+            }
+#endif
+
+            // Load by path when it is in the build list (unique identity), otherwise by name: a stale
+            // cached path (scene moved, group not re-saved) still resolves through the name.
+            string key = !string.IsNullOrEmpty(sceneData.Reference.Path) && SceneUtility.GetBuildIndexByScenePath(sceneData.Reference.Path) >= 0
+                ? sceneData.Reference.Path
+                : sceneData.Name;
+
+            AsyncOperation operation = SceneManager.LoadSceneAsync(key, LoadSceneMode.Additive);
+            if (operation == null)
+            {
+                Debug.LogError($"[SceneGroupManager] Could not load scene '{sceneData.Name}'. " +
+                    "It is not registered in the active Build Profile / build list. Check Build Profiles > Scene List.");
+                return default;
+            }
+
+            operation.allowSceneActivation = activateOnLoad;
+            return PendingScene.ForBuildScene(sceneData, operation);
+        }
+
+        private static async UniTask WaitUntilReady(List<PendingScene> operations, IProgress<float> progress,
+            int completed, int batchSize, int total, CancellationToken token)
+        {
+            // Frame-based polling keeps working while Time.timeScale is 0 (paused game).
+            while (!AllReady(operations))
+            {
+                ReportProgress(progress, completed, operations, batchSize, total);
+                await UniTask.Yield(PlayerLoopTiming.Update, token);
+            }
+        }
+
+        private static bool AllReady(List<PendingScene> operations)
+        {
+            foreach (PendingScene operation in operations)
+            {
+                if (!operation.IsReady) return false;
+            }
+            return true;
+        }
+
+        private static void ReportProgress(IProgress<float> progress, int completed, List<PendingScene> operations, int batchSize, int total)
+        {
+            if (progress == null) return;
+
+            float sum = 0f;
+            foreach (PendingScene operation in operations) sum += operation.Progress;
+            float batchProgress = operations.Count > 0 ? sum / operations.Count : 1f;
+            progress.Report(Mathf.Clamp01((completed + batchProgress * batchSize) / total));
+        }
+
+        private static async UniTask Activate(PendingScene scene, CancellationToken token)
+        {
+            await scene.ActivateAsync(token);
+        }
+
+#if MYTOOLZ_ADDRESSABLES
+        private void ForgetFailed(AsyncOperationHandle<SceneInstance> handle)
+        {
+            addressableScenes.Remove(handle);
+            if (handle.IsValid())
+            {
+                Addressables.Release(handle);
+            }
+        }
+#endif
+
+        /// <summary>One in-flight scene load, over either SceneManager or Addressables.</summary>
+        private readonly struct PendingScene
+        {
+            public readonly SceneData Scene;
+            private readonly AsyncOperation operation;
+#if MYTOOLZ_ADDRESSABLES
+            private readonly AsyncOperationHandle<SceneInstance> handle;
+            private readonly SceneGroupManager owner;
+#endif
+
+            private PendingScene(SceneData scene, AsyncOperation operation)
+            {
+                Scene = scene;
+                this.operation = operation;
+#if MYTOOLZ_ADDRESSABLES
+                handle = default;
+                owner = null;
+#endif
+            }
+
+            public static PendingScene ForBuildScene(SceneData scene, AsyncOperation operation) => new PendingScene(scene, operation);
+
+#if MYTOOLZ_ADDRESSABLES
+            private PendingScene(SceneData scene, AsyncOperationHandle<SceneInstance> handle, SceneGroupManager owner)
+            {
+                Scene = scene;
+                operation = null;
+                this.handle = handle;
+                this.owner = owner;
+            }
+
+            public static PendingScene ForAddressable(SceneData scene, AsyncOperationHandle<SceneInstance> handle, SceneGroupManager owner) =>
+                new PendingScene(scene, handle, owner);
+
+            private bool IsAddressable => owner != null;
+#else
+            private bool IsAddressable => false;
+#endif
+
+            public bool IsValid => Scene != null && (operation != null || IsAddressable);
+
+            /// <summary>Loaded (or parked at 90% awaiting activation), or finished with an error.</summary>
+            public bool IsReady
+            {
+                get
                 {
-                    if (routes.ContainsKey(sceneData))
+#if MYTOOLZ_ADDRESSABLES
+                    if (IsAddressable) return !handle.IsValid() || handle.IsDone;
+#endif
+                    return operation.isDone || (!operation.allowSceneActivation && operation.progress >= 0.9f);
+                }
+            }
+
+            public bool Failed
+            {
+                get
+                {
+#if MYTOOLZ_ADDRESSABLES
+                    if (IsAddressable) return !handle.IsValid() || handle.Status == AsyncOperationStatus.Failed;
+#endif
+                    return false;
+                }
+            }
+
+            public string Error
+            {
+                get
+                {
+#if MYTOOLZ_ADDRESSABLES
+                    if (IsAddressable && handle.IsValid()) return handle.OperationException?.Message ?? string.Empty;
+#endif
+                    return string.Empty;
+                }
+            }
+
+            public float Progress
+            {
+                get
+                {
+#if MYTOOLZ_ADDRESSABLES
+                    if (IsAddressable) return handle.IsValid() ? handle.PercentComplete : 1f;
+#endif
+                    return operation.allowSceneActivation ? operation.progress : Mathf.Clamp01(operation.progress / 0.9f);
+                }
+            }
+
+            public async UniTask ActivateAsync(CancellationToken token)
+            {
+#if MYTOOLZ_ADDRESSABLES
+                if (IsAddressable)
+                {
+                    if (handle.IsValid() && handle.Status == AsyncOperationStatus.Succeeded)
                     {
-                        last = sceneData;
+                        await handle.Result.ActivateAsync().ToUniTask(cancellationToken: token);
                     }
-                }
-            }
-
-            return last;
-        }
-
-        private static async UniTask WaitFor(
-            List<PendingLoad> loads,
-            IProgress<float> progress,
-            int scenesLoaded,
-            int batchSize,
-            int totalScenes)
-        {
-            while (!loads.All(l => l.IsDone))
-            {
-                float batchProgress = loads.Count > 0 ? loads.Average(l => l.Progress) : 1f;
-                float overallProgress = (scenesLoaded + batchProgress * batchSize) / totalScenes;
-                progress?.Report(Mathf.Clamp01(overallProgress));
-                await UniTask.Delay(100, DelayType.UnscaledDeltaTime);
-            }
-        }
-
-        private static async UniTask Activate(PendingLoad load)
-        {
-            if (load.Addressable)
-            {
-                if (load.Handle.Status != AsyncOperationStatus.Succeeded)
-                {
                     return;
                 }
-
-                await load.Handle.Result.ActivateAsync();
-                return;
+#endif
+                operation.allowSceneActivation = true;
+                await operation.ToUniTask(cancellationToken: token);
             }
 
-            if (load.Operation == null)
+            public void ReleaseIfFailed()
             {
-                return;
+#if MYTOOLZ_ADDRESSABLES
+                if (IsAddressable && Failed)
+                {
+                    owner.ForgetFailed(handle);
+                }
+#endif
             }
 
-            load.Operation.allowSceneActivation = true;
-            while (!load.Operation.isDone)
+            public void ActivateAndForget()
             {
-                await UniTask.Yield();
+#if MYTOOLZ_ADDRESSABLES
+                if (IsAddressable)
+                {
+                    if (handle.IsValid() && handle.Status == AsyncOperationStatus.Succeeded)
+                    {
+                        handle.Result.ActivateAsync();
+                    }
+                    else
+                    {
+                        owner.ForgetFailed(handle);
+                    }
+                    return;
+                }
+#endif
+                if (operation != null)
+                {
+                    operation.allowSceneActivation = true;
+                }
             }
         }
     }

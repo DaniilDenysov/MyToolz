@@ -8,6 +8,18 @@ using Zenject;
 
 namespace MyToolz.DesignPatterns.StateMachine.MultiThreadPriorityBased
 {
+    public enum StateEvaluationMode
+    {
+        /// <summary>Conditions are evaluated on the main thread. Safe for any condition code.</summary>
+        MainThread,
+        /// <summary>
+        /// <see cref="PriorityState.CaptureSnapshot"/> runs on the main thread, then
+        /// <see cref="PriorityState.IsConditionFulfilled"/> runs on a worker thread and may only read
+        /// the captured snapshot (no Unity API, no state mutated by the main thread).
+        /// </summary>
+        Background
+    }
+
     [Serializable]
     public abstract class PriorityState : IState
     {
@@ -20,6 +32,17 @@ namespace MyToolz.DesignPatterns.StateMachine.MultiThreadPriorityBased
         public virtual void Initialize() { }
         public virtual void OnUpdate() { }
 
+        /// <summary>
+        /// Main thread. Copy whatever <see cref="IsConditionFulfilled"/> needs (positions, flags, …) into
+        /// fields the condition reads. Called before every background evaluation; not needed in
+        /// <see cref="StateEvaluationMode.MainThread"/> mode.
+        /// </summary>
+        public virtual void CaptureSnapshot() { }
+
+        /// <summary>
+        /// In <see cref="StateEvaluationMode.Background"/> mode this runs on a worker thread and must
+        /// only read data captured by <see cref="CaptureSnapshot"/>.
+        /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public abstract bool IsConditionFulfilled();
 
@@ -27,25 +50,33 @@ namespace MyToolz.DesignPatterns.StateMachine.MultiThreadPriorityBased
         public virtual void OnExit() { }
     }
 
+    /// <summary>
+    /// Priority state machine that evaluates state conditions at a fixed rate instead of every frame,
+    /// optionally off the main thread. The chosen state is always applied on the main thread.
+    /// </summary>
     public abstract class PriorityStateMachine<T> : MonoBehaviour, IStateMachine<T> where T : PriorityState
     {
         [Header("States")]
         [SerializeReference] protected T[] behaviourStates;
 
-        [Header("Multithreaded evaluation")]
-        [Tooltip("How many times per second the next-state search runs off the main thread.")]
+        [Header("Evaluation")]
+        [Tooltip("How many times per second the next-state search runs.")]
         [SerializeField, Min(0.5f)] private float evaluationRateHz = 10f;
+        [Tooltip("MainThread is safe for any condition. Background requires conditions that only read data captured in CaptureSnapshot().")]
+        [SerializeField] private StateEvaluationMode evaluationMode = StateEvaluationMode.MainThread;
 
         public T Current => current;
+        public StateEvaluationMode EvaluationMode => evaluationMode;
 
         protected int statesCount;
         protected DiContainer container;
         protected T current;
 
-        private volatile int nextCandidateIndex = -1;
-        private int evalIntervalMs;
-        private CancellationTokenSource cts;
-        private bool workerInitialized;
+        private int nextCandidateIndex = -1;
+        private float nextEvaluationAt;
+        private bool evaluating;
+        private bool started;
+        private CancellationTokenSource lifetime;
 
         [Inject]
         private void Construct(DiContainer container)
@@ -66,7 +97,8 @@ namespace MyToolz.DesignPatterns.StateMachine.MultiThreadPriorityBased
 
             for (int i = 0; i < statesCount; i++)
             {
-                container.Inject(behaviourStates[i]);
+                if (behaviourStates[i] == null) continue;
+                container?.Inject(behaviourStates[i]);
                 behaviourStates[i].Initialize();
             }
 
@@ -74,29 +106,91 @@ namespace MyToolz.DesignPatterns.StateMachine.MultiThreadPriorityBased
             if (initialIndex >= 0)
                 ChangeState(behaviourStates[initialIndex]);
 
-            evalIntervalMs = Mathf.Max(1, Mathf.RoundToInt(1000f / evaluationRateHz));
-            StartWorker();
-            workerInitialized = true;
+            started = true;
         }
 
         protected virtual void OnEnable()
         {
-            // Start() only runs once, so the worker must be restarted after a disable/enable cycle.
-            if (workerInitialized && cts == null)
+            lifetime = new CancellationTokenSource();
+        }
+
+        protected virtual void OnDisable()
+        {
+            lifetime?.Cancel();
+            lifetime?.Dispose();
+            lifetime = null;
+            evaluating = false;
+            nextCandidateIndex = -1;
+        }
+
+        protected virtual void OnDestroy()
+        {
+            if (current != null)
             {
-                StartWorker();
+                current.OnExit();
+                current = null;
             }
         }
 
         protected virtual void Update()
         {
+            if (!started) return;
+
             current?.OnUpdate();
+
+            if (!evaluating && Time.unscaledTime >= nextEvaluationAt)
+            {
+                nextEvaluationAt = Time.unscaledTime + 1f / Mathf.Max(0.5f, evaluationRateHz);
+                Evaluate();
+            }
+
             SelectNext();
+        }
+
+        private void Evaluate()
+        {
+            if (evaluationMode == StateEvaluationMode.MainThread)
+            {
+                nextCandidateIndex = SelectNextStateIndex();
+                return;
+            }
+
+            for (int i = 0; i < statesCount; i++)
+            {
+                behaviourStates[i]?.CaptureSnapshot();
+            }
+
+            EvaluateInBackground(lifetime != null ? lifetime.Token : CancellationToken.None).Forget();
+        }
+
+        private async UniTaskVoid EvaluateInBackground(CancellationToken token)
+        {
+            evaluating = true;
+            try
+            {
+                // Returns to the main thread before the result is published.
+                int candidate = await UniTask.RunOnThreadPool(SelectNextStateIndex, true, token);
+                if (!token.IsCancellationRequested)
+                {
+                    nextCandidateIndex = candidate;
+                }
+            }
+            catch (OperationCanceledException)
+            {
+            }
+            catch (Exception e)
+            {
+                DebugUtility.LogError(this, $"Background state evaluation failed: {e}");
+            }
+            finally
+            {
+                evaluating = false;
+            }
         }
 
         private void SelectNext()
         {
-            int candidateIndex = Volatile.Read(ref nextCandidateIndex);
+            int candidateIndex = nextCandidateIndex;
 
             if (candidateIndex < 0 || candidateIndex >= statesCount)
                 return;
@@ -125,44 +219,6 @@ namespace MyToolz.DesignPatterns.StateMachine.MultiThreadPriorityBased
             }
         }
 
-        private void StartWorker()
-        {
-            cts = new CancellationTokenSource();
-            RunEvaluationLoop(cts.Token).Forget();
-        }
-
-        private void StopWorker()
-        {
-            cts?.Cancel();
-            cts?.Dispose();
-            cts = null;
-            nextCandidateIndex = -1;
-        }
-
-        private async UniTaskVoid RunEvaluationLoop(CancellationToken token)
-        {
-            while (!token.IsCancellationRequested)
-            {
-                await UniTask.SwitchToThreadPool();
-
-                int candidate = SelectNextStateIndexThreadSafe();
-                Volatile.Write(ref nextCandidateIndex, candidate);
-
-                await UniTask.Delay(evalIntervalMs, cancellationToken: token);
-            }
-        }
-
-        private int SelectNextStateIndexThreadSafe()
-        {
-            for (int i = 0; i < statesCount; i++)
-            {
-                var s = behaviourStates[i];
-                if (s == null) continue;
-                if (s.IsConditionFulfilled()) return i;
-            }
-            return -1;
-        }
-
         private int SelectNextStateIndex()
         {
             for (int i = 0; i < statesCount; i++)
@@ -185,7 +241,7 @@ namespace MyToolz.DesignPatterns.StateMachine.MultiThreadPriorityBased
 
         private void SortStatesByPriority()
         {
-            Array.Sort(behaviourStates, (a, b) => b.Priority.CompareTo(a.Priority));
+            Array.Sort(behaviourStates, (a, b) => (b?.Priority ?? 0).CompareTo(a?.Priority ?? 0));
         }
 
         public virtual void ChangeState(T state)
@@ -206,8 +262,5 @@ namespace MyToolz.DesignPatterns.StateMachine.MultiThreadPriorityBased
             state = current;
             return current != default;
         }
-
-        protected virtual void OnDisable() => StopWorker();
-        protected virtual void OnDestroy() => StopWorker();
     }
 }

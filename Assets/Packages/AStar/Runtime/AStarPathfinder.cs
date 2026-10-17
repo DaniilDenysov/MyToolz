@@ -5,6 +5,19 @@ using System.Threading.Tasks;
 
 namespace MyToolz.Algorithms.AStar
 {
+    /// <summary>
+    /// A* search over any graph described by a node lookup, a neighbour provider and a heuristic.
+    ///
+    /// Contract:
+    /// - The path is optimal when the heuristic never overestimates the remaining cost (admissible).
+    ///   Nodes are reopened when a cheaper route is found, so a merely admissible (not consistent)
+    ///   heuristic still yields the optimal path. An overestimating heuristic trades optimality for speed.
+    /// - Moving onto a node costs its <see cref="IPathNode{TPos}.TraversalCost"/>. Negative costs count
+    ///   as 0; NaN or infinite costs make the node impassable. NaN/negative estimates count as 0.
+    /// - <see cref="FindPathAsync"/> runs on a worker thread: the lookup, neighbour provider and
+    ///   heuristic must then be safe to read from that thread (use an immutable snapshot of the graph,
+    ///   not live scene objects). WebGL has no worker threads; call <see cref="FindPath"/> there.
+    /// </summary>
     public sealed class AStarPathfinder<TPos, TNode>
         where TNode : IPathNode<TPos>
     {
@@ -25,6 +38,9 @@ namespace MyToolz.Algorithms.AStar
             _comparer = comparer ?? EqualityComparer<TPos>.Default;
         }
 
+        /// <summary>Stops the search after this many node expansions (guards unbounded graphs). Default: no limit.</summary>
+        public int MaxExpandedNodes { get; set; } = int.MaxValue;
+
         public Task<PathResult<TPos>> FindPathAsync(
             TPos start,
             TPos goal,
@@ -38,6 +54,8 @@ namespace MyToolz.Algorithms.AStar
             TPos goal,
             CancellationToken ct = default)
         {
+            int expanded = 0;
+
             if (!_lookup.TryGet(start, out var startNode) || !startNode.Walkable)
                 return PathResult<TPos>.Failed;
 
@@ -53,7 +71,7 @@ namespace MyToolz.Algorithms.AStar
             var open = new BinaryMinHeap<TPos>(128);
 
             gScores[start] = 0f;
-            open.Enqueue(start, _heuristic.Estimate(start, goal));
+            open.Enqueue(start, Estimate(start, goal));
 
             while (open.Count > 0)
             {
@@ -68,14 +86,17 @@ namespace MyToolz.Algorithms.AStar
                     return ReconstructPath(parents, gScores, current);
 
                 closed.Add(current);
+                if (++expanded > MaxExpandedNodes)
+                    return PathResult<TPos>.Failed;
 
                 float currentG = gScores[current];
 
-                foreach (TPos neighborPos in _neighborProvider.GetNeighbors(current))
-                {
-                    if (closed.Contains(neighborPos))
-                        continue;
+                var neighbors = _neighborProvider.GetNeighbors(current);
+                if (neighbors == null)
+                    continue;
 
+                foreach (TPos neighborPos in neighbors)
+                {
                     if (!_lookup.TryGet(neighborPos, out var neighborNode))
                         continue;
 
@@ -83,6 +104,8 @@ namespace MyToolz.Algorithms.AStar
                         continue;
 
                     float cost = neighborNode.TraversalCost;
+                    if (float.IsNaN(cost) || float.IsInfinity(cost))
+                        continue;
                     if (cost < 0f) cost = 0f;
 
                     float tentativeG = currentG + cost;
@@ -90,15 +113,25 @@ namespace MyToolz.Algorithms.AStar
                     if (gScores.TryGetValue(neighborPos, out float existingG) && tentativeG >= existingG)
                         continue;
 
+                    // A cheaper route to an already expanded node reopens it (needed for optimality
+                    // with admissible but inconsistent heuristics).
+                    closed.Remove(neighborPos);
+
                     gScores[neighborPos] = tentativeG;
                     parents[neighborPos] = current;
 
-                    float f = tentativeG + _heuristic.Estimate(neighborPos, goal);
+                    float f = tentativeG + Estimate(neighborPos, goal);
                     open.Enqueue(neighborPos, f);
                 }
             }
 
             return PathResult<TPos>.Failed;
+        }
+
+        private float Estimate(TPos from, TPos to)
+        {
+            float estimate = _heuristic.Estimate(from, to);
+            return float.IsNaN(estimate) || estimate < 0f ? 0f : estimate;
         }
 
         private PathResult<TPos> ReconstructPath(

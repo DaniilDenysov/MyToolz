@@ -1,15 +1,21 @@
-using Cysharp.Threading.Tasks;
 using MyToolz.DesignPatterns.EventBus;
-using MyToolz.Events;
-using MyToolz.Interfaces;
-using MyToolz.Utilities.Debug;
-using System.Collections.Generic;
-using System;
-using UnityEngine;
 
 namespace MyToolz.SceneManagement
 {
+    /// <summary>Raised after every scene of <see cref="Group"/> loaded and activated successfully.</summary>
     public struct SceneGroupLoaded : IEvent
     {
+        public SceneGroupSO Group;
+    }
+
+    /// <summary>
+    /// Raised instead of <see cref="SceneGroupLoaded"/> when a group load failed or was cancelled.
+    /// Scenes that did load stay loaded; <see cref="Error"/> describes what went wrong.
+    /// </summary>
+    public struct SceneGroupLoadFailed : IEvent
+    {
+        public SceneGroupSO Group;
+        public bool Cancelled;
+        public string Error;
     }
 }

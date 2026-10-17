@@ -83,6 +83,23 @@ namespace MyToolz.DesignPatterns.StateMachine.SimplePriorityBased
             DebugUtility.Log(this, $"State switched to {state.GetType()}");
         }
 
+        /// <summary>Exits the current state; call when the machine stops being used.</summary>
+        public virtual void Stop()
+        {
+            var previous = current;
+            current = null;
+            // Child MonoBehaviour states may already be destroyed during teardown.
+            if (previous != null && !(previous is Object unityObject && unityObject == null))
+            {
+                previous.OnExit();
+            }
+        }
+
+        protected virtual void OnDestroy()
+        {
+            Stop();
+        }
+
         public bool IsExecuting(IPriorityState state)
         {
             return state == current;

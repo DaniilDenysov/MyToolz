@@ -27,8 +27,21 @@ namespace MyToolz.InventorySystem.Models
 #if UNITY_EDITOR
         public void Awake()
         {
-            if (!(string.IsNullOrEmpty(itemGuid) || string.IsNullOrWhiteSpace(itemGuid))) return;
+            EnsureGuid();
+        }
+
+        protected virtual void OnValidate()
+        {
+            EnsureGuid();
+        }
+
+        // The GUID is the stable id inventory saves use, so a generated value must be written to the
+        // asset; otherwise it changes every domain reload and orphans saved stacks.
+        private void EnsureGuid()
+        {
+            if (!string.IsNullOrWhiteSpace(itemGuid)) return;
             GenerateGuid();
+            UnityEditor.EditorUtility.SetDirty(this);
         }
 #endif
     }

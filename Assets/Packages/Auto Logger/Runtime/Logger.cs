@@ -14,13 +14,6 @@ namespace MyToolz.Utilities.AutoLogger
     public static class LogFileWriter
     {
 #if !UNITY_EDITOR
-        private const string OtherMessagesKey = "(other messages)";
-        private const int FlushIntervalMilliseconds = 32;
-
-        // Every access to logWriter happens under this lock: the writer loop and Shutdown can run on
-        // different threads, and a StreamWriter is not thread-safe.
-        private static readonly object writerLock = new();
-
         private static StreamWriter logWriter;
         private static string logFilePath;
         private static bool initialized;
@@ -42,8 +35,18 @@ namespace MyToolz.Utilities.AutoLogger
 
         private static FpsSampler fpsSampler;
 
+        // Bounds so a log storm (or a stalled disk) cannot grow memory without limit.
+        private const int MaxQueuedLines = 10000;
+        private const int MaxTrackedMessages = 1000;
+
         private static readonly ConcurrentQueue<string> writeQueue = new();
+        // Serializes every StreamWriter access: the background drain and the final drain in Shutdown
+        // must never touch the writer at the same time.
+        private static readonly object writerLock = new();
         private static CancellationTokenSource writerCts;
+        private static int queuedLines;
+        private static int droppedLines;
+        private static volatile bool writerFaulted;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
         private static void InitOnLoad()
@@ -56,15 +59,10 @@ namespace MyToolz.Utilities.AutoLogger
         {
             try
             {
-                prefs = LogFileWriterPreferences.Load();
-
-                if (!prefs.IsActiveForThisPlayer())
-                {
-                    return;
-                }
-
                 initialized = true;
                 sessionStart = DateTime.Now;
+
+                prefs = LogFileWriterPreferences.Load();
 
                 string logDirectory = prefs.ResolveLogDirectory();
                 if (!Directory.Exists(logDirectory))
@@ -99,74 +97,75 @@ namespace MyToolz.Utilities.AutoLogger
             }
             catch (Exception e)
             {
-                initialized = false;
                 UnityEngine.Debug.LogError("[LogFileWriter] Init failed: " + e.Message);
             }
         }
 
         private static async UniTaskVoid RunWriterLoop(CancellationToken token)
         {
-            // UniTask.Delay resumes on the main thread, so hop to the pool for every batch. Platforms
-            // without threads (WebGL) write the batch on the main thread instead.
-            bool useThreadPool = PlatformSupportsThreads();
+#if !UNITY_WEBGL
+            // WebGL has no worker threads; there the loop stays on the main thread.
+            await UniTask.SwitchToThreadPool();
+#endif
 
             while (!token.IsCancellationRequested)
             {
-                if (!writeQueue.IsEmpty)
-                {
-                    if (useThreadPool)
-                    {
-                        await UniTask.SwitchToThreadPool();
-                    }
-
-                    DrainQueue();
-                }
-
-                bool cancelled = await UniTask.Delay(FlushIntervalMilliseconds, DelayType.Realtime, cancellationToken: token)
-                    .SuppressCancellationThrow();
-
-                if (cancelled)
-                {
-                    return;
-                }
+                DrainQueue();
+                await UniTask.Delay(32, DelayType.Realtime, cancellationToken: token).SuppressCancellationThrow();
             }
-        }
-
-        private static bool PlatformSupportsThreads()
-        {
-#if UNITY_WEBGL
-            return false;
-#else
-            return true;
-#endif
         }
 
         private static void DrainQueue()
         {
             if (writeQueue.IsEmpty) return;
 
+            string error = null;
             lock (writerLock)
             {
-                if (logWriter == null)
-                {
-                    return;
-                }
+                if (logWriter == null || writerFaulted) return;
 
                 try
                 {
+                    int dropped = Interlocked.Exchange(ref droppedLines, 0);
+                    if (dropped > 0)
+                        logWriter.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] [WARN ] [LogFileWriter] {dropped} log line(s) dropped: the write queue was full.");
+
                     while (writeQueue.TryDequeue(out string line))
+                    {
+                        Interlocked.Decrement(ref queuedLines);
                         logWriter.WriteLine(line);
+                    }
 
                     logWriter.Flush();
                 }
                 catch (Exception e)
                 {
-                    UnityEngine.Debug.LogError("[LogFileWriter] Write error: " + e.Message);
+                    // Stop writing instead of retrying every frame: the error below goes through
+                    // Application.logMessageReceived, which would feed it straight back into this queue.
+                    writerFaulted = true;
+                    error = e.Message;
                 }
+            }
+
+            if (error != null)
+            {
+                UnityEngine.Debug.LogError("[LogFileWriter] Write error, file logging stopped: " + error);
             }
         }
 
-        private static void Enqueue(string line) => writeQueue.Enqueue(line);
+        private static void Enqueue(string line)
+        {
+            if (writerFaulted) return;
+
+            if (Interlocked.Increment(ref queuedLines) > MaxQueuedLines)
+            {
+                Interlocked.Decrement(ref queuedLines);
+                Interlocked.Increment(ref droppedLines);
+                return;
+            }
+
+            writeQueue.Enqueue(line);
+        }
 
         private static void EnqueueHeader()
         {
@@ -197,7 +196,11 @@ namespace MyToolz.Utilities.AutoLogger
 
             if (prefs.trackStatistics)
             {
-                CountMessage(condition);
+                string key = condition.Length > 120 ? condition[..120] : condition;
+                if (messageFrequency.TryGetValue(key, out int existing))
+                    messageFrequency[key] = existing + 1;
+                else if (messageFrequency.Count < MaxTrackedMessages)
+                    messageFrequency[key] = 1;
             }
 
             string tag = type switch
@@ -215,25 +218,6 @@ namespace MyToolz.Utilities.AutoLogger
                 entry += Environment.NewLine + stackTrace;
 
             Enqueue(entry);
-        }
-
-        private static void CountMessage(string condition)
-        {
-            string key = condition ?? string.Empty;
-            if (key.Length > 120)
-            {
-                key = key[..120];
-            }
-
-            // Bounded: once the table is full, new distinct messages share one bucket instead of
-            // growing the dictionary for the rest of the session.
-            if (!messageFrequency.ContainsKey(key) && messageFrequency.Count >= Mathf.Max(16, prefs.maxTrackedMessages))
-            {
-                key = OtherMessagesKey;
-            }
-
-            messageFrequency.TryGetValue(key, out int existing);
-            messageFrequency[key] = existing + 1;
         }
 
         private static void OnSceneLoaded(Scene scene, LoadSceneMode mode)
@@ -270,7 +254,6 @@ namespace MyToolz.Utilities.AutoLogger
         public static void Shutdown()
         {
             if (!initialized) return;
-            initialized = false;
 
             Application.logMessageReceived -= HandleLog;
             Application.quitting           -= Shutdown;
@@ -282,28 +265,26 @@ namespace MyToolz.Utilities.AutoLogger
 
             writerCts?.Cancel();
 
-            // Taking the lock waits for a batch the writer loop may be in the middle of; after that
-            // the loop sees a null writer and stops touching the file.
+            // Takes the writer lock, so it waits for a drain already running on the background thread.
+            DrainQueue();
+
             lock (writerLock)
             {
                 try
                 {
-                    while (writeQueue.TryDequeue(out string line))
-                        logWriter?.WriteLine(line);
-
-                    logWriter?.Flush();
+                    logWriter?.Close();
                 }
-                catch (Exception e)
+                catch (Exception)
                 {
-                    UnityEngine.Debug.LogError("[LogFileWriter] Final drain error: " + e.Message);
+                    // Nothing more can be written; the session is ending.
                 }
 
-                logWriter?.Dispose();
                 logWriter = null;
             }
 
             writerCts?.Dispose();
             writerCts = null;
+            initialized = false;
         }
 
         private static void EnqueueSummary()

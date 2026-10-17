@@ -46,8 +46,42 @@ namespace MyToolz.Tweener
             }
 
             ApplyTimeMode(sequence);
-            runningTweens.Add(sequence);
+            Track(sequence);
             return sequence;
+        }
+
+        /// <summary>
+        /// Registers a sequence owned by this tweener: it is killed with the GameObject and forgotten
+        /// once finished, so the running list does not grow for the lifetime of the component.
+        /// </summary>
+        protected void Track(Tween tween)
+        {
+            if (tween == null)
+                return;
+
+            runningTweens.RemoveAll(t => !t.IsActive());
+            tween.SetLink(gameObject, LinkBehaviour.KillOnDestroy);
+            runningTweens.Add(tween);
+        }
+
+        /// <summary>True while any sequence started by this tweener is still running.</summary>
+        public bool IsTweening
+        {
+            get
+            {
+                foreach (var tween in runningTweens)
+                {
+                    if (tween.IsActive() && tween.IsPlaying())
+                        return true;
+                }
+
+                return false;
+            }
+        }
+
+        protected virtual void OnDestroy()
+        {
+            CancelSequence();
         }
 
         /// <summary>
@@ -87,7 +121,6 @@ namespace MyToolz.Tweener
             }
 
             runningTweens.Clear();
-            DebugUtility.Log(this, "UITweener tweens cancelled.");
         }
     }
-}
+}

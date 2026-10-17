@@ -7,6 +7,12 @@ using MyToolz.Utilities.Debug;
 
 namespace MyToolz.Clock.Presenter
 {
+    /// <summary>
+    /// Transitions: Stopped --Start--> Running --Pause--> Paused --Resume--> Running.
+    /// Stop works from Running and Paused. A countdown that reaches zero raises Elapsed exactly once
+    /// and ends in Stopped (a zero-length countdown elapses immediately on Start). Start while
+    /// running or paused restarts the clock.
+    /// </summary>
     public class ClockPresenter : IClockPresenter, IDisposable
     {
         public event Action Resumed;
@@ -19,7 +25,14 @@ namespace MyToolz.Clock.Presenter
         private IClockView view;
         private CancellationTokenSource cts;
         private bool bound;
-        private float DeltaTime => Time.deltaTime;
+
+        /// <summary>Advance with unscaled time, so the clock keeps running while Time.timeScale is 0.</summary>
+        public bool UseUnscaledTime { get; set; }
+
+        /// <summary>When false no update loop is started and the owner drives the clock with <see cref="Advance"/>.</summary>
+        public bool AutoTick { get; set; } = true;
+
+        private float DeltaTime => UseUnscaledTime ? Time.unscaledDeltaTime : Time.deltaTime;
 
         public void Initialize(IClockModel model, IClockView view = null)
         {
@@ -41,8 +54,11 @@ namespace MyToolz.Clock.Presenter
             view?.Show();
             UpdateView();
 
-            cts = new CancellationTokenSource();
-            RunLoopAsync(cts.Token).Forget();
+            if (AutoTick)
+            {
+                cts = new CancellationTokenSource();
+                RunLoopAsync(cts.Token).Forget();
+            }
         }
 
         private void Unbind()
@@ -64,22 +80,30 @@ namespace MyToolz.Clock.Presenter
 
         public void Start()
         {
-            if (model == null) DebugUtility.LogError(this, "Presenter not initialized. Call Initialize(model, view).");
-            Bind();
+            if (model == null)
+            {
+                DebugUtility.LogError(this, "Presenter not initialized. Call Initialize(model, view).");
+                return;
+            }
 
-            if (model.StartTime < 0f) model.StartTime = 0f;
+            if (float.IsNaN(model.StartTime) || model.StartTime < 0f) model.StartTime = 0f;
 
             model.IsRunning = true;
             model.IsPaused = false;
-
             model.CurrentTime = (model.Mode == ClockMode.Countdown) ? model.StartTime : 0f;
 
+            Bind();
             UpdateView();
+
+            if (model.Mode == ClockMode.Countdown && model.CurrentTime <= 0f)
+            {
+                Complete();
+            }
         }
 
         public void Stop()
         {
-            if (model == null || !model.IsRunning || model.IsPaused) return;
+            if (model == null || !model.IsRunning) return;
 
             model.IsRunning = false;
             model.IsPaused = false;
@@ -91,14 +115,14 @@ namespace MyToolz.Clock.Presenter
 
         public void Pause()
         {
-            if (model == null || model.IsPaused) return;
+            if (model == null || !model.IsRunning || model.IsPaused) return;
             model.IsPaused = true;
             Paused?.Invoke();
         }
 
         public void Resume()
         {
-            if (model == null || !model.IsPaused) return;
+            if (model == null || !model.IsRunning || !model.IsPaused) return;
             model.IsPaused = false;
             Resumed?.Invoke();
         }
@@ -113,37 +137,45 @@ namespace MyToolz.Clock.Presenter
                 {
                     await NextAsync(ct);
 
-                    Tick(DeltaTime);
+                    Advance(DeltaTime);
                     UpdateView();
                 }
             }
             catch (OperationCanceledException) { }
         }
 
-        private void Tick(float dt)
+        /// <summary>Advances a running, unpaused clock by <paramref name="dt"/> seconds.</summary>
+        public void Advance(float dt)
         {
             if (model == null || !model.IsRunning || model.IsPaused) return;
-            if (dt < 0f) dt = 0f;
+            if (float.IsNaN(dt) || dt < 0f) dt = 0f;
 
             if (model.Mode == ClockMode.Countdown)
             {
-                if (model.CurrentTime <= 0f) return;
-
                 model.CurrentTime -= dt;
 
                 if (model.CurrentTime <= 0f)
                 {
-                    model.CurrentTime = 0f;
-                    model.IsRunning = false;
-                    model.IsPaused = false;
-
-                    Elapsed?.Invoke();
+                    Complete();
                 }
             }
             else
             {
                 model.CurrentTime += dt;
             }
+        }
+
+        private void Complete()
+        {
+            model.CurrentTime = 0f;
+            model.IsRunning = false;
+            model.IsPaused = false;
+            UpdateView();
+
+            Elapsed?.Invoke();
+
+            // Nothing left to tick: stop the update loop and release the view.
+            Unbind();
         }
 
         private void UpdateView()
