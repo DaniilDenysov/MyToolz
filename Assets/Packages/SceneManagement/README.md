@@ -81,8 +81,9 @@ A scene that is neither Addressable nor in the build list is reported up front i
 
 Every load is checked. When any scene of a group fails (missing from the build list, an Addressables
 error, ...) the other scenes still finish, the loading screen is hidden, the error is logged, and
-`SceneGroupLoadFailed { Group, Reason }` is raised **instead of** `SceneGroupLoaded`. Listen for it to tell
-the player rather than leaving them on a half-loaded screen.
+`SceneGroupLoadFailed { Group, Cancelled, Error }` is raised **instead of** `SceneGroupLoaded`. `Cancelled` is
+true when the load was cancelled rather than failed. Listen for it to tell the player rather than leaving them on
+a half-loaded screen.
 
 > Build-list scenes are unloaded when a new group loads unless they are blacklisted, the active scene, or
 > owned by an Addressables handle; `SceneExtensions.IsSceneValid` is used to skip scenes that are not in the build list.

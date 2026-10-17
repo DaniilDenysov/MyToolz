@@ -276,7 +276,7 @@ namespace MyToolz.Tests.EditMode
 
         private void Store(InventorySaveData data)
         {
-            storage.Slots[Key] = Newtonsoft.Json.JsonConvert.SerializeObject(data);
+            storage.Slots[Key] = new NewtonsoftJsonStrategy<InventorySaveData>().Serialize(data);
         }
 
         private void RaiseInitialized()

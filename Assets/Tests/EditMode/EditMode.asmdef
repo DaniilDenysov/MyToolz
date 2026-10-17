@@ -23,7 +23,8 @@
         "MyToolz.Prototype",
         "MyToolz.MVP",
         "MyToolz.MVPNotifications",
-        "MyToolz.AStar"
+        "MyToolz.AStar",
+        "MyToolz.Singleton"
     ],
     "optionalUnityReferences": [
         "TestAssemblies"
