@@ -46,6 +46,10 @@ Runtime/
 
 Create setting SO assets for each configurable option. Add `SettingsPresenter` to your scene and assign the settings list. Create matching views for each setting type in your settings UI panel.
 
+`SliderSettingView` assigns the stored value to its slider behind a guard, so showing a value never writes it back to
+the setting, and the player's first drag is kept even when the stored value already matched the slider. It switches
+`wholeNumbers` off before setting the range and value, so the value it was given is not rounded.
+
 ## Saving
 
 `SettingsPresenter` batches writes instead of saving the whole file on every change:
@@ -55,6 +59,7 @@ Create setting SO assets for each configurable option. Add `SettingsPresenter` t
   slider drag or a value that changes every frame costs one write.
 - Pending changes are written immediately when the app is paused, loses focus, quits, or the presenter is
   disabled/destroyed. Call `Flush()` to write pending changes now, or `Save()` to force a write.
+  `HasPendingChanges` is true while a change waits to be written.
 - A setting's twin copies (e.g. the same asset loaded again from a bundle) mirror each other's values; their
   mirrored updates are coalesced into the same write.
 - Saving is refused until the stored values have loaded, so defaults never overwrite a save.

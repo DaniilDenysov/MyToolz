@@ -11,13 +11,25 @@ namespace MyToolz.UI.ToolTip
     {
         [SerializeField] private string description;
 
+        private bool hovered;
+
         public void OnPointerEnter(PointerEventData eventData)
         {
+            hovered = true;
             EventBus<ShowTooltip>.Raise(new ShowTooltip() { Description = description } );
         }
 
         public void OnPointerExit(PointerEventData eventData)
         {
+            hovered = false;
+            EventBus<HideTooltip>.Raise(new HideTooltip());
+        }
+
+        // Pointer-exit never arrives for an area that is disabled or destroyed while hovered.
+        private void OnDisable()
+        {
+            if (!hovered) return;
+            hovered = false;
             EventBus<HideTooltip>.Raise(new HideTooltip());
         }
     }

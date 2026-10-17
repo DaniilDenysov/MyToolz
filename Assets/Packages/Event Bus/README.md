@@ -37,7 +37,8 @@ Events must implement `IEvent`. Raising, registering, or deregistering from insi
 
 ### Delivery guarantees
 
-- Listeners are called in **registration order** (re-registering moves a binding to the end).
+- Listeners are called in **registration order**. Registering a binding twice is ignored; deregistering it
+  and registering it again moves it to the end.
 - A listener that **throws is logged and skipped**; every other listener still receives the event and the
   pending queue always drains, so one faulty listener cannot stall a bus.
 - A binding deregistered from inside a handler still receives the event currently being dispatched and

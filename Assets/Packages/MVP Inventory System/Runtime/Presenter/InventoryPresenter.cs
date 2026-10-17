@@ -4,6 +4,7 @@ using MyToolz.InventorySystem.Models;
 using MyToolz.InventorySystem.Persistance;
 using MyToolz.InventorySystem.Settings;
 using MyToolz.InventorySystem.Views;
+using MyToolz.IO;
 using MyToolz.Utilities.Debug;
 using UnityEngine;
 using Zenject;
@@ -26,24 +27,38 @@ namespace MyToolz.InventorySystem.Presenters
         private EventBinding<InventorySlotDropEvent<T>> slotDropBinding;
         private EventBinding<InventoryCellDropEvent<T>> cellDropBinding;
 
+        private bool eventsRegistered;
+
         [Inject]
         private void Construct(IInventoryModel<T> model,[InjectOptional] IInventorySaver<T> saver,InventorySettingsSO<T> settings)
         {
+            UnregisterEvents();
             this.model = model;
             this.saver = saver;
             this.settings = settings;
+            if (isActiveAndEnabled) RegisterEvents();
         }
 
         private void Start()
         {
-            RegisterEvents();
-
-            if (saver != null && saver.HasSaveData())
+            if (model == null)
             {
-                saver.LoadIntoModel();
+                DebugUtility.LogError(this, "Inventory model was not injected; the inventory cannot initialize.");
+                return;
+            }
+
+            // A decoded save wins even when it is empty: an empty inventory is valid progress and must
+            // not be refilled with starter items. Missing (and unreadable) saves fall back to them; the
+            // saver refuses to overwrite an unreadable save unless configured to.
+            if (saver != null && saver.TryRestoreModel())
+            {
+                DebugUtility.Log(this, $"Restored inventory with {model.InventoryItems.Count} stacks.");
             }
             else
             {
+                if (saver != null && saver.LastLoadStatus == LoadStatus.Unreadable)
+                    DebugUtility.LogError(this, "Inventory save is unreadable; starting from the initial items.");
+
                 model.Initialize(settings?.InitialItems);
                 DebugUtility.Log(this, $"Initialized inventory with size: {settings?.InitialItems?.Length ?? 0}");
             }
@@ -106,7 +121,8 @@ namespace MyToolz.InventorySystem.Presenters
 
         public void RegisterEvents()
         {
-            if (model == null) return;
+            // Idempotent: OnEnable, injection and manual calls may all request registration.
+            if (eventsRegistered || model == null) return;
 
             model.OnItemUpdated += OnModelItemUpdated;
 
@@ -118,18 +134,21 @@ namespace MyToolz.InventorySystem.Presenters
 
             cellDropBinding = new EventBinding<InventoryCellDropEvent<T>>(OnCellDropFromView);
             EventBus<InventoryCellDropEvent<T>>.Register(cellDropBinding);
+
+            eventsRegistered = true;
         }
 
         public void UnregisterEvents()
         {
-            if (model == null) return;
+            if (!eventsRegistered) return;
 
-            model.OnItemUpdated -= OnModelItemUpdated;
+            if (model != null) model.OnItemUpdated -= OnModelItemUpdated;
 
             EventBus<InventoryItemAmountChangedEvent<T>>.Deregister(itemAmountChangedBinding);
             EventBus<InventorySlotDropEvent<T>>.Deregister(slotDropBinding);
             EventBus<InventoryCellDropEvent<T>>.Deregister(cellDropBinding);
+
+            eventsRegistered = false;
         }
     }
 }
-

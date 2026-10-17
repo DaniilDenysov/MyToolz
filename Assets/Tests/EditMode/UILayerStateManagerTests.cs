@@ -179,5 +179,98 @@ namespace MyToolz.Tests.EditMode
             Assert.DoesNotThrow(() => _manager.ExitState());
             Assert.IsNull(_manager.CurrentLayer);
         }
+
+        [Test]
+        public void Cover_ClearsTheStack_ButLeavesTheCoveredScreensDrawn()
+        {
+            FakeUILayer menu = new FakeUILayer(Layer(ActivationMode.Override, "Menu"));
+            FakeUILayer cover = new FakeUILayer(Layer(ActivationMode.Cover, "Loading"));
+
+            _manager.ChangeState(menu);
+            _manager.ChangeState(cover);
+
+            Assert.IsNull(_manager.CurrentLayer, "a cover is never pushed");
+            Assert.IsTrue(cover.IsActive);
+            Assert.IsTrue(menu.IsActive, "the covered screen stays drawn behind the cover while it fades in");
+        }
+
+        [Test]
+        public void ScreenOpenedUnderACover_ExitsTheCoveredScreens_AndCannotCloseTheCover()
+        {
+            FakeUILayer menu = new FakeUILayer(Layer(ActivationMode.Override, "Menu"));
+            FakeUILayer cover = new FakeUILayer(Layer(ActivationMode.Cover, "Loading"));
+            FakeUILayer hud = new FakeUILayer(Layer(ActivationMode.Override, "Hud"));
+
+            _manager.ChangeState(menu);
+            _manager.ChangeState(cover);
+            _manager.ChangeState(hud);
+
+            Assert.IsFalse(menu.IsActive, "the new stack under the cover replaces what it covered");
+            Assert.IsTrue(hud.IsActive);
+            Assert.IsTrue(cover.IsActive, "a layer opened under a cover does not exit it");
+
+            _manager.ExitState();
+            Assert.IsTrue(cover.IsActive, "closing a screen under the cover leaves the cover up");
+        }
+
+        [Test]
+        public void ExitState_OfACover_ClosesOnlyTheCover()
+        {
+            UILayerSO hudLayer = Layer(ActivationMode.Override, "Hud");
+            FakeUILayer cover = new FakeUILayer(Layer(ActivationMode.Cover, "Loading"));
+            FakeUILayer hud = new FakeUILayer(hudLayer);
+
+            _manager.ChangeState(cover);
+            _manager.ChangeState(hud);
+            _manager.ExitState(cover);
+
+            Assert.IsFalse(cover.IsActive);
+            Assert.IsTrue(hud.IsActive);
+            Assert.AreSame(hudLayer, _manager.CurrentLayer, "the stack under the cover is untouched");
+        }
+
+        [Test]
+        public void ExitState_OfACover_ExitsCoveredScreensThatAreStillUp()
+        {
+            FakeUILayer menu = new FakeUILayer(Layer(ActivationMode.Override, "Menu"));
+            FakeUILayer cover = new FakeUILayer(Layer(ActivationMode.Cover, "Loading"));
+
+            _manager.ChangeState(menu);
+            _manager.ChangeState(cover);
+            _manager.ExitState(cover);
+
+            Assert.IsFalse(cover.IsActive);
+            Assert.IsFalse(menu.IsActive, "a covered screen whose scene was not unloaded must not stay up");
+        }
+
+        [Test]
+        public void RemovedCoveredScreen_IsNotExitedLater()
+        {
+            FakeUILayer menu = new FakeUILayer(Layer(ActivationMode.Override, "Menu"));
+            FakeUILayer cover = new FakeUILayer(Layer(ActivationMode.Cover, "Loading"));
+
+            _manager.ChangeState(menu);
+            _manager.ChangeState(cover);
+            _manager.RemoveLayer(menu); // its scene unloaded
+            _manager.ExitState(cover);
+
+            Assert.AreEqual(0, menu.ExitCount);
+        }
+
+        [Test]
+        public void ExitState_OfANonCoverLayer_ClosesTheTopOfTheStack()
+        {
+            UILayerSO menuLayer = Layer(ActivationMode.Override, "Menu");
+            FakeUILayer menu = new FakeUILayer(menuLayer);
+            FakeUILayer popup = new FakeUILayer(Layer(ActivationMode.Additive, "Popup"));
+
+            _manager.ChangeState(menu);
+            _manager.ChangeState(popup);
+            _manager.ExitState(popup);
+
+            Assert.IsFalse(popup.IsActive);
+            Assert.IsTrue(menu.IsActive);
+            Assert.AreSame(menuLayer, _manager.CurrentLayer);
+        }
     }
 }

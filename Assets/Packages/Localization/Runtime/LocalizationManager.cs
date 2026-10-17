@@ -52,6 +52,13 @@ namespace MyToolz.Localization
 
             currentLanguage = ResolveInitialLanguage();
             Broadcast();
+
+            // Settings may have finished loading before this manager existed (e.g. it lives in a
+            // later scene); OnLoadCompleted will not fire again, so persist the first-launch choice now.
+            if (languageSetting != null && languageSetting.IsLoadFinished)
+            {
+                OnSettingsLoaded();
+            }
         }
 
         protected override void OnSingletonDestroy()

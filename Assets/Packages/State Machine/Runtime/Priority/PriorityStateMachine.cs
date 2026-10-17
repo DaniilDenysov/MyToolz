@@ -64,7 +64,7 @@ namespace MyToolz.DesignPatterns.StateMachine.PriorityBased
             behaviourStates = behaviourStates.OrderByDescending(a => a.Priority).ToArray();
             for (int i = 0; i < statesCount; i++)
             {
-                container.Inject(behaviourStates[i]);
+                container?.Inject(behaviourStates[i]);
                 behaviourStates[i].Initialize();
             }
 
@@ -150,6 +150,12 @@ namespace MyToolz.DesignPatterns.StateMachine.PriorityBased
             current.OnEnter();
             currentState = current?.GetType().Name ?? "Error, null state!";
             DebugUtility.Log(this, $"Enemy state switched to {state.GetType()}");
+        }
+
+        protected virtual void OnDestroy()
+        {
+            current?.OnExit();
+            current = null;
         }
 
         public virtual bool TryGetCurrentState(out T state)

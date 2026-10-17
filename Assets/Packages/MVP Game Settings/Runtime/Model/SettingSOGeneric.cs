@@ -1,6 +1,7 @@
 using MyToolz.GameSettings.Data;
 using MyToolz.Utilities.Debug;
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace MyToolz.ScriptableObjects.GameSettings
@@ -46,9 +47,15 @@ namespace MyToolz.ScriptableObjects.GameSettings
             Accept(newValue);
             OnSetted();
 
-            foreach (SettingSOAbstract twin in Twins())
+            IReadOnlyList<SettingSOAbstract> candidates = TwinCandidates;
+            for (int i = 0; i < candidates.Count; i++)
             {
-                SettingSOGeneric<T> mirror = (SettingSOGeneric<T>)twin;
+                if (!IsTwin(candidates[i]))
+                {
+                    continue;
+                }
+
+                SettingSOGeneric<T> mirror = (SettingSOGeneric<T>)candidates[i];
                 mirror.Accept(newValue);
                 mirror.OnSetted();
             }
@@ -132,9 +139,15 @@ namespace MyToolz.ScriptableObjects.GameSettings
                 return;
             }
 
-            foreach (SettingSOAbstract twin in Twins())
+            IReadOnlyList<SettingSOAbstract> candidates = TwinCandidates;
+            for (int i = 0; i < candidates.Count; i++)
             {
-                SettingSOGeneric<T> mirror = (SettingSOGeneric<T>)twin;
+                if (!IsTwin(candidates[i]))
+                {
+                    continue;
+                }
+
+                SettingSOGeneric<T> mirror = (SettingSOGeneric<T>)candidates[i];
                 mirror.currentValue = currentValue;
                 mirror.hasBeenSet = true;
                 mirror.NotifyValueUpdated();

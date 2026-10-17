@@ -1,7 +1,7 @@
 {
   "name": "com.mytoolz.audio",
   "displayName": "Audio",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "unity": "2022.3",
   "unityRelease": "46f1",
   "description": "ScriptableObject-based audio system with configurable AudioSource settings, randomized clip selection, pitch variation, pooling, and AudioSource extension methods for streamlined playback. Requires Zenject (https://github.com/modesttree/Zenject), DOTween (https://dotween.demigiant.com/), UniTask (https://github.com/Cysharp/UniTask)",

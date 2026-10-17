@@ -11,6 +11,9 @@ namespace MyToolz.InputManagement.Commands.Pipeline
     public class InputCommandPipeline : CommandPipeline<IInputCommand>
     {
         [SerializeField] private List<InputCommandSO> register = new();
+        [SerializeField, Tooltip("Enable every action of the asset on initialize. Turn off when an InputStateManagementInstaller " +
+            "enables actions per input mode, otherwise this re-enables actions the active mode disabled.")]
+        private bool enableAllActions = true;
 
         private InputDeviceTracker deviceTracker;
         private bool initialized;
@@ -28,7 +31,10 @@ namespace MyToolz.InputManagement.Commands.Pipeline
                 DebugUtility.LogError(this, $"{nameof(inputActions)} is null!");
                 return;
             }
-            inputActions.Enable();
+            if (enableAllActions)
+            {
+                inputActions.Enable();
+            }
             this.inputActions = inputActions;
             deviceTracker = new InputDeviceTracker();
             deviceTracker.SubscribeToActionMap(inputActions);
@@ -43,7 +49,7 @@ namespace MyToolz.InputManagement.Commands.Pipeline
             foreach (var cmd in register)
             {
                 if (cmd == null) continue;
-                cmd.Initialize(inputActions);
+                cmd.Initialize(inputActions, this);
                 cmd.Register();
             }
         }
@@ -53,7 +59,7 @@ namespace MyToolz.InputManagement.Commands.Pipeline
             foreach (var cmd in register)
             {
                 if (cmd == null) continue;
-                cmd.Unregister();
+                cmd.Release(this);
             }
             deviceTracker?.UnsubscribeAll();
         }
@@ -63,13 +69,10 @@ namespace MyToolz.InputManagement.Commands.Pipeline
             var executing = GetExecutingCommandsInternal();
             for (int i = executing.Count - 1; i >= 0; i--)
             {
-                var cmd = executing[i];
-                cmd.Update();
-                if (cmd.IsFinished)
-                {
-                    RemoveFinishedCommand(cmd);
-                }
+                executing[i].Update();
             }
+
+            // Releases the commands that finished and starts queued ones.
             base.Update();
         }
 

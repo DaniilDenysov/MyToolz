@@ -7,8 +7,6 @@ namespace MyToolz.Events
     public struct PoolRequest<T> : IEvent
     {
         public T Prefab;
-
-        /// <summary>Addressable runtime key; when set it is used instead of <see cref="Prefab"/>.</summary>
         public object Key;
         public Vector3 Position;
         public Quaternion Rotation;

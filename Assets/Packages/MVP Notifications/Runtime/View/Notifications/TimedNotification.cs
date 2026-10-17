@@ -14,6 +14,7 @@ namespace MyToolz.UI.Notifications.View
 
         private Sequence sequence;
         private Vector2 originalSize;
+        private bool sized;
 
         public override void Play()
         {
@@ -30,7 +31,13 @@ namespace MyToolz.UI.Notifications.View
 
             if (rectTransform != null)
             {
-                originalSize = rectTransform.sizeDelta;
+                // The resting size is read once: a pooled notification played again before its pop-in finished would
+                // otherwise take its enlarged size for the resting one and grow a little with every reuse.
+                if (!sized)
+                {
+                    originalSize = rectTransform.sizeDelta;
+                    sized = true;
+                }
                 rectTransform.sizeDelta = originalSize * startScaleMultiplier;
             }
 
@@ -84,7 +91,7 @@ namespace MyToolz.UI.Notifications.View
             sequence.SetAutoKill(true)
                     .OnComplete(() =>
                     {
-                        if (rectTransform != null)
+                        if (rectTransform != null && sized)
                             rectTransform.sizeDelta = originalSize;
 
                         canvasGroup.gameObject.SetActive(false);

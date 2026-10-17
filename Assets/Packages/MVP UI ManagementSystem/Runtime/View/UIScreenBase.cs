@@ -29,10 +29,7 @@ namespace MyToolz.UI.Management
                 screenTweener.SetActive(true);
             }
 
-            if (firstSelected != null)
-            {
-                EventSystem.current.firstSelectedGameObject = firstSelected;
-            }
+            ApplyFocus();
 
             onEnter?.Invoke();
         }
@@ -45,12 +42,50 @@ namespace MyToolz.UI.Management
                 screenTweener.SetActive(false);
             }
 
-            if (firstSelected != null)
-            {
-                EventSystem.current.firstSelectedGameObject = null;
-            }
+            ReleaseFocus();
 
             onExit?.Invoke();
+        }
+
+        /// <summary>
+        /// Moves keyboard/controller focus to <see cref="firstSelected"/>. Setting only
+        /// EventSystem.firstSelectedGameObject does not move an existing selection, so a screen opened
+        /// after the first one would otherwise keep focus on the previous screen.
+        /// </summary>
+        protected virtual void ApplyFocus()
+        {
+            EventSystem eventSystem = EventSystem.current;
+            if (firstSelected == null || eventSystem == null)
+            {
+                return;
+            }
+
+            eventSystem.firstSelectedGameObject = firstSelected;
+            if (firstSelected.activeInHierarchy)
+            {
+                eventSystem.SetSelectedGameObject(firstSelected);
+            }
+        }
+
+        /// <summary>Clears the selection when it belongs to this screen, so focus does not stay on a hidden control.</summary>
+        protected virtual void ReleaseFocus()
+        {
+            EventSystem eventSystem = EventSystem.current;
+            if (eventSystem == null)
+            {
+                return;
+            }
+
+            if (firstSelected != null && eventSystem.firstSelectedGameObject == firstSelected)
+            {
+                eventSystem.firstSelectedGameObject = null;
+            }
+
+            GameObject selected = eventSystem.currentSelectedGameObject;
+            if (selected != null && selected.transform.IsChildOf(transform))
+            {
+                eventSystem.SetSelectedGameObject(null);
+            }
         }
 
         public override string ToString()

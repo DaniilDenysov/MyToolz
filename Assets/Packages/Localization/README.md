@@ -13,11 +13,11 @@ ScriptableObject-driven, CSV-backed translation for Unity. Built on the MyToolz 
 | `LocalizationManager` | `PublicSingleton` | Holds the active language, answers `ChangeLanguageRequest`, persists the choice, and raises `LanguageChanged`. |
 | `ChangeLanguageRequest` / `LanguageChanged` | `IEvent` | Command in / notification out, both carrying a `LocalizationLanguageSO`. |
 
-`LocalizationDatabaseSO` exists so both the runtime and the editor dropdown read the same parsed data at edit time — a MonoBehaviour manager could not serve the inspector.
+`LocalizationDatabaseSO` exists so both the runtime and the editor dropdown read the same parsed data at edit time — a MonoBehaviour manager could not serve the inspector. Its parse cache is not serialized, so an editor domain reload re-parses the CSV instead of restoring a half-empty table.
 
 ## CSV format
 
-First row is the header: the first column is ignored (the key column), the rest are informational language names. Each following row is `key,<value per language...>`. Quote fields that contain commas; escape a quote by doubling it (`""`).
+First row is the header: the first column is the key column, the rest name the languages. Each following row is `key,<value per language...>`. Quote fields that contain commas; escape a quote by doubling it (`""`).
 
 ```csv
 key,English,Ukrainian,Spanish
@@ -26,7 +26,7 @@ settings,Settings,Налаштування,Ajustes
 greeting,"Hello, friend","Привіт, друже","Hola, amigo"
 ```
 
-**Column mapping is by order:** `LocalizationDatabaseSO.languages[0]` maps to the first language column, `[1]` to the second, and so on. Keep the list ordered to match the header. The database's **Reload From CSV** button warns when the counts diverge.
+**Column mapping is by name:** each `LocalizationLanguageSO` is matched to the header cell equal to its `Code`, then its display name, then its asset name (case-insensitive), so the `languages` list can be in any order. Only when the header names none of the languages does mapping fall back to list order (`languages[0]` = first language column), with a one-time warning; set each language's `Code` to its column name to avoid that. A language with no matching column falls back to the key, and two languages with the same `Code` are reported. The database's **Reload From CSV** button warns when the counts diverge.
 
 ### Orientation
 

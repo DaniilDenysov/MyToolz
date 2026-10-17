@@ -15,50 +15,99 @@ namespace MyToolz.SceneManagement
     {
         [SerializeField] private SceneGroupSO[] sceneGroups;
         [SerializeField] private SceneGroupManager sceneGroupManager = new();
+        [SerializeField, Min(0f), Tooltip("Minimum seconds (real time) the loading screen stays up. " +
+            "The last scene of a group is activated only after this, so it never pops in under the loading screen.")]
+        private float minimalLoadingDuration = 0f;
 
-        [Tooltip("Keeps the loading screen up for at least this many seconds (unscaled) so a fast load does not flash it. 0 = activate as soon as the group is ready.")]
-        [SerializeField, Min(0f)] private float minimalLoadingDuration;
+        [SerializeField, Min(0f), Tooltip("Seconds (unscaled) the loading screen takes to hide the game when it opens, e.g. its fade-in. " +
+            "The current scenes are unloaded only after this, so they stay drawn behind it. 0 = unload at once.")]
+        private float loadingScreenShowDuration = 0f;
 
         private EventBinding<LoadSceneGroup> onLoadSceneBinding;
         private EventBinding<ReloadCurrentSceneGroup> onReloadCurrentSceneBinding;
         private SceneGroupSO currentSceneGroup;
+        private bool eventsRegistered;
+
+        // One transition runs at a time. Requests arriving meanwhile are coalesced: only the latest
+        // one runs after the current transition finishes.
         private bool isLoading;
         private SceneGroupSO queuedGroup;
         private List<AsyncLoadStep> queuedSteps;
+        private CancellationTokenSource lifetime;
 
-        private void Start()
+        /// <summary>
+        /// Editor only: <c>SessionState</c> key holding the asset path of a <see cref="SceneGroupSO"/> to load on start
+        /// instead of the first configured group. The Bootstrap package's Boot Scene button sets it; it is cleared once read.
+        /// </summary>
+        public const string EditorSceneGroupOverrideKey = "MyToolz.SceneManagement.SceneGroupOverride";
+
+        public SceneGroupSO CurrentSceneGroup => currentSceneGroup;
+        public bool IsLoading => isLoading;
+
+        private void Awake()
+        {
+            lifetime = new CancellationTokenSource();
+        }
+
+        async void Start()
         {
             RegisterEvents();
 
-            if (sceneGroups == null || sceneGroups.Length == 0)
+            SceneGroupSO initialGroup = GetInitialSceneGroup();
+            if (initialGroup == null)
             {
                 DebugUtility.LogWarning(this, "No scene groups configured, skipping initial load.");
                 return;
             }
 
-            LoadSceneGroup(sceneGroups[0], null).Forget();
+            await LoadSceneGroup(initialGroup, null);
         }
 
-        public async UniTask LoadSceneGroup(SceneGroupSO sceneGroupSO, List<AsyncLoadStep> steps)
+        private SceneGroupSO GetInitialSceneGroup()
+        {
+#if UNITY_EDITOR
+            string overridePath = UnityEditor.SessionState.GetString(EditorSceneGroupOverrideKey, string.Empty);
+            if (!string.IsNullOrEmpty(overridePath))
+            {
+                UnityEditor.SessionState.EraseString(EditorSceneGroupOverrideKey);
+                SceneGroupSO overrideGroup = UnityEditor.AssetDatabase.LoadAssetAtPath<SceneGroupSO>(overridePath);
+                if (overrideGroup != null)
+                {
+                    DebugUtility.Log(this, $"Booting scene group '{overrideGroup.GroupName}' requested from the editor.");
+                    return overrideGroup;
+                }
+
+                DebugUtility.LogError(this, $"Scene group override '{overridePath}' could not be loaded. Falling back to the first configured group.");
+            }
+#endif
+            return sceneGroups != null && sceneGroups.Length > 0 ? sceneGroups[0] : null;
+        }
+
+        /// <summary>
+        /// Loads a group, or queues it when a transition is already running. Returns true when this
+        /// request's group loaded successfully (false when it failed, was cancelled, or was superseded
+        /// by a newer queued request).
+        /// </summary>
+        public async UniTask<bool> LoadSceneGroup(SceneGroupSO sceneGroupSO, List<AsyncLoadStep> steps)
         {
             if (sceneGroupSO == null)
             {
                 DebugUtility.LogError(this, "SceneGroup event received with null scene group!");
-                return;
+                return false;
             }
 
             if (isLoading)
             {
                 queuedGroup = sceneGroupSO;
                 queuedSteps = steps;
-                return;
+                return false;
             }
 
             isLoading = true;
-
+            bool loaded;
             try
             {
-                await LoadNow(sceneGroupSO, steps);
+                loaded = await LoadNow(sceneGroupSO, steps);
             }
             finally
             {
@@ -73,19 +122,23 @@ namespace MyToolz.SceneManagement
                 queuedSteps = null;
                 await LoadSceneGroup(next, nextSteps);
             }
+
+            return loaded;
         }
 
-        private async UniTask LoadNow(SceneGroupSO sceneGroupSO, List<AsyncLoadStep> steps)
+        private async UniTask<bool> LoadNow(SceneGroupSO sceneGroupSO, List<AsyncLoadStep> steps)
         {
             float startedAt = Time.realtimeSinceStartup;
-            CancellationToken token = destroyCancellationToken;
+            CancellationToken token = lifetime != null ? lifetime.Token : CancellationToken.None;
+            bool scenesLoaded = false;
 
             List<AsyncLoadStep> pipeline = new List<AsyncLoadStep>
             {
-                progress => sceneGroupManager.LoadScenes(
+                async progress => scenesLoaded = await sceneGroupManager.LoadScenes(
                     sceneGroupSO,
                     progress,
-                    () => WaitForMinimalDuration(startedAt, token))
+                    () => WaitSince(startedAt, minimalLoadingDuration, token),
+                    token: token)
             };
 
             if (steps != null)
@@ -113,29 +166,37 @@ namespace MyToolz.SceneManagement
 
             try
             {
+                // Loading starts by unloading the current scenes: leave them drawn until the loading screen hides them.
+                await WaitSince(startedAt, loadingScreenShowDuration, token);
+
                 for (int i = 0; i < pipeline.Count; i++)
                 {
                     await pipeline[i](childProgresses[i]);
                 }
 
-                await WaitForMinimalDuration(startedAt, token);
+                await WaitSince(startedAt, minimalLoadingDuration, token);
+
+                if (!scenesLoaded)
+                {
+                    RaiseFailed(sceneGroupSO, false, "One or more scenes failed to load.");
+                    return false;
+                }
+
                 currentSceneGroup = sceneGroupSO;
-                EventBus<SceneGroupLoaded>.Raise(new SceneGroupLoaded());
+                EventBus<SceneGroupLoaded>.Raise(new SceneGroupLoaded { Group = sceneGroupSO });
+                return true;
             }
             catch (OperationCanceledException)
             {
-                DebugUtility.LogError(this, "Loading pipeline was cancelled.");
+                DebugUtility.LogWarning(this, $"Loading of '{sceneGroupSO.GroupName}' was cancelled.");
+                RaiseFailed(sceneGroupSO, true, "Cancelled.");
+                return false;
             }
             catch (Exception e)
             {
-                // A failed scene or step must not leave the loading screen up forever, and must not
-                // be reported as a successful load either.
-                DebugUtility.LogError(this, $"Loading scene group '{sceneGroupSO.name}' failed: {e.Message}\n{e}");
-                EventBus<SceneGroupLoadFailed>.Raise(new SceneGroupLoadFailed
-                {
-                    Group = sceneGroupSO,
-                    Reason = e.Message
-                });
+                DebugUtility.LogError(this, $"Loading of '{sceneGroupSO.GroupName}' failed: {e}");
+                RaiseFailed(sceneGroupSO, false, e.Message);
+                return false;
             }
             finally
             {
@@ -144,9 +205,19 @@ namespace MyToolz.SceneManagement
             }
         }
 
-        private UniTask WaitForMinimalDuration(float startedAt, CancellationToken token)
+        private static void RaiseFailed(SceneGroupSO group, bool cancelled, string error)
         {
-            float remaining = minimalLoadingDuration - (Time.realtimeSinceStartup - startedAt);
+            EventBus<SceneGroupLoadFailed>.Raise(new SceneGroupLoadFailed
+            {
+                Group = group,
+                Cancelled = cancelled,
+                Error = error
+            });
+        }
+
+        private static UniTask WaitSince(float startedAt, float duration, CancellationToken token)
+        {
+            float remaining = duration - (Time.realtimeSinceStartup - startedAt);
 
             if (remaining <= 0f)
             {
@@ -155,7 +226,7 @@ namespace MyToolz.SceneManagement
 
             return UniTask.Delay(
                 TimeSpan.FromSeconds(remaining),
-                DelayType.UnscaledDeltaTime,
+                DelayType.Realtime,
                 PlayerLoopTiming.Update,
                 token);
         }
@@ -163,21 +234,38 @@ namespace MyToolz.SceneManagement
         public void OnDestroy()
         {
             UnregisterEvents();
+            queuedGroup = null;
+            queuedSteps = null;
+            lifetime?.Cancel();
+            lifetime?.Dispose();
+            lifetime = null;
         }
 
         public void RegisterEvents()
         {
+            if (eventsRegistered)
+            {
+                return;
+            }
+
             onLoadSceneBinding = new EventBinding<LoadSceneGroup>(OnLoadSceneRequested);
             EventBus<LoadSceneGroup>.Register(onLoadSceneBinding);
 
             onReloadCurrentSceneBinding = new EventBinding<ReloadCurrentSceneGroup>(OnReloadCurrentSceneRequested);
             EventBus<ReloadCurrentSceneGroup>.Register(onReloadCurrentSceneBinding);
+            eventsRegistered = true;
         }
 
         public void UnregisterEvents()
         {
+            if (!eventsRegistered)
+            {
+                return;
+            }
+
             EventBus<LoadSceneGroup>.Deregister(onLoadSceneBinding);
             EventBus<ReloadCurrentSceneGroup>.Deregister(onReloadCurrentSceneBinding);
+            eventsRegistered = false;
         }
 
         private void OnReloadCurrentSceneRequested(ReloadCurrentSceneGroup loadScene)

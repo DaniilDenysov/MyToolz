@@ -131,11 +131,26 @@ namespace MyToolz.UI.Notifications.View
                 Parent = container,
                 Callback = instance =>
                 {
+                    Fit(instance);
                     instanceMap[id] = instance;
                     instance.OnHidden = () => onHidden?.Invoke(id);
                     instance.SetMessage(text);
                 }
             });
+        }
+
+        /// <summary>
+        /// The pool keeps its notifications outside the canvas and reparents them keeping their world scale, so on any
+        /// screen the canvas scales down (a phone, a small web page) a notification would come in blown up by the inverse
+        /// of the canvas scale and run off the screen. It belongs at unit scale in the container.
+        /// </summary>
+        private static void Fit(NotificationBase instance)
+        {
+            var t = instance.transform;
+            t.localScale = Vector3.one;
+            t.localRotation = Quaternion.identity;
+            var p = t.localPosition;
+            t.localPosition = new Vector3(p.x, p.y, 0f);
         }
 
         private void ReplaceNotification(int oldId, int newId, Type messageType, string text, Action<int> onHidden)
@@ -165,6 +180,7 @@ namespace MyToolz.UI.Notifications.View
                 Parent = container,
                 Callback = newInstance =>
                 {
+                    Fit(newInstance);
                     instanceMap[newId] = newInstance;
                     newInstance.OnHidden = () => onHidden?.Invoke(newId);
                     newInstance.SetMessage(text);

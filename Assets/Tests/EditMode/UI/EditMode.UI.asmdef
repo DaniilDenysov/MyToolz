@@ -1,0 +1,31 @@
+{
+    "name": "EditMode.UI",
+    "rootNamespace": "MyToolz.Tests.EditMode.UI",
+    "references": [
+        "MyToolz.UIKit",
+        "MyToolz.UILayoutSystem",
+        "MyToolz.MVPNotifications",
+        "MyToolz.MVPGameSettings",
+        "UnityEngine.UI",
+        "Unity.TextMeshPro"
+    ],
+    "optionalUnityReferences": [
+        "TestAssemblies"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "DOTween.dll",
+        "nunit.framework.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

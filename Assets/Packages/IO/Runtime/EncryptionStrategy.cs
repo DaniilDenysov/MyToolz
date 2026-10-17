@@ -78,6 +78,10 @@ namespace MyToolz.IO
     /// (encrypt-then-MAC), so any edit to the stored bytes is rejected on load. The key is derived from
     /// <c>key</c>; change it per project, since the default is public. Saves written by IO 1.1.x
     /// (fixed IV, no authentication) are still read, and are upgraded by the next save.
+    /// A game that must not trust anything it did not seal itself builds the strategy in code with
+    /// <see cref="AesEncryptionStrategy(byte[])"/> (see <c>SaveLoadBase.CreateEncryptionStrategy</c>): the
+    /// secret then never sits in a serialized asset, and the unauthenticated 1.1.x format is refused, so only
+    /// payloads carrying a valid MAC load.
     /// </summary>
     [Serializable]
     [AddTypeMenu("AES-256 + HMAC (authenticated)")]
@@ -95,15 +99,42 @@ namespace MyToolz.IO
         [SerializeField, Tooltip("Legacy: only used to read saves written by IO 1.1.x, which used this fixed IV. New saves use a random IV per write.")]
         private string iv = "NoSaintsDefaultI";
 
+        [SerializeField, Tooltip("Also read the unauthenticated IO 1.1.x format. Turn off once no such saves are left: a payload in that format carries no MAC, so it is never proof the game wrote it.")]
+        private bool acceptLegacy = true;
+
+        [NonSerialized] private byte[] secretBytes;
         [NonSerialized] private string derivedFor;
         [NonSerialized] private byte[] encryptionKey;
         [NonSerialized] private byte[] macKey;
 
-        public bool UsesDefaultKey => string.IsNullOrEmpty(key) || key == DefaultKey;
+        public AesEncryptionStrategy()
+        {
+        }
+
+        /// <summary>
+        /// A strategy keyed from <paramref name="secret"/> (32+ random bytes, kept in code rather than in an asset).
+        /// The bytes are copied. Only payloads sealed with the same secret load: the IO 1.1.x format is refused.
+        /// </summary>
+        public AesEncryptionStrategy(byte[] secret)
+        {
+            if (secret == null || secret.Length < 32)
+            {
+                throw new ArgumentException("The secret must be at least 32 bytes.", nameof(secret));
+            }
+
+            secretBytes = (byte[])secret.Clone();
+            acceptLegacy = false;
+            key = null;
+        }
+
+        public bool UsesDefaultKey => secretBytes == null && (string.IsNullOrEmpty(key) || key == DefaultKey);
 
         public override string ConfigurationWarning => UsesDefaultKey
             ? "AesEncryptionStrategy is using the public default key. Set a project-specific key so saves from other games built on MyToolz cannot be forged with it."
             : null;
+
+        /// <summary>Whether <paramref name="stored"/> is in the authenticated format this strategy writes.</summary>
+        public static bool IsSealed(string stored) => stored != null && stored.StartsWith(FormatPrefix, StringComparison.Ordinal);
 
         public override string Encrypt(string raw)
         {
@@ -136,8 +167,13 @@ namespace MyToolz.IO
 
         public override string Decrypt(string encrypted)
         {
-            if (encrypted == null || !encrypted.StartsWith(FormatPrefix, StringComparison.Ordinal))
+            if (!IsSealed(encrypted))
             {
+                if (!acceptLegacy)
+                {
+                    throw new CryptographicException("Save payload is not sealed (missing or unknown format); refusing to read it.");
+                }
+
                 return DecryptLegacy(encrypted);
             }
 
@@ -177,20 +213,34 @@ namespace MyToolz.IO
 
         private void DeriveKeys()
         {
+            if (secretBytes != null)
+            {
+                if (encryptionKey != null)
+                {
+                    return;
+                }
+
+                DeriveKeys(Sha256(secretBytes));
+                return;
+            }
+
             string secret = key ?? string.Empty;
             if (derivedFor == secret && encryptionKey != null)
             {
                 return;
             }
 
-            byte[] master = Sha256(secret);
+            DeriveKeys(Sha256(secret));
+            derivedFor = secret;
+        }
+
+        private void DeriveKeys(byte[] master)
+        {
             using (var hmac = new HMACSHA256(master))
             {
                 encryptionKey = hmac.ComputeHash(Encoding.UTF8.GetBytes("MyToolz.IO/aes-256-cbc"));
                 macKey = hmac.ComputeHash(Encoding.UTF8.GetBytes("MyToolz.IO/hmac-sha256"));
             }
-
-            derivedFor = secret;
         }
 
         private byte[] ComputeMac(byte[] data, int count)
@@ -227,10 +277,12 @@ namespace MyToolz.IO
             return difference == 0;
         }
 
-        private static byte[] Sha256(string input)
+        private static byte[] Sha256(string input) => Sha256(Encoding.UTF8.GetBytes(input));
+
+        private static byte[] Sha256(byte[] input)
         {
             using SHA256 sha = SHA256.Create();
-            return sha.ComputeHash(Encoding.UTF8.GetBytes(input));
+            return sha.ComputeHash(input);
         }
 
         private static byte[] Truncate(byte[] source, int length)

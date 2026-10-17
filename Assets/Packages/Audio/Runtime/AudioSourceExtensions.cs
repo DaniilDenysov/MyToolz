@@ -14,7 +14,7 @@ namespace MyToolz.Extensions
             if (audioSource == null || configSO == null) return;
 
             audioSource.outputAudioMixerGroup = configSO.AudioMixer;
-            audioSource.volume = configSO.RandomizeVolume ? configSO.GetRandomVolume() : configSO.Volume;
+            audioSource.volume = (configSO.RandomizeVolume ? configSO.GetRandomVolume() : configSO.Volume) * configSO.ChannelVolume;
             audioSource.pitch = configSO.RandomizePitch ? configSO.GetRandomPitch() : configSO.Pitch;
             audioSource.bypassEffects = configSO.BypassEffects;
             audioSource.bypassReverbZones = configSO.BypassEffects;

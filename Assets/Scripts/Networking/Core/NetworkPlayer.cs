@@ -2,6 +2,7 @@ using Mirror;
 using MyToolz.DesignPatterns.EventBus;
 using MyToolz.Networking.Events;
 using MyToolz.Networking.Relays;
+using MyToolz.Networking.Utilities;
 using MyToolz.Utilities.Debug;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -199,11 +200,11 @@ namespace MyToolz.Networking.Core
 
         private void OnDestroy()
         {
-            if (playerSnapshots.TryGetValue(nickname, out var snapshot))
+            // Snapshots are server state; a player that never got a nickname has nothing to keep.
+            if (NetworkServer.active && !string.IsNullOrEmpty(nickname))
             {
-                playerSnapshots.Remove(nickname);
+                playerSnapshots[nickname] = CreateSnapshot();
             }
-            playerSnapshots.Add(nickname, CreateSnapshot());
             networkPlayers.Remove(this);
             if (isOwned)
             {
@@ -282,11 +283,23 @@ namespace MyToolz.Networking.Core
         }
 
 
-        [Command(requiresAuthority = false)]
+        private static readonly ConnectionRateLimiter nicknameRateLimiter = new ConnectionRateLimiter(1f);
+
+        // Owner only: a client may rename its own player, never someone else's.
+        [Command]
         public void CmdSetNickname(string nickname)
         {
-            if (nickname.Equals(this.nickname)) return;
-            this.nickname = nickname;
+            ApplyNicknameRequest(nickname);
+        }
+
+        [Server]
+        private void ApplyNicknameRequest(string requested)
+        {
+            if (!nicknameRateLimiter.TryAccept(connectionToClient)) return;
+
+            string sanitized = NetworkInputValidation.SanitizeNickname(requested);
+            if (sanitized == null || sanitized.Equals(this.nickname)) return;
+            this.nickname = sanitized;
         }
 
         [Server]
@@ -302,11 +315,10 @@ namespace MyToolz.Networking.Core
             }
         }
 
-        [Command(requiresAuthority = false)]
+        [Command]
         public void CmdSetUpPlayer(string nickname)
         {
-            if (nickname.Equals(this.nickname)) return;
-            this.nickname = nickname;
+            ApplyNicknameRequest(nickname);
         }
 
         public override void OnStopServer()

@@ -7,6 +7,11 @@ namespace MyToolz.Audio.Events
     {
         public AudioClipSO AudioClipSO;
         public Vector3 Position;
+
+        /// <summary>
+        /// Minimum seconds between two plays of this clip, replacing the clip's MinimalInterval.
+        /// Zero or less means "use the clip's MinimalInterval".
+        /// </summary>
         public float IntervalOverload;
 
         /// <summary>

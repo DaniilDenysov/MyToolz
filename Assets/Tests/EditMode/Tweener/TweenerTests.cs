@@ -67,5 +67,11 @@ namespace MyToolz.Tests.EditMode.Tweening
             Assert.DoesNotThrow(() => _tweener.SetIgnoreTimeScale(true));
             Assert.IsTrue(_tweener.IgnoreTimeScaleValue);
         }
+
+        [Test]
+        public void IsTweening_IsFalse_WhenNothingWasStarted()
+        {
+            Assert.IsFalse(_tweener.IsTweening);
+        }
     }
 }

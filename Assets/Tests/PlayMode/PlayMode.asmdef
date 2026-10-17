@@ -6,7 +6,11 @@
         "MyToolz.EventBus",
         "MyToolz.DebugUtility",
         "MyToolz.Singleton",
-        "Zenject"
+        "Zenject",
+        "MyToolz.MVPUIManagementSystem",
+        "MyToolz.EditorToolz",
+        "MyToolz.InputManagement",
+        "UnityEngine.UI"
     ],
     "optionalUnityReferences": [
         "TestAssemblies"
@@ -20,6 +24,12 @@
     "defineConstraints": [
         "UNITY_INCLUDE_TESTS"
     ],
-    "versionDefines": [],
+    "versionDefines": [
+        {
+            "name": "com.unity.addressables",
+            "expression": "1.0.0",
+            "define": "MYTOOLZ_ADDRESSABLES"
+        }
+    ],
     "noEngineReferences": false
 }

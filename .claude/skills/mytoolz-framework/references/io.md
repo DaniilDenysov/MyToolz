@@ -96,7 +96,19 @@ Inspector `[Button]`s: Open Folder, Reveal File, Copy Path, Delete File.
 - Custom: subclass `StorageStrategy`.
 
 **Encryption** (`EncryptionStrategy`, `[Serializable]`):
-- `NoEncryptionStrategy` (default), `XorEncryptionStrategy`, `AesEncryptionStrategy`.
+- `NoEncryptionStrategy` (default), `XorEncryptionStrategy` (obfuscation only),
+  `AesEncryptionStrategy` (random IV + HMAC-SHA256, `MTAES2:` payloads; reads 1.1.x saves while
+  `acceptLegacy` is on; set a project `key`, the default is public and logs a warning).
+- Saves players must not edit: override `CreateEncryptionStrategy()` on the saver and return
+  `new AesEncryptionStrategy(byte[] secret)` (32+ bytes kept in code). It refuses plain, legacy and
+  foreign payloads, and the code-built strategy is never serialized into the scene.
+
+```csharp
+public class ProfileSaver : SaveLoadBase<Profile>
+{
+    protected override EncryptionStrategy CreateEncryptionStrategy() => new AesEncryptionStrategy(Secret());
+}
+```
 
 ## Reliability & lifecycle
 
@@ -113,7 +125,8 @@ Inspector `[Button]`s: Open Folder, Reveal File, Copy Path, Delete File.
 
 On **WebGL** a plain file write lives only in memory and is lost on refresh. Use
 `PlayerPrefsStorageStrategy` (small saves) or `WebGlFileStorageStrategy` (larger saves), or
-`PlatformStorageStrategy` to pick automatically.
+`PlatformStorageStrategy` to pick automatically. WebGL files live in `/idbfs/<productName>`; set
+`webStorageName` on the saver to pin the folder when the product name may change.
 
 ## Do / Don't
 

@@ -148,5 +148,23 @@ namespace MyToolz.Tests.EditMode
             Assert.IsFalse(_sm.TryGetCurrentState(out var current));
             Assert.IsNull(current);
         }
+
+        [Test]
+        public void Stop_ExitsTheCurrentState()
+        {
+            var state = new FakePriorityState(1);
+            _sm.ChangeState(state);
+
+            _sm.Stop();
+
+            Assert.AreEqual(1, state.ExitCount);
+            Assert.IsFalse(_sm.TryGetCurrentState(out _));
+        }
+
+        [Test]
+        public void Stop_WithoutState_DoesNothing()
+        {
+            Assert.DoesNotThrow(() => _sm.Stop());
+        }
     }
 }

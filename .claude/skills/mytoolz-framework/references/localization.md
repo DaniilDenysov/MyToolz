@@ -15,8 +15,10 @@ automatically. Author keys once, bind UI to them, switch languages at runtime.
   CJK-capable face swapped in for that language).
 - **`LocalizationDatabaseSO`** (`MyToolz/Localization/Database`) — the table. Assign a CSV
   `TextAsset`, an `orientation` (`KeysAsRows` = header names languages, each row a key;
-  `LanguagesAsRows` = the transpose), and an **ordered** `languages` list that **maps by order**
-  to the CSV's language columns/rows. Editor buttons: *Reload From CSV*, *Fetch Languages From
+  `LanguagesAsRows` = the transpose), and a `languages` list. Each language is matched to its CSV
+  column/row by `Code`, then display name, then asset name (case-insensitive); list order is only a
+  fallback when the header names no language (logged once). The parse cache is `[NonSerialized]`, so
+  a domain reload re-parses instead of restoring a half-empty table. Editor buttons: *Reload From CSV*, *Fetch Languages From
   CSV*, *Detect Orientation*. Runtime API: `TryTranslate(key, language, out value)`, `Reload()`,
   `Keys`, `Contains`.
 - **`LocalizationBindingSO`** (`MyToolz/Localization/Binding`) — a reusable "this key in this
@@ -78,7 +80,7 @@ For code that needs a string directly: `LocalizationManager.Instance.Translate("
 1. Author a CSV of keys × languages; import it as a `TextAsset`.
 2. Create a `LocalizationLanguageSO` per language; set each `code` to match its CSV column.
 3. Create a `LocalizationDatabaseSO`, assign the CSV, set/detect `orientation`, then *Fetch
-   Languages From CSV* (order must line up with the CSV).
+   Languages From CSV*.
 4. Add a `LocalizationManager`; assign the database (+ optional `StringSettingSO` to persist).
 5. Build UI with `LocalizationText` + a `LocalizationBindingSO` per label; use `SetArguments`
    for dynamic values.
@@ -90,8 +92,8 @@ For code that needs a string directly: `LocalizationManager.Instance.Translate("
   (word order differs per language).
 - ✅ Persist the choice by wiring a `StringSettingSO` into the manager.
 - ✅ Give non-Latin languages a `font` on their `LocalizationLanguageSO`.
-- ❌ Don't reorder the database `languages` list out of sync with the CSV columns — they map by
-  order.
+- ❌ Don't give two languages the same `Code`: it identifies the language in saves and CSV columns.
+- ❌ Don't rely on list order: set each `Code` to its CSV column name.
 - ❌ Don't hardcode display text or build sentences by string concatenation.
 - ❌ Don't add more `PublicSingleton`s modelled on this one — it's a legacy exception, not the
   pattern to copy.

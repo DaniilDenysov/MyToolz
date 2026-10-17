@@ -10,6 +10,13 @@ namespace MyToolz.Audio
         [SerializeField] private AudioMixerGroup audioMixer;
         public AudioMixerGroup AudioMixer => audioMixer;
 
+        [SerializeField, Tooltip("Optional mixer-free volume bus: the source's volume is multiplied by the channel's.")]
+        private AudioChannelSO channel;
+        public AudioChannelSO Channel => channel;
+
+        /// <summary>The channel's volume, or 1 without a channel.</summary>
+        public float ChannelVolume => channel != null ? channel.Volume : 1f;
+
         [SerializeField] private bool isGlobal = true;
         public bool IsGlobal => isGlobal;
 

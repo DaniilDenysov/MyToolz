@@ -65,6 +65,18 @@ as that load finishes; if several arrive, only the latest is kept.
 
 `minimalLoadingDuration` defaults to 0 (activate as soon as the group is ready).
 
+`MultiSceneLoader.loadingScreenShowDuration` (unscaled seconds, default 0) is how long the loading screen takes to
+hide the game when it opens, e.g. its fade-in. A load starts by unloading the current scenes; with this set they are
+unloaded only after that time, so they stay drawn behind the loading screen instead of vanishing before it covers
+them.
+
+### Starting group in the editor
+
+In the editor, `MultiSceneLoader` loads the group whose asset path is stored in `SessionState` under
+`MultiSceneLoader.EditorSceneGroupOverrideKey` instead of the first configured group, once, and clears the key.
+The Bootstrap package's **Boot Scene** toolbar button uses it to boot the scene you are editing through the real
+entry point. Players always start with the first group.
+
 ### Where scenes load from
 
 `SceneGroupManager.backend` picks how each scene is loaded:
@@ -75,14 +87,17 @@ as that load finishes; if several arrive, only the latest is kept.
 | `Addressables` | Every scene loads through Addressables by GUID (requires "Include GUIDs in Catalog"). |
 | `BuildSettings` | Every scene loads by name from **Build Profiles > Scene List**. |
 
-A scene that is neither Addressable nor in the build list is reported up front instead of being skipped.
+With `Auto`, a scene that is neither Addressable nor in the build list fails to load and is reported (see
+Failures) instead of being skipped silently. The serialized field and its values (`Auto` = 0, `Addressables` = 1,
+`BuildSettings` = 2) are the ones scenes and prefabs saved before v2.0.0 use.
 
 ### Failures
 
 Every load is checked. When any scene of a group fails (missing from the build list, an Addressables
 error, ...) the other scenes still finish, the loading screen is hidden, the error is logged, and
-`SceneGroupLoadFailed { Group, Reason }` is raised **instead of** `SceneGroupLoaded`. Listen for it to tell
-the player rather than leaving them on a half-loaded screen.
+`SceneGroupLoadFailed { Group, Cancelled, Error }` is raised **instead of** `SceneGroupLoaded`. `Cancelled` is
+true when the load was cancelled rather than failed. Listen for it to tell the player rather than leaving them on
+a half-loaded screen.
 
 > Build-list scenes are unloaded when a new group loads unless they are blacklisted, the active scene, or
 > owned by an Addressables handle; `SceneExtensions.IsSceneValid` is used to skip scenes that are not in the build list.

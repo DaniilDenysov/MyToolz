@@ -89,19 +89,12 @@ namespace MyToolz.UI.Notifications.Presenter
 
         private void TryPromotePending()
         {
-            while (Model.HasActiveCapacity() && Model.PendingCount > 0)
+            // Promotion moves the queued entry as-is; re-running TryAdd could make it collide with its
+            // own key and reject itself.
+            while (Model.TryPromotePending(out PendingEntry pending, out AddOutcome outcome))
             {
-                var next = Model.DequeuePending();
-                if (next == null) break;
-
-                var pending = next.Value;
-                var outcome = Model.TryAdd(pending.Request);
-
-                if (outcome.Result == AddResult.Spawned)
-                {
-                    View.HandleAdded(outcome, pending.Request, OnNotificationHidden);
-                    View.Reorder(Model);
-                }
+                View.HandleAdded(outcome, pending.Request, OnNotificationHidden);
+                View.Reorder(Model);
             }
         }
     }

@@ -17,9 +17,12 @@ namespace MyToolz.Tests.EditMode
             return reference;
         }
 
-        public static SceneData Data(SceneType type, uint priority, string name) => new SceneData
+        public static SceneData Data(SceneType type, uint priority, string name) =>
+            Data(type, priority, name, $"Assets/Scenes/{name}.unity");
+
+        public static SceneData Data(SceneType type, uint priority, string name, string path) => new SceneData
         {
-            Reference = Reference($"Assets/Scenes/{name}.unity", name),
+            Reference = Reference(path, name),
             SceneType = type,
             Priority = priority
         };
@@ -121,6 +124,118 @@ namespace MyToolz.Tests.EditMode
         }
     }
 
+    public class SceneLoadPlanTests : SilentLogTest
+    {
+        private readonly List<SceneGroupSO> _groups = new();
+
+        [TearDown]
+        public void Cleanup()
+        {
+            foreach (var group in _groups)
+                if (group != null) Object.DestroyImmediate(group);
+            _groups.Clear();
+        }
+
+        private SceneGroupSO Group(params SceneData[] scenes)
+        {
+            var group = SceneTestFactory.Group(scenes);
+            _groups.Add(group);
+            return group;
+        }
+
+        [Test]
+        public void AlreadyLoadedScene_IsSkipped_AndCountedOnce()
+        {
+            var group = Group(
+                SceneTestFactory.Data(SceneType.UserInterface, 0, "UI"),
+                SceneTestFactory.Data(SceneType.Gameplay, 1, "Level"));
+            var loaded = new List<(string, string)> { ("Assets/Scenes/UI.unity", "UI") };
+
+            SceneLoadPlan plan = SceneGroupManager.CreatePlan(group, loaded, reloadDupScenes: false);
+
+            Assert.AreEqual(2, plan.TotalScenes);
+            Assert.AreEqual(1, plan.SkippedScenes, "skipped scenes count toward progress exactly once");
+            Assert.AreEqual(1, plan.Batches.Count, "a batch with nothing left to load is dropped");
+            Assert.AreEqual("Level", plan.Batches[0][0].Name);
+        }
+
+        [Test]
+        public void SameNameInAnotherFolder_IsNotTreatedAsLoaded()
+        {
+            var group = Group(SceneTestFactory.Data(SceneType.Gameplay, 0, "Level", "Assets/Scenes/B/Level.unity"));
+            var loaded = new List<(string, string)> { ("Assets/Scenes/A/Level.unity", "Level") };
+
+            SceneLoadPlan plan = SceneGroupManager.CreatePlan(group, loaded, reloadDupScenes: false);
+
+            Assert.AreEqual(0, plan.SkippedScenes, "scenes are identified by path, not by name");
+            Assert.AreEqual(1, plan.Batches.Count);
+        }
+
+        [Test]
+        public void ReloadDuplicates_LoadsAlreadyLoadedScenesAgain()
+        {
+            var group = Group(SceneTestFactory.Data(SceneType.Gameplay, 0, "Level"));
+            var loaded = new List<(string, string)> { ("Assets/Scenes/Level.unity", "Level") };
+
+            SceneLoadPlan plan = SceneGroupManager.CreatePlan(group, loaded, reloadDupScenes: true);
+
+            Assert.AreEqual(0, plan.SkippedScenes);
+            Assert.AreEqual(1, plan.Batches.Count);
+        }
+
+        [Test]
+        public void DeferredScene_IsTheLastSceneThatActuallyLoads()
+        {
+            var group = Group(
+                SceneTestFactory.Data(SceneType.Environment, 0, "Env"),
+                SceneTestFactory.Data(SceneType.Gameplay, 1, "Level"),
+                SceneTestFactory.Data(SceneType.HUD, 2, "Hud"));
+            var loaded = new List<(string, string)> { ("Assets/Scenes/Hud.unity", "Hud") };
+
+            SceneLoadPlan plan = SceneGroupManager.CreatePlan(group, loaded, reloadDupScenes: false);
+
+            Assert.AreEqual("Level", plan.DeferredScene.Name, "an already-loaded scene is never the one held for activation");
+        }
+
+        [Test]
+        public void AddressablesSource_SkipsScenesWithoutGuid()
+        {
+            var group = Group(SceneTestFactory.Data(SceneType.Gameplay, 0, "Level"));
+            UnityEngine.TestTools.LogAssert.Expect(LogType.Error, new System.Text.RegularExpressions.Regex("Scene 'Level' has no asset GUID"));
+
+            SceneLoadPlan plan = SceneGroupManager.CreatePlan(group, null, false, SceneLoadBackend.Addressables);
+
+            Assert.AreEqual(1, plan.SkippedScenes);
+            Assert.IsNull(plan.DeferredScene);
+        }
+
+        [Test]
+        public void AutoBackend_KeepsScenesWithoutGuid_ForTheBuildList()
+        {
+            SceneGroupSO group = Group(SceneTestFactory.Data(SceneType.Gameplay, 0, "Level"));
+
+            SceneLoadPlan plan = SceneGroupManager.CreatePlan(group, null, false, SceneLoadBackend.Auto);
+
+            Assert.AreEqual(0, plan.SkippedScenes, "Auto loads a scene without a GUID from the build list");
+            Assert.AreEqual("Level", plan.DeferredScene.Name);
+        }
+
+        [Test]
+        public void Backend_DefaultsToAuto()
+        {
+            Assert.AreEqual(SceneLoadBackend.Auto, new SceneGroupManager().Backend);
+        }
+
+        [Test]
+        public void Backend_ReadsTheSerializedNameAndValuesOfExistingScenes()
+        {
+            // FindMe, WhiteInBlack, CardDeckRevolution and InteriorDesigner store `backend: 0` (Auto) or `backend: 2`.
+            Assert.AreEqual(SceneLoadBackend.Auto, JsonUtility.FromJson<SceneGroupManager>("{\"backend\":0}").Backend);
+            Assert.AreEqual(SceneLoadBackend.Addressables, JsonUtility.FromJson<SceneGroupManager>("{\"backend\":1}").Backend);
+            Assert.AreEqual(SceneLoadBackend.BuildSettings, JsonUtility.FromJson<SceneGroupManager>("{\"backend\":2}").Backend);
+        }
+    }
+
     public class MultiLoadingProgressTests
     {
         [Test]
@@ -169,5 +284,77 @@ namespace MyToolz.Tests.EditMode
 
             Assert.AreEqual(0.25f, reported, 1e-4, "no further updates should be forwarded after Dispose");
         }
+    }
+
+    public class MultiSceneLoaderStartGroupTests : SilentLogTest
+    {
+        private const string TempFolder = "Assets/MyToolzBootOverrideTest";
+
+        private GameObject go;
+        private MultiSceneLoader loader;
+        private SceneGroupSO configured;
+
+        [SetUp]
+        public void SetUp()
+        {
+            UnityEditor.SessionState.EraseString(MultiSceneLoader.EditorSceneGroupOverrideKey);
+            configured = SceneTestFactory.Group();
+            go = new GameObject("Loader");
+            loader = go.AddComponent<MultiSceneLoader>();
+            typeof(MultiSceneLoader).GetField("sceneGroups", BindingFlags.Instance | BindingFlags.NonPublic)
+                .SetValue(loader, new[] { configured });
+        }
+
+        [TearDown]
+        public void TearDown()
+        {
+            UnityEditor.SessionState.EraseString(MultiSceneLoader.EditorSceneGroupOverrideKey);
+            Object.DestroyImmediate(go);
+            Object.DestroyImmediate(configured);
+            if (UnityEditor.AssetDatabase.IsValidFolder(TempFolder))
+            {
+                UnityEditor.AssetDatabase.DeleteAsset(TempFolder);
+            }
+        }
+
+        [Test]
+        public void WithoutOverride_StartsWithTheFirstConfiguredGroup()
+        {
+            Assert.That(InitialGroup(), Is.SameAs(configured));
+        }
+
+        [Test]
+        public void EditorOverride_StartsWithThatGroup_AndIsConsumed()
+        {
+            UnityEditor.AssetDatabase.CreateFolder("Assets", "MyToolzBootOverrideTest");
+            SceneGroupSO booted = SceneTestFactory.Group();
+            string path = TempFolder + "/Booted.asset";
+            UnityEditor.AssetDatabase.CreateAsset(booted, path);
+            UnityEditor.SessionState.SetString(MultiSceneLoader.EditorSceneGroupOverrideKey, path);
+
+            Assert.That(InitialGroup(), Is.SameAs(booted));
+            Assert.That(UnityEditor.SessionState.GetString(MultiSceneLoader.EditorSceneGroupOverrideKey, string.Empty), Is.Empty,
+                "the override applies to one boot only");
+            Assert.That(InitialGroup(), Is.SameAs(configured));
+        }
+
+        [Test]
+        public void MissingOverrideAsset_FallsBackToTheFirstConfiguredGroup()
+        {
+            UnityEditor.SessionState.SetString(MultiSceneLoader.EditorSceneGroupOverrideKey, TempFolder + "/Missing.asset");
+            UnityEngine.TestTools.LogAssert.ignoreFailingMessages = true;
+            try
+            {
+                Assert.That(InitialGroup(), Is.SameAs(configured));
+            }
+            finally
+            {
+                UnityEngine.TestTools.LogAssert.ignoreFailingMessages = false;
+            }
+        }
+
+        private SceneGroupSO InitialGroup() =>
+            (SceneGroupSO)typeof(MultiSceneLoader).GetMethod("GetInitialSceneGroup", BindingFlags.Instance | BindingFlags.NonPublic)
+                .Invoke(loader, null);
     }
 }

@@ -59,24 +59,11 @@ namespace MyToolz.IO
 
             var item = new QueuedOperation(operation);
             OperationQueue.Enqueue(item);
-            StartPump();
+            PumpQueue();
             return item.Completion.Task;
         }
 
-        // Not async void: the pump is a Task whose unexpected faults are logged instead of being
-        // thrown onto the synchronization context where nothing would observe them.
-        private static void StartPump()
-        {
-            Task pump = PumpQueueAsync();
-            if (!pump.IsCompleted || pump.IsFaulted)
-            {
-                pump.ContinueWith(
-                    t => UnityEngine.Debug.LogException(t.Exception),
-                    TaskContinuationOptions.OnlyOnFaulted);
-            }
-        }
-
-        private static async Task PumpQueueAsync()
+        private static async void PumpQueue()
         {
             if (queueRunning)
             {
@@ -116,7 +103,7 @@ namespace MyToolz.IO
                 // unwinding. Start it immediately instead of leaving it stranded.
                 if (OperationQueue.Count > 0)
                 {
-                    StartPump();
+                    PumpQueue();
                 }
             }
         }
