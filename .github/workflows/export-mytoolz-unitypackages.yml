@@ -5,6 +5,9 @@
 #   3. Export  → one .unitypackage per Assets/Packages/<Tool>, kept as the MyToolz-<version>-unitypackages
 #                artifact
 #   4. Tag     → tags the commit v<version>
+#   5. Release → publishes the GitHub Release "MyToolz v<version>" with mytoolz-unitypackages-v<version>.zip
+#                (every package) and each .unitypackage on its own, under GitHub's generated change notes
+#                (edit them on GitHub afterwards if you like)
 # To start a new major or minor line, raise the Player Settings version (for example to 2.1.0) and push to
 # main: the next tag jumps to it, and every later push counts the patch up from there.
 #
@@ -18,7 +21,7 @@
 #   UNITY_LICENSE   – contents of your .ulf activation file (Personal), or UNITY_SERIAL for Plus/Pro
 #   UNITY_EMAIL     – your Unity account email
 #   UNITY_PASSWORD  – your Unity account password
-# Without them the Unity jobs are skipped with a notice, and nothing is exported or tagged.
+# Without them the Unity jobs are skipped with a notice, and nothing is exported, tagged or released.
 
 name: Export MyToolz UnityPackages (multi)
 
@@ -28,6 +31,7 @@ on:
   workflow_dispatch:
 
 permissions:
+  # Only the tag and release jobs write, with their own grant.
   contents: read
 
 concurrency:
@@ -204,3 +208,51 @@ jobs:
           set -euo pipefail
           gh api "repos/$GITHUB_REPOSITORY/git/refs" -f ref="refs/tags/v$VERSION" -f sha="$GITHUB_SHA"
           echo "Tagged $GITHUB_SHA as v$VERSION" >> "$GITHUB_STEP_SUMMARY"
+
+  release:
+    name: Publish the release
+    # A job of its own, so a failed upload can be re-run without trying to make the tag twice.
+    needs: [version, tag]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download the packages
+        uses: actions/download-artifact@v4
+        with:
+          name: MyToolz-${{ needs.version.outputs.version }}-unitypackages
+          path: packages
+
+      - name: Release the tag with the packages
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          TAG="v$VERSION"
+          ZIP="mytoolz-unitypackages-$TAG.zip"
+
+          # One zip with every package (the asset earlier releases carried by hand), plus each package on
+          # its own. GitHub turns the spaces in folder names into dots in the asset names.
+          (cd packages && zip -q "../$ZIP" ./*.unitypackage)
+          shopt -s nullglob
+          assets=("$ZIP" packages/*.unitypackage)
+
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            # A re-run: the release is there already, so refresh its files.
+            gh release upload "$TAG" "${assets[@]}" --repo "$GITHUB_REPOSITORY" --clobber
+          else
+            # A short install note, then GitHub's generated list of changes since the last release.
+            {
+              echo "Unity $UNITY_VERSION. Download \`$ZIP\` for every package, or pick single packages below."
+              echo "Install the external dependencies listed in the README first."
+              echo ""
+              gh api "repos/$GITHUB_REPOSITORY/releases/generate-notes" -f tag_name="$TAG" --jq .body
+            } > "$RUNNER_TEMP/notes.md"
+
+            gh release create "$TAG" "${assets[@]}" --repo "$GITHUB_REPOSITORY" --verify-tag \
+              --title "MyToolz $TAG" --notes-file "$RUNNER_TEMP/notes.md"
+          fi
+
+          URL="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json url --jq .url)"
+          echo "Released [$TAG]($URL) with $(( ${#assets[@]} - 1 )) packages and $ZIP" >> "$GITHUB_STEP_SUMMARY"
