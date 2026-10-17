@@ -53,6 +53,22 @@ namespace MyToolz.Tests.PlayMode
         public int SpawnedCount => spawned.Count;
     }
 
+    /// <summary>Item type of AddressablePegPool; its own type keeps that pool's singleton apart from the others.</summary>
+    public class AddressablePeg : MonoBehaviour
+    {
+    }
+
+#if MYTOOLZ_ADDRESSABLES
+    /// <summary>Addressable pool installer configured with a directly referenced prefab only.</summary>
+    public class AddressablePegPool : AddressableObjectPoolInstaller<AddressablePeg>
+    {
+        public void ConfigureForTest(AddressablePeg prefab)
+        {
+            poolObjects = new[] { new PoolObject { Prefab = prefab, DefaultCapacity = 1, MaxCapacity = 4 } };
+        }
+    }
+#endif
+
     /// <summary>Item type of <see cref="FailingPegPool"/>; its own type keeps that pool's singleton apart from TestPegPool's.</summary>
     public class FailingPeg : MonoBehaviour
     {
@@ -102,6 +118,14 @@ namespace MyToolz.Tests.PlayMode
 
             // Destroy every pooled instance (and its pool transform group) left in the scene.
             foreach (var peg in Resources.FindObjectsOfTypeAll<PoolablePeg>())
+            {
+                if (peg != null && peg.transform != null)
+                {
+                    Object.DestroyImmediate(peg.transform.root.gameObject);
+                }
+            }
+
+            foreach (AddressablePeg peg in Resources.FindObjectsOfTypeAll<AddressablePeg>())
             {
                 if (peg != null && peg.transform != null)
                 {
@@ -358,5 +382,32 @@ namespace MyToolz.Tests.PlayMode
             Assert.AreEqual(0, installer.PendingRequestCount, "a pool that failed never serves, so requests are refused, not queued");
             EventBus<PoolInitializationFailed>.Deregister(binding);
         }
+
+#if MYTOOLZ_ADDRESSABLES
+        [UnityTest]
+        public IEnumerator AddressablePool_AlsoPoolsDirectlyReferencedPrefabs()
+        {
+            // CardDeckRevolution's and InteriorDesigner's audio pools list their prefab in poolObjects only.
+            _prefabGO = new GameObject("AddressablePegPrefab");
+            AddressablePeg prefab = _prefabGO.AddComponent<AddressablePeg>();
+            _prefabGO.SetActive(false);
+
+            _installerGO = new GameObject("AddressablePegPool");
+            AddressablePegPool installer = _installerGO.AddComponent<AddressablePegPool>();
+            yield return null;
+            installer.ConfigureForTest(prefab);
+            new DiContainer().Inject(installer);
+            yield return null;
+
+            Assert.IsTrue(installer.IsReady);
+            AddressablePeg direct = installer.Get(prefab);
+            Assert.IsNotNull(direct, "a prefab referenced directly is pooled next to the Addressable ones");
+            Assert.IsTrue(direct.gameObject.activeSelf);
+
+            AddressablePeg requested = null;
+            EventBus<PoolRequest<AddressablePeg>>.Raise(new PoolRequest<AddressablePeg> { Prefab = prefab, Callback = p => requested = p });
+            Assert.IsNotNull(requested, "PoolRequest.Prefab is served too");
+        }
+#endif
     }
 }

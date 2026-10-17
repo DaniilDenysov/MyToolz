@@ -7,11 +7,15 @@ using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.AddressableAssets;
 using UnityEngine.ResourceManagement.AsyncOperations;
-using Zenject;
 
 namespace MyToolz.DesignPatterns.ObjectPool
 {
-    public class AddressableObjectPoolInstaller<T> : ObjectPoolInstaller<T, Pool<T>>
+    /// <summary>
+    /// Pools Addressable prefabs (requested with <c>PoolRequest.Key = reference.RuntimeKey</c>) and,
+    /// like <see cref="DefaultObjectPoolInstaller{T}"/>, any directly referenced prefabs in
+    /// <c>poolObjects</c> (requested with <c>PoolRequest.Prefab</c>).
+    /// </summary>
+    public class AddressableObjectPoolInstaller<T> : DefaultObjectPoolInstaller<T>
         where T : MonoBehaviour
     {
         [Serializable]
@@ -28,12 +32,11 @@ namespace MyToolz.DesignPatterns.ObjectPool
         private readonly Dictionary<int, AsyncOperationHandle<GameObject>> loadedHandles = new();
         private CancellationTokenSource cancellationTokenSource;
 
-        public override void InitializePools()
-        {
-        }
-
         protected override async Task InitializePoolsAsync()
         {
+            // Directly referenced prefabs first; they need no loading.
+            InitializePools();
+
             cancellationTokenSource = new CancellationTokenSource();
             var token = cancellationTokenSource.Token;
 
@@ -88,20 +91,7 @@ namespace MyToolz.DesignPatterns.ObjectPool
                         continue;
                     }
 
-                    container.BindMemoryPool<T, Pool<T>>()
-                        .WithId(prefabId)
-                        .WithInitialSize(poolObj.DefaultCapacity)
-                        .WithMaxSize(poolObj.MaxCapacity)
-                        .WithFactoryArguments<Action<Pool<T>>, int, Action<T>, Action<int, T>, Action<T>>(
-                            (pool) => mappings.Add(prefabId, pool),
-                            prefabId,
-                            OnSpawned,
-                            OnCreated,
-                            OnDespawned)
-                        .FromComponentInNewPrefab(prefabComponent)
-                        .UnderTransformGroup($"{typeof(T).Name} Pool");
-
-                    container.ResolveId<Pool<T>>(prefabId);
+                    BindPrefabPool(prefabComponent, poolObj.DefaultCapacity, poolObj.MaxCapacity);
 
                     loadedHandles[prefabId] = handle;
                     keepHandle = true;
