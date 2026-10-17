@@ -111,5 +111,80 @@ namespace MyToolz.Tests.EditMode
             var strategy = new AesEncryptionStrategy();
             Assert.AreEqual(string.Empty, strategy.Decrypt(strategy.Encrypt(string.Empty)));
         }
+
+        private static byte[] Secret(byte seed)
+        {
+            var secret = new byte[32];
+            for (int i = 0; i < secret.Length; i++) secret[i] = (byte)(seed + i * 7);
+            return secret;
+        }
+
+        [Test]
+        public void AesWithSecret_RoundTripsAndSeals()
+        {
+            var strategy = new AesEncryptionStrategy(Secret(1));
+            string cipher = strategy.Encrypt(Plain);
+
+            Assert.IsTrue(AesEncryptionStrategy.IsSealed(cipher));
+            Assert.AreEqual(Plain, strategy.Decrypt(cipher));
+            Assert.AreEqual(Plain, new AesEncryptionStrategy(Secret(1)).Decrypt(cipher), "the same secret opens it again");
+        }
+
+        [Test]
+        public void AesWithSecret_RefusesShortSecret()
+        {
+            Assert.Throws<ArgumentException>(() => new AesEncryptionStrategy(new byte[31]));
+            Assert.Throws<ArgumentException>(() => new AesEncryptionStrategy(null));
+        }
+
+        [Test]
+        public void AesWithSecret_RefusesPlainLegacyAndForeignPayloads()
+        {
+            var strategy = new AesEncryptionStrategy(Secret(1));
+
+            Assert.Throws<System.Security.Cryptography.CryptographicException>(() => strategy.Decrypt(Plain), "plain text");
+            string legacyShaped = Convert.ToBase64String(new byte[32]);
+            Assert.Throws<System.Security.Cryptography.CryptographicException>(() => strategy.Decrypt(legacyShaped), "unprefixed 1.1.x format");
+
+            string foreign = new AesEncryptionStrategy(Secret(2)).Encrypt(Plain);
+            Assert.IsTrue(AesEncryptionStrategy.IsSealed(foreign));
+            Assert.Throws<System.Security.Cryptography.CryptographicException>(() => strategy.Decrypt(foreign), "sealed with another secret");
+
+            string publicDefault = new AesEncryptionStrategy().Encrypt(Plain);
+            Assert.Throws<System.Security.Cryptography.CryptographicException>(() => strategy.Decrypt(publicDefault), "sealed with the default key");
+        }
+
+        [Test]
+        public void AesWithSecret_CopiesTheSecretAndHasNoDefaultKeyWarning()
+        {
+            byte[] secret = Secret(1);
+            var strategy = new AesEncryptionStrategy(secret);
+            string cipher = strategy.Encrypt(Plain);
+            secret[0] ^= 0xFF;
+
+            Assert.AreEqual(Plain, strategy.Decrypt(cipher), "changing the caller's array must not change the key");
+            Assert.IsFalse(strategy.UsesDefaultKey);
+            Assert.IsNull(strategy.ConfigurationWarning);
+        }
+
+        [Test]
+        public void Aes_AcceptLegacyOff_RefusesUnsealedPayload()
+        {
+            var strategy = new AesEncryptionStrategy();
+            typeof(AesEncryptionStrategy)
+                .GetField("acceptLegacy", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
+                .SetValue(strategy, false);
+
+            Assert.Throws<System.Security.Cryptography.CryptographicException>(() => strategy.Decrypt(Convert.ToBase64String(new byte[32])));
+            Assert.AreEqual(Plain, strategy.Decrypt(strategy.Encrypt(Plain)), "sealed saves still load");
+        }
+
+        [Test]
+        public void IsSealed_OnlyForTheAuthenticatedFormat()
+        {
+            Assert.IsFalse(AesEncryptionStrategy.IsSealed(null));
+            Assert.IsFalse(AesEncryptionStrategy.IsSealed(Plain));
+            Assert.IsTrue(AesEncryptionStrategy.IsSealed(new AesEncryptionStrategy().Encrypt(Plain)));
+        }
     }
 }

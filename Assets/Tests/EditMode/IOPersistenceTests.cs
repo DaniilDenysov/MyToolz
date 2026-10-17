@@ -25,6 +25,18 @@ namespace MyToolz.Tests.EditMode
         protected override void OnDestroy() { }
     }
 
+    /// <summary>Test saver whose encryption is built in code, the way a game keeps its secret out of assets.</summary>
+    public class IOPersistenceSealedSaver : IOPersistenceTestSaver
+    {
+        public static readonly byte[] Secret = new byte[32]
+        {
+            3, 1, 4, 1, 5, 9, 2, 6, 5, 3, 5, 8, 9, 7, 9, 3,
+            2, 3, 8, 4, 6, 2, 6, 4, 3, 3, 8, 3, 2, 7, 9, 5
+        };
+
+        protected override EncryptionStrategy CreateEncryptionStrategy() => new AesEncryptionStrategy(Secret);
+    }
+
     public class IOPersistenceTests : SilentLogTest
     {
         private GameObject owner;
@@ -274,6 +286,39 @@ namespace MyToolz.Tests.EditMode
             });
 
             Assert.That(path, Is.EqualTo("/idbfs/MyGame"));
+        }
+
+        [Test]
+        public void WebStorageName_FallsBackToProductName()
+        {
+            PropertyInfo property = typeof(SaveLoadBase<IOPersistenceData>).GetProperty(
+                "WebStorageName",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+
+            Assert.That(property.GetValue(saver), Is.EqualTo(Application.productName));
+
+            SetField("webStorageName", "PinnedFolder");
+            Assert.That(property.GetValue(saver), Is.EqualTo("PinnedFolder"));
+        }
+
+        [Test]
+        public void CodeBuiltEncryption_SealsSavesAndStaysOutOfSerializedState()
+        {
+            object relativeFolder = GetField("filePath");
+            UnityEngine.Object.DestroyImmediate(saver);
+            saver = owner.AddComponent<IOPersistenceSealedSaver>();
+            SetField("filePath", relativeFolder);
+            SetField("useCache", true);
+            SetField("storageStrategy", new FileStorageStrategy());
+
+            saver.Save(new IOPersistenceData { Value = 7 });
+
+            Assert.That(saver.LastSaveTask.Result, Is.True);
+            StringAssert.Contains("MTAES2:", ReadRawPrimary(), "the payload is sealed with the code-built strategy");
+            Assert.That(GetField("encryptionStrategy"), Is.InstanceOf<NoEncryptionStrategy>(),
+                "the serialized inspector strategy is left untouched");
+            Assert.That(saver.TryLoad(out var data, out _), Is.True);
+            Assert.That(data.Value, Is.EqualTo(7));
         }
 
         [Test]

@@ -95,6 +95,10 @@ namespace MyToolz.IO
         [OnValueChanged(nameof(RebuildPaths))]
         private string fileName = "save";
 
+        [FoldoutGroup("Persistance Settings"), SerializeField, Tooltip("WebGL save folder under /idbfs. Empty uses the product name. Changing it leaves existing web saves behind.")]
+        [OnValueChanged(nameof(RebuildPaths))]
+        private string webStorageName = string.Empty;
+
         [FoldoutGroup("Persistance Settings"), SerializeField]
         private bool useCache = false;
 
@@ -105,6 +109,9 @@ namespace MyToolz.IO
 
         [FoldoutGroup("Persistance Settings"), SerializeReference, SubclassSelector]
         private EncryptionStrategy encryptionStrategy = new NoEncryptionStrategy();
+
+        // Built by CreateEncryptionStrategy. Never serialized, so a code-held secret cannot end up in a scene.
+        [NonSerialized] private EncryptionStrategy codeEncryptionStrategy;
 
         [FoldoutGroup("Persistance Settings"), SerializeReference, SubclassSelector, Tooltip("Where the raw save bytes are stored. PlatformStorage routes per platform.")]
         private StorageStrategy storageStrategy = new PlatformStorageStrategy();
@@ -128,7 +135,8 @@ namespace MyToolz.IO
         private const int Sha256HexLength = 64;
 
         private bool isQuitting;
-        private bool initialized;
+        // NonSerialized: a domain reload must re-run initialization, which rebuilds the code-built encryption strategy.
+        [NonSerialized] private bool initialized;
         private bool blockAutomaticSaveAfterUnreadableLoad;
         private Task<bool> lastSaveTask = Task.FromResult(true);
         private Task lastRecoveryTask = Task.CompletedTask;
@@ -296,7 +304,7 @@ namespace MyToolz.IO
             if (ResolveWritableRoot(root, Application.platform, Application.isEditor) != root)
             {
                 string fallbackName = Application.platform == RuntimePlatform.WebGLPlayer
-                    ? $"stable IDBFS directory '{GetWebGlStorageRoot(Application.productName)}'"
+                    ? $"stable IDBFS directory '{GetWebGlStorageRoot(WebStorageName)}'"
                     : "PersistentDataPath";
                 DebugUtility.LogWarning(this,
                     $"[SaveLoadBase] Root '{root}' cannot provide durable saves on {Application.platform}. Using {fallbackName}.");
@@ -304,7 +312,7 @@ namespace MyToolz.IO
 
             DebugUtility.Log(this,
                 $"[SaveLoadBase] Awake {GetType().Name} instanceId={GetInstanceID()} scene={gameObject.scene.name} " +
-                $"useCache={useCache} strategy={serializationStrategy.GetType().Name} encryption={encryptionStrategy.GetType().Name} " +
+                $"useCache={useCache} strategy={serializationStrategy.GetType().Name} encryption={Encryption.GetType().Name} " +
                 $"storage={storageStrategy.GetType().Name} activeStorage={storageStrategy.ActiveStrategyName}");
         }
 
@@ -340,15 +348,32 @@ namespace MyToolz.IO
             initialized = true;
         }
 
+        /// <summary>
+        /// Override to build the encryption strategy in code, for example keyed from a secret that should not sit in
+        /// a serialized asset. A non-null result is used instead of the inspector's strategy and is never serialized.
+        /// </summary>
+        protected virtual EncryptionStrategy CreateEncryptionStrategy() => null;
+
+        private EncryptionStrategy Encryption => codeEncryptionStrategy ?? encryptionStrategy;
+
         private void EnsureEncryptionStrategyAssigned()
         {
-            if (encryptionStrategy != null)
+            codeEncryptionStrategy = CreateEncryptionStrategy();
+
+            if (codeEncryptionStrategy == null && encryptionStrategy == null)
             {
+                encryptionStrategy = new NoEncryptionStrategy();
+                DebugUtility.LogWarning(this, "No encryption strategy assigned in the inspector. Defaulting to NoEncryptionStrategy.");
                 return;
             }
 
-            encryptionStrategy = new NoEncryptionStrategy();
-            DebugUtility.LogWarning(this, "No encryption strategy assigned in the inspector. Defaulting to NoEncryptionStrategy.");
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            string warning = Encryption.ConfigurationWarning;
+            if (!string.IsNullOrEmpty(warning))
+            {
+                DebugUtility.LogWarning(this, warning);
+            }
+#endif
         }
 
         private void EnsureStorageAssigned()
@@ -373,7 +398,7 @@ namespace MyToolz.IO
                 writableRoot,
                 Application.platform,
                 Application.isEditor,
-                Application.productName);
+                WebStorageName);
 
             resolvedFolderCache = ResolveInsideRoot(rootPath, sanitizedRelativePath);
             fullPath = Path.Combine(resolvedFolderCache, sanitizedName + extension);
@@ -386,15 +411,17 @@ namespace MyToolz.IO
                 : $"{sanitizedRelativePath.Replace('\\', '/').TrimEnd('/')}/{sanitizedName}{extension}";
         }
 
+        private string WebStorageName => string.IsNullOrWhiteSpace(webStorageName) ? Application.productName : webStorageName;
+
         private static string ResolveRootPath(
             SaveRoot writableRoot,
             RuntimePlatform platform,
             bool isEditor,
-            string productName)
+            string storageName)
         {
             if (!isEditor && platform == RuntimePlatform.WebGLPlayer)
             {
-                return GetWebGlStorageRoot(productName);
+                return GetWebGlStorageRoot(storageName);
             }
 
             return writableRoot switch
@@ -407,9 +434,9 @@ namespace MyToolz.IO
             };
         }
 
-        private static string GetWebGlStorageRoot(string productName)
+        private static string GetWebGlStorageRoot(string storageName)
         {
-            string directoryName = SanitizeFileName(productName);
+            string directoryName = SanitizeFileName(storageName);
             return "/idbfs/" + directoryName;
         }
 
@@ -532,7 +559,7 @@ namespace MyToolz.IO
             {
                 string raw = serializationStrategy.Serialize(data);
                 stateHash = ComputeSha256Hex(raw);
-                string encrypted = encryptionStrategy.Encrypt(raw);
+                string encrypted = Encryption.Encrypt(raw);
                 processed = AddIntegrityEnvelope(encrypted);
                 return true;
             }
@@ -678,7 +705,7 @@ namespace MyToolz.IO
                 }
 
                 string protectedPayload = ValidateAndUnwrapIntegrityEnvelope(storedPayload);
-                string decrypted = encryptionStrategy.Decrypt(protectedPayload);
+                string decrypted = Encryption.Decrypt(protectedPayload);
                 result = serializationStrategy.Deserialize(decrypted);
 
                 if (result != null)
