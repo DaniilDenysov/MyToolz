@@ -20,7 +20,8 @@ External: DOTween (`DG.Tweening`), UniTask (`Cysharp.Threading.Tasks`).
 ```
 Runtime/
 ├── AudioClipSO.cs              ScriptableObject defining clips with randomization, per-clip configs, and cooldown
-├── AudioSourceConfigSO.cs      ScriptableObject for AudioSource settings (mixer, volume, pitch, spatial blend, etc.)
+├── AudioSourceConfigSO.cs      ScriptableObject for AudioSource settings (mixer, channel, volume, pitch, spatial blend, etc.)
+├── AudioChannelSO.cs           Mixer-free volume bus: sources configured with a channel play at config volume × channel volume
 ├── AudioSourceExtensions.cs    Extension methods: Configure, Play, PlayWithCooldown, PlayLoop, StopLoop, FadeOut, FadeIn, CrossFade
 ├── AudioSourceWrapper.cs       Poolable MonoBehaviour wrapping AudioSource with auto-release on clip completion
 ├── AudioSourceObjectPool.cs    Object pool installer (Addressable or direct prefab) for pooled AudioSourceWrapper instances
@@ -51,6 +52,19 @@ EventBus<PlayAudioClipSO>.Raise(new PlayAudioClipSO
 
 `AudioManager` throttles repeated playback of the same `AudioClipSO` using the clip's `MinimalInterval` (or the event's `IntervalOverload`).
 
+## Channels (mixer-free volume)
+
+`AudioChannelSO` is a volume bus that doesn't need an `AudioMixer`. That matters on the Web platform, which ignores mixer groups. Assign a channel to one or more `AudioSourceConfigSO`s:
+
+- `Configure` multiplies the source's volume by the channel's, so every SFX played through the config follows it.
+- `MXManager` multiplies each song's volume by its config's channel every frame, so music follows it live.
+
+```csharp
+musicChannel.SetVolume(0.4f);   // usually driven by a volume setting
+```
+
+The volume is runtime state. It starts at the asset's default volume and resets when play mode exits.
+
 ## Music (MXManager)
 
 Create `SongSO` assets, each holding one or more intensity-layer clips of equal length. Add an `MXManager` to the scene, assign its default song and either an Addressable reference or a direct prefab for `AudioSourceWrapper`, and make sure an `AudioSourceObjectPool` that pools the same prefab is active. All layers of a song play in sync; the current intensity (0–1) crossfades between adjacent layers.
@@ -72,5 +86,12 @@ Add `PriorityAudioListener` next to every `AudioListener` in the scene (player c
 `AudioManager` and `MXManager` request their `AudioSourceWrapper` from the pool by Addressable runtime key when
 an `AssetReference` is assigned, and by direct prefab otherwise. `AudioSourceObjectPool` is an
 `AddressableObjectPoolInstaller`, which pools both kinds, so either setup works with the same installer.
+
+Addressables is optional. The `AssetReference` fields and the Addressable pool exist only when
+`com.unity.addressables` is installed (the asmdefs define `MYTOOLZ_ADDRESSABLES`); without it
+`AudioSourceObjectPool` is a plain `DefaultObjectPoolInstaller` and only direct prefabs are pooled.
+
+A pooled source is reset to the settings authored on its prefab's `AudioSource` when it returns to the pool, so a
+clip played without a config never inherits the previous clip's mixer, volume or pitch.
 
 `PlayAudioClipSO.Pitch` overrides the pitch chosen by the clip's config for one playback (0 = use the config).

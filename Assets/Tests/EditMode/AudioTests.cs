@@ -122,6 +122,52 @@ namespace MyToolz.Tests.EditMode
             Assert.DoesNotThrow(() => AudioSourceExtensions.Configure(null, Config()));
         }
 
+        // ----- AudioChannelSO -----
+
+        private AudioChannelSO Channel(float defaultVolume)
+        {
+            var channel = ScriptableObject.CreateInstance<AudioChannelSO>();
+            _toDestroy.Add(channel);
+            SetField(channel, "defaultVolume", defaultVolume);
+            return channel;
+        }
+
+        [Test]
+        public void Channel_StartsAtDefault_ClampsAndReportsChanges()
+        {
+            var channel = Channel(0.8f);
+            var reported = new List<float>();
+            channel.Changed += reported.Add;
+
+            Assert.AreEqual(0.8f, channel.Volume, 1e-4, "an untouched channel plays at its default volume");
+
+            channel.SetVolume(1.7f);
+            channel.SetVolume(1f);
+            channel.SetVolume(-0.2f);
+
+            Assert.AreEqual(0f, channel.Volume, 1e-4);
+            CollectionAssert.AreEqual(new[] { 1f, 0f }, reported, "values are clamped and a repeated value is not reported");
+        }
+
+        [Test]
+        public void Configure_MultipliesConfigVolumeByChannel()
+        {
+            var channel = Channel(1f);
+            channel.SetVolume(0.5f);
+            var config = Config();
+            SetField(config, "volume", 0.8f);
+            SetField(config, "channel", channel);
+
+            var go = new GameObject("Speaker");
+            _toDestroy.Add(go);
+            var source = go.AddComponent<AudioSource>();
+
+            source.Configure(config);
+
+            Assert.AreEqual(0.4f, source.volume, 1e-4);
+            Assert.AreEqual(1f, Config().ChannelVolume, 1e-4, "a config without a channel plays at full channel volume");
+        }
+
         // ----- AudioClipSO cooldown -----
 
         private AudioClipSO Clip()

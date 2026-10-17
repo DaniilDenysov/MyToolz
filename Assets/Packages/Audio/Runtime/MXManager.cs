@@ -409,7 +409,8 @@ namespace MyToolz.Audio
                     return true;
                 }
 
-                float primaryVolume = manager.maxVolume * configuredVolume;
+                // The config's channel is read every frame, so the song follows a volume setting live.
+                float primaryVolume = manager.maxVolume * configuredVolume * (song.AudioSourceConfigSO != null ? song.AudioSourceConfigSO.ChannelVolume : 1f);
 
                 if (fadeInStart >= 0d && fadeInEnd >= 0d)
                 {
