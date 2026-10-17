@@ -59,6 +59,7 @@ the setting, and the player's first drag is kept even when the stored value alre
   slider drag or a value that changes every frame costs one write.
 - Pending changes are written immediately when the app is paused, loses focus, quits, or the presenter is
   disabled/destroyed. Call `Flush()` to write pending changes now, or `Save()` to force a write.
+  `HasPendingChanges` is true while a change waits to be written.
 - A setting's twin copies (e.g. the same asset loaded again from a bundle) mirror each other's values; their
   mirrored updates are coalesced into the same write.
 - Saving is refused until the stored values have loaded, so defaults never overwrite a save.

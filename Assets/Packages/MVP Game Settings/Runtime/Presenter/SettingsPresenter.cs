@@ -6,6 +6,7 @@ using MyToolz.Utilities.Debug;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
+using UnityEngine.Serialization;
 using Zenject;
 
 namespace MyToolz.GameSettings
@@ -13,17 +14,25 @@ namespace MyToolz.GameSettings
     public class SettingsPresenter : MonoBehaviour
     {
         [SerializeField] private SettingSOAbstract[] settings;
-        [SerializeField, Min(0f), Tooltip("Seconds (unscaled) to wait after the last setting change before saving. " +
+        // Serialized as saveDelaySeconds in every project; saveDelay only existed during the v2.0.0 merge.
+        [SerializeField, Min(0f), FormerlySerializedAs("saveDelay"), Tooltip("Seconds (unscaled) to wait after the last setting change before saving. " +
             "Coalesces slider drags into one write. Pause, focus loss, quit and destroy flush immediately.")]
-        private float saveDelay = 0.5f;
+        private float saveDelaySeconds = 1f;
+
+        [SerializeField, Min(0f), Tooltip("Upper bound on how long a stream of changes can postpone the write.")]
+        private float maxSaveDelaySeconds = 5f;
 
         private readonly Dictionary<string, SettingSOAbstract> savableComponents = new();
         private ISaver<SavableData> saver;
         private bool hasLoaded;
         private bool dirty;
-        private float saveAt;
+        private float firstChangeAt;
+        private float lastChangeAt;
 
         public bool IsLoaded => hasLoaded;
+
+        /// <summary>True while a setting change is waiting to be written.</summary>
+        public bool HasPendingChanges => dirty;
         public LoadStatus LoadStatus { get; private set; } = LoadStatus.NotAttempted;
 
 #if UNITY_EDITOR
@@ -140,12 +149,23 @@ namespace MyToolz.GameSettings
 
         private void Update()
         {
-            if (dirty && Time.unscaledTime >= saveAt)
+            if (!dirty)
+            {
+                return;
+            }
+
+            float now = Time.unscaledTime;
+            if (now - lastChangeAt >= saveDelaySeconds || now - firstChangeAt >= Mathf.Max(saveDelaySeconds, maxSaveDelaySeconds))
             {
                 Save();
             }
         }
 
+        /// <summary>
+        /// Records that a setting changed. Changes (including the mirrored updates of a setting's
+        /// twin copies) are coalesced into one write; a continuous stream of changes is still written
+        /// once maxSaveDelaySeconds have passed since the first unsaved one.
+        /// </summary>
         private void MarkDirty()
         {
             if (!hasLoaded)
@@ -153,8 +173,14 @@ namespace MyToolz.GameSettings
                 return;
             }
 
-            dirty = true;
-            saveAt = Time.unscaledTime + saveDelay;
+            float now = Time.unscaledTime;
+            if (!dirty)
+            {
+                dirty = true;
+                firstChangeAt = now;
+            }
+
+            lastChangeAt = now;
         }
 
         /// <summary>Writes pending changes now, if there are any.</summary>

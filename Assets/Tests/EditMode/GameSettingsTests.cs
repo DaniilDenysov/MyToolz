@@ -7,6 +7,7 @@ using MyToolz.IO;
 using MyToolz.ScriptableObjects.GameSettings;
 using NUnit.Framework;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace MyToolz.Tests.EditMode
 {
@@ -139,7 +140,7 @@ namespace MyToolz.Tests.EditMode
             owner.SetActive(false);
             presenter = owner.AddComponent<SettingsPresenter>();
             Set("settings", new SettingSOAbstract[] { setting });
-            Set("saveDelay", 0f);
+            Set("saveDelaySeconds", 0f);
             Call("Construct", saver);
             Call("Awake");
         }
@@ -204,6 +205,71 @@ namespace MyToolz.Tests.EditMode
             presenter.Flush();
             Assert.That(saver.SaveCount, Is.EqualTo(1), "a player change is an explicit decision to write new settings");
         }
+
+        [Test]
+        public void HasPendingChanges_IsTrueUntilTheChangeIsWritten()
+        {
+            Call("Start");
+            Assert.That(presenter.HasPendingChanges, Is.False);
+
+            setting.SetCurrentValue(true);
+            Assert.That(presenter.HasPendingChanges, Is.True);
+
+            presenter.Flush();
+            Assert.That(presenter.HasPendingChanges, Is.False);
+            Assert.That(saver.SaveCount, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void ChangesKeepPostponingTheWrite_UntilTheCapIsReached()
+        {
+            Set("saveDelaySeconds", 3f);
+            Set("maxSaveDelaySeconds", 5f);
+            Call("Start");
+
+            setting.SetCurrentValue(true);
+            Call("Update");
+            Assert.That(saver.SaveCount, Is.Zero, "the delay after the last change has not passed");
+
+            // Changes kept coming (the last one 1 s ago) since the first unsaved one 6 s ago: the 5 s cap forces the write.
+            Set("lastChangeAt", Time.unscaledTime - 1f);
+            Set("firstChangeAt", Time.unscaledTime - 6f);
+            Call("Update");
+            Assert.That(saver.SaveCount, Is.EqualTo(1));
+            Assert.That(presenter.HasPendingChanges, Is.False);
+        }
+
+        [Test]
+        public void SaveDelays_DefaultToOneAndFiveSeconds()
+        {
+            SettingsPresenter fresh = new GameObject("fresh presenter").AddComponent<SettingsPresenter>();
+            try
+            {
+                Assert.That(typeof(SettingsPresenter).GetField("saveDelaySeconds", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(fresh), Is.EqualTo(1f));
+                Assert.That(typeof(SettingsPresenter).GetField("maxSaveDelaySeconds", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(fresh), Is.EqualTo(5f));
+            }
+            finally
+            {
+                Object.DestroyImmediate(fresh.gameObject);
+            }
+        }
+
+        [Test]
+        public void SaveDelays_ReadTheSerializedNamesOfExistingScenes()
+        {
+            JsonUtility.FromJsonOverwrite("{\"saveDelaySeconds\":0.25,\"maxSaveDelaySeconds\":3}", presenter);
+            Assert.That(Get("saveDelaySeconds"), Is.EqualTo(0.25f));
+            Assert.That(Get("maxSaveDelaySeconds"), Is.EqualTo(3f));
+
+            // Only scene/prefab deserialization honours FormerlySerializedAs (JsonUtility ignores it), so check the attribute.
+            FormerlySerializedAsAttribute renamed = typeof(SettingsPresenter)
+                .GetField("saveDelaySeconds", BindingFlags.Instance | BindingFlags.NonPublic)
+                .GetCustomAttribute<FormerlySerializedAsAttribute>();
+            Assert.That(renamed?.oldName, Is.EqualTo("saveDelay"), "the name used during the v2.0.0 merge still loads");
+        }
+
+        private object Get(string field) =>
+            typeof(SettingsPresenter).GetField(field, BindingFlags.Instance | BindingFlags.NonPublic).GetValue(presenter);
 
         private void Call(string method, params object[] args) =>
             typeof(SettingsPresenter).GetMethod(method, BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public)
