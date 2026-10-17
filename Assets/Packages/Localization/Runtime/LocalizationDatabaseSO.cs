@@ -22,12 +22,14 @@ namespace MyToolz.Localization
         [SerializeField] private List<LocalizationLanguageSO> languages = new();
         [SerializeField] private LocalizationLanguageSO defaultLanguage;
 
-        private readonly Dictionary<string, string[]> table = new();
-        private readonly List<string> keys = new();
-        private readonly Dictionary<string, int> columnByHeader = new(StringComparer.OrdinalIgnoreCase);
-        private string[] header = Array.Empty<string>();
-        private bool parsed;
-        private bool warnedPositionalFallback;
+        // Parse cache. [NonSerialized] matters in the editor: a domain reload would otherwise restore
+        // 'parsed' (and the key list) while the table comes back empty, so every lookup misses.
+        [NonSerialized] private readonly Dictionary<string, string[]> table = new();
+        [NonSerialized] private readonly List<string> keys = new();
+        [NonSerialized] private readonly Dictionary<string, int> columnByHeader = new(StringComparer.OrdinalIgnoreCase);
+        [NonSerialized] private string[] header = Array.Empty<string>();
+        [NonSerialized] private bool parsed;
+        [NonSerialized] private bool warnedPositionalFallback;
 
         public TextAsset Csv => csv;
 

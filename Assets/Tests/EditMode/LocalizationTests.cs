@@ -17,6 +17,21 @@ namespace MyToolz.Tests.EditMode
             created.Clear();
         }
 
+        [TestCase("table")]
+        [TestCase("keys")]
+        [TestCase("columnByHeader")]
+        [TestCase("header")]
+        [TestCase("parsed")]
+        [TestCase("warnedPositionalFallback")]
+        public void ParseCache_IsNotSerialized(string fieldName)
+        {
+            // A domain reload restores serialized fields only. If 'parsed' survived while the table came back
+            // empty, every lookup would miss until the CSV was reloaded by hand.
+            FieldInfo field = typeof(LocalizationDatabaseSO).GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(field, Is.Not.Null);
+            Assert.That(field.IsNotSerialized, Is.True);
+        }
+
         [Test]
         public void Columns_AreMatchedByCode_NotByListOrder()
         {
