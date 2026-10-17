@@ -203,10 +203,36 @@ namespace MyToolz.Tests.EditMode
             var group = Group(SceneTestFactory.Data(SceneType.Gameplay, 0, "Level"));
             UnityEngine.TestTools.LogAssert.Expect(LogType.Error, new System.Text.RegularExpressions.Regex("Scene 'Level' has no asset GUID"));
 
-            SceneLoadPlan plan = SceneGroupManager.CreatePlan(group, null, false, SceneLoadSource.Addressables);
+            SceneLoadPlan plan = SceneGroupManager.CreatePlan(group, null, false, SceneLoadBackend.Addressables);
 
             Assert.AreEqual(1, plan.SkippedScenes);
             Assert.IsNull(plan.DeferredScene);
+        }
+
+        [Test]
+        public void AutoBackend_KeepsScenesWithoutGuid_ForTheBuildList()
+        {
+            SceneGroupSO group = Group(SceneTestFactory.Data(SceneType.Gameplay, 0, "Level"));
+
+            SceneLoadPlan plan = SceneGroupManager.CreatePlan(group, null, false, SceneLoadBackend.Auto);
+
+            Assert.AreEqual(0, plan.SkippedScenes, "Auto loads a scene without a GUID from the build list");
+            Assert.AreEqual("Level", plan.DeferredScene.Name);
+        }
+
+        [Test]
+        public void Backend_DefaultsToAuto()
+        {
+            Assert.AreEqual(SceneLoadBackend.Auto, new SceneGroupManager().Backend);
+        }
+
+        [Test]
+        public void Backend_ReadsTheSerializedNameAndValuesOfExistingScenes()
+        {
+            // FindMe, WhiteInBlack, CardDeckRevolution and InteriorDesigner store `backend: 0` (Auto) or `backend: 2`.
+            Assert.AreEqual(SceneLoadBackend.Auto, JsonUtility.FromJson<SceneGroupManager>("{\"backend\":0}").Backend);
+            Assert.AreEqual(SceneLoadBackend.Addressables, JsonUtility.FromJson<SceneGroupManager>("{\"backend\":1}").Backend);
+            Assert.AreEqual(SceneLoadBackend.BuildSettings, JsonUtility.FromJson<SceneGroupManager>("{\"backend\":2}").Backend);
         }
     }
 

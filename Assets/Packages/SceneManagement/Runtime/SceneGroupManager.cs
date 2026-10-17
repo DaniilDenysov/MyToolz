@@ -8,17 +8,22 @@ using MyToolz.Utilities.Debug;
 #if MYTOOLZ_ADDRESSABLES
 using UnityEngine.AddressableAssets;
 using UnityEngine.ResourceManagement.AsyncOperations;
+using UnityEngine.ResourceManagement.ResourceLocations;
 using UnityEngine.ResourceManagement.ResourceProviders;
 #endif
 
 namespace MyToolz.SceneManagement
 {
-    public enum SceneLoadSource
+    /// <summary>How a <see cref="SceneGroupManager"/> loads the scenes of a group.</summary>
+    /// <remarks>The values are serialized in scenes and prefabs: never reorder or renumber them.</remarks>
+    public enum SceneLoadBackend
     {
-        /// <summary>Scenes in the Build Profile / build list, loaded through SceneManager.</summary>
-        BuildSettings,
-        /// <summary>Addressable scenes, loaded by asset GUID. Requires com.unity.addressables.</summary>
-        Addressables
+        /// <summary>Scenes in the Addressables catalog load through Addressables; the rest from the build list.</summary>
+        Auto = 0,
+        /// <summary>Every scene loads through Addressables by asset GUID. Requires com.unity.addressables.</summary>
+        Addressables = 1,
+        /// <summary>Every scene loads from the Build Profile / build list through SceneManager.</summary>
+        BuildSettings = 2
     }
 
     /// <summary>Scenes of a group that still need loading, in batch order, with the scene whose activation is deferred.</summary>
@@ -35,8 +40,9 @@ namespace MyToolz.SceneManagement
     public class SceneGroupManager
     {
         [SerializeField] private List<string> blacklist = new();
-        [SerializeField, Tooltip("Where scenes are loaded from. Addressables needs the com.unity.addressables package and the scenes marked Addressable.")]
-        private SceneLoadSource loadSource = SceneLoadSource.BuildSettings;
+        [SerializeField, Tooltip("Where scenes are loaded from. Auto loads scenes marked Addressable through Addressables and " +
+            "every other scene from the build list. Addressables needs the com.unity.addressables package.")]
+        private SceneLoadBackend backend = SceneLoadBackend.Auto;
 
 #if MYTOOLZ_ADDRESSABLES
         // Addressable scenes this manager loaded, so they are unloaded (and their handles released)
@@ -44,10 +50,10 @@ namespace MyToolz.SceneManagement
         private readonly List<AsyncOperationHandle<SceneInstance>> addressableScenes = new();
 #endif
 
-        public SceneLoadSource LoadSource
+        public SceneLoadBackend Backend
         {
-            get => loadSource;
-            set => loadSource = value;
+            get => backend;
+            set => backend = value;
         }
 
         /// <summary>
@@ -69,7 +75,9 @@ namespace MyToolz.SceneManagement
 
             await UnloadScenes(token);
 
-            SceneLoadPlan plan = CreatePlan(sceneGroupSO, GetLoadedScenes(), reloadDupScenes, loadSource);
+            SceneLoadPlan plan = CreatePlan(sceneGroupSO, GetLoadedScenes(), reloadDupScenes, backend);
+            // Every route is decided before the first load starts, so a batch still starts its scenes together.
+            Dictionary<SceneData, bool> addressableRoutes = await ResolveRoutes(plan, token);
             int total = Mathf.Max(1, plan.TotalScenes);
             int completed = plan.SkippedScenes;
             bool success = true;
@@ -91,7 +99,7 @@ namespace MyToolz.SceneManagement
                             continue;
                         }
 
-                        PendingScene pending = StartLoad(sceneData, activateOnLoad: true);
+                        PendingScene pending = StartLoad(sceneData, addressableRoutes[sceneData], activateOnLoad: true);
                         if (!pending.IsValid)
                         {
                             success = false;
@@ -105,7 +113,7 @@ namespace MyToolz.SceneManagement
 
                     if (deferredData != null)
                     {
-                        deferred = StartLoad(deferredData, activateOnLoad: false);
+                        deferred = StartLoad(deferredData, addressableRoutes[deferredData], activateOnLoad: false);
                         if (deferred.IsValid)
                         {
                             operations.Add(deferred);
@@ -221,7 +229,7 @@ namespace MyToolz.SceneManagement
         /// known (names can collide across folders) and by name otherwise.
         /// </summary>
         public static SceneLoadPlan CreatePlan(SceneGroupSO group, IReadOnlyCollection<(string path, string name)> loadedScenes,
-            bool reloadDupScenes, SceneLoadSource source = SceneLoadSource.BuildSettings)
+            bool reloadDupScenes, SceneLoadBackend backend = SceneLoadBackend.Auto)
         {
             var plan = new SceneLoadPlan();
             var loadedPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -249,7 +257,8 @@ namespace MyToolz.SceneManagement
                         continue;
                     }
 
-                    if (source == SceneLoadSource.Addressables && string.IsNullOrEmpty(sceneData.Reference.Guid))
+                    // Auto sends a scene without a GUID to the build list; only Addressables needs one.
+                    if (backend == SceneLoadBackend.Addressables && string.IsNullOrEmpty(sceneData.Reference.Guid))
                     {
                         DebugUtility.LogError($"Scene '{sceneData.Name}' has no asset GUID. Re-save its SceneGroupSO so the SceneReference caches it.");
                         plan.SkippedScenes++;
@@ -313,10 +322,80 @@ namespace MyToolz.SceneManagement
             }
         }
 
-        private PendingScene StartLoad(SceneData sceneData, bool activateOnLoad)
+        /// <summary>For every scene of the plan: true when it loads through Addressables, false for the build list.</summary>
+        private async UniTask<Dictionary<SceneData, bool>> ResolveRoutes(SceneLoadPlan plan, CancellationToken token)
+        {
+            Dictionary<SceneData, bool> routes = new Dictionary<SceneData, bool>();
+            foreach (List<SceneData> batch in plan.Batches)
+            {
+                foreach (SceneData sceneData in batch)
+                {
+                    routes[sceneData] = await UsesAddressables(sceneData, token);
+                }
+            }
+
+            return routes;
+        }
+
+        private UniTask<bool> UsesAddressables(SceneData sceneData, CancellationToken token)
+        {
+            switch (backend)
+            {
+                case SceneLoadBackend.Addressables:
+                    return UniTask.FromResult(true);
+                case SceneLoadBackend.BuildSettings:
+                    return UniTask.FromResult(false);
+                default:
+#if MYTOOLZ_ADDRESSABLES
+                    return IsInAddressablesCatalog(sceneData.Reference.Guid, token);
+#else
+                    return UniTask.FromResult(false);
+#endif
+            }
+        }
+
+#if MYTOOLZ_ADDRESSABLES
+        private static async UniTask<bool> IsInAddressablesCatalog(string guid, CancellationToken token)
+        {
+            if (string.IsNullOrEmpty(guid))
+            {
+                return false;
+            }
+
+            AsyncOperationHandle<IList<IResourceLocation>> handle;
+            try
+            {
+                handle = Addressables.LoadResourceLocationsAsync(guid, typeof(SceneInstance));
+            }
+            catch (Exception)
+            {
+                // Addressables is not set up in this project: every scene comes from the build list.
+                return false;
+            }
+
+            try
+            {
+                while (!handle.IsDone)
+                {
+                    await UniTask.Yield(PlayerLoopTiming.Update, token);
+                }
+
+                return handle.Status == AsyncOperationStatus.Succeeded && handle.Result != null && handle.Result.Count > 0;
+            }
+            finally
+            {
+                if (handle.IsValid())
+                {
+                    Addressables.Release(handle);
+                }
+            }
+        }
+#endif
+
+        private PendingScene StartLoad(SceneData sceneData, bool addressable, bool activateOnLoad)
         {
 #if MYTOOLZ_ADDRESSABLES
-            if (loadSource == SceneLoadSource.Addressables)
+            if (addressable)
             {
                 AsyncOperationHandle<SceneInstance> handle =
                     Addressables.LoadSceneAsync(sceneData.Reference.Guid, LoadSceneMode.Additive, activateOnLoad);
@@ -324,9 +403,9 @@ namespace MyToolz.SceneManagement
                 return PendingScene.ForAddressable(sceneData, handle, this);
             }
 #else
-            if (loadSource == SceneLoadSource.Addressables)
+            if (addressable)
             {
-                DebugUtility.LogError(this, "Load Source is Addressables but the com.unity.addressables package is not installed.");
+                DebugUtility.LogError(this, "Backend is Addressables but the com.unity.addressables package is not installed.");
                 return default;
             }
 #endif
@@ -340,8 +419,9 @@ namespace MyToolz.SceneManagement
             AsyncOperation operation = SceneManager.LoadSceneAsync(key, LoadSceneMode.Additive);
             if (operation == null)
             {
-                DebugUtility.LogError(this, $"Could not load scene '{sceneData.Name}'. " +
-                    "It is not registered in the active Build Profile / build list. Check Build Profiles > Scene List.");
+                DebugUtility.LogError(this, $"Could not load scene '{sceneData.Name}'. " + (backend == SceneLoadBackend.Auto
+                    ? "It is neither Addressable nor in the active Build Profile / build list. Mark it Addressable or add it to Build Profiles > Scene List."
+                    : "It is not registered in the active Build Profile / build list. Check Build Profiles > Scene List."));
                 return default;
             }
 

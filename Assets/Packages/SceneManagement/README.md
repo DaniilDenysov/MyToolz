@@ -87,7 +87,9 @@ entry point. Players always start with the first group.
 | `Addressables` | Every scene loads through Addressables by GUID (requires "Include GUIDs in Catalog"). |
 | `BuildSettings` | Every scene loads by name from **Build Profiles > Scene List**. |
 
-A scene that is neither Addressable nor in the build list is reported up front instead of being skipped.
+With `Auto`, a scene that is neither Addressable nor in the build list fails to load and is reported (see
+Failures) instead of being skipped silently. The serialized field and its values (`Auto` = 0, `Addressables` = 1,
+`BuildSettings` = 2) are the ones scenes and prefabs saved before v2.0.0 use.
 
 ### Failures
 
