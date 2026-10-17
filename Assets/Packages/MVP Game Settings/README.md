@@ -46,6 +46,10 @@ Runtime/
 
 Create setting SO assets for each configurable option. Add `SettingsPresenter` to your scene and assign the settings list. Create matching views for each setting type in your settings UI panel.
 
+`SliderSettingView` assigns the stored value to its slider behind a guard, so showing a value never writes it back to
+the setting, and the player's first drag is kept even when the stored value already matched the slider. It switches
+`wholeNumbers` off before setting the range and value, so the value it was given is not rounded.
+
 ## Saving
 
 `SettingsPresenter` batches writes instead of saving the whole file on every change:

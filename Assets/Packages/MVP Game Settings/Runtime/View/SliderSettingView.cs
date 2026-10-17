@@ -15,7 +15,7 @@ namespace MyToolz.GameSettings
         [SerializeField] private string prefix = "Placeholder:";
         [SerializeReference] private ValueDisplayFormat valueFormat = new PercentDisplayFormat();
         [SerializeField, Required] private Slider slider;
-        private bool initialSet = true; //set value without notify doesn't update slider, so initial set is the way to bypass
+        private bool applyingExternalValue;
 
         private void Awake()
         {
@@ -55,9 +55,8 @@ namespace MyToolz.GameSettings
 
         private void OnInternalValueUpdated(float arg0)
         {
-            if (initialSet)
+            if (applyingExternalValue)
             {
-                initialSet = false;
                 return;
             }
             setting.SetCurrentValue(arg0);
@@ -71,10 +70,14 @@ namespace MyToolz.GameSettings
                 DebugUtility.LogError(this, $"Slider is missing, please assign it!");
                 return;
             }
+            // Assigning the value (rather than SetValueWithoutNotify) keeps the handle in sync; the flag stops the
+            // resulting callback from writing the same value back to the setting.
+            applyingExternalValue = true;
+            slider.wholeNumbers = false;
             slider.minValue = setting.MinValue.ToFloat();
             slider.maxValue = setting.MaxValue.ToFloat();
             slider.value = setting.CurrentValue.ToFloat();
-            slider.wholeNumbers = false;
+            applyingExternalValue = false;
             UpdateText();
         }
     }

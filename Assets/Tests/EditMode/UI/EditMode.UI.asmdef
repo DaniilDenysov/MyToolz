@@ -5,6 +5,7 @@
         "MyToolz.UIKit",
         "MyToolz.UILayoutSystem",
         "MyToolz.MVPNotifications",
+        "MyToolz.MVPGameSettings",
         "UnityEngine.UI",
         "Unity.TextMeshPro"
     ],
